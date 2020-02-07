@@ -330,7 +330,6 @@ FEProblemBase::FEProblemBase(const InputParameters & parameters)
     _u_dotdot_requested(false),
     _u_dot_old_requested(false),
     _u_dotdot_old_requested(false),
-    _solution_state(0),
     _has_mortar(false),
     _num_grid_steps(0),
     _displaced_neighbor_ref_pts("invert_elem_phys use_undisplaced_ref unset", "unset")
@@ -340,7 +339,6 @@ FEProblemBase::FEProblemBase(const InputParameters & parameters)
   _t_step = 0;
   _dt = 0;
   _dt_old = _dt;
-  _solution_state = 0;
 
   unsigned int n_threads = libMesh::n_threads();
 
@@ -604,6 +602,13 @@ FEProblemBase::initialSetup()
   // This can be used to throw errors in methods that _must_ be called at construction time.
   _started_initial_setup = true;
   setCurrentExecuteOnFlag(EXEC_INITIAL);
+
+  // Setup solution states - need at least 2 (old and older)
+  needOldSolutionState(2);
+  setupSolutionStates();
+  if (_displaced_problem)
+    _displaced_problem->setupSolutionStates();
+
   addExtraVectors();
 
   // Execute this here in case we want to print out the required derivative size in
@@ -830,7 +835,7 @@ FEProblemBase::initialSetup()
 
   if (!_app.isRecovering() && !_app.isRestarting())
   {
-    // During initial setup the solution is copied to solution_old and solution_older
+    // During initial setup the solution is copied to the older solution states (old, older, etc)
     CONSOLE_TIMED_PRINT("Copying soultions back");
     copySolutionsBackwards();
   }
@@ -6680,6 +6685,23 @@ FEProblemBase::uniformRefine()
     Adaptivity::uniformRefine(&_displaced_problem->mesh(), 1);
 
   meshChangedHelper(/*intermediate_change=*/false);
+}
+
+void
+FEProblemBase::setupSolutionStates()
+{
+  _nl->setupSolutionStates();
+  _aux->setupSolutionStates();
+}
+
+void
+FEProblemBase::needOldSolutionState(const unsigned int state)
+{
+  _nl->needOldSolutionState(state);
+  _aux->needOldSolutionState(state);
+
+  if (_displaced_problem)
+    _displaced_problem->needOldSolutionState(state);
 }
 
 void
