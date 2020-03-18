@@ -174,6 +174,7 @@ MooseMesh::MooseMesh(const InputParameters & parameters)
     _node_to_elem_map_built(false),
     _node_to_elem_ptr_map_built(false),
     _node_to_active_semilocal_elem_map_built(false),
+    _elem_point_neighbor_map_built(false),
     _patch_size(getParam<unsigned int>("patch_size")),
     _ghosting_patch_size(isParamValid("ghosting_patch_size")
                              ? getParam<unsigned int>("ghosting_patch_size")
@@ -196,6 +197,7 @@ MooseMesh::MooseMesh(const InputParameters & parameters)
     _node_to_elem_ptr_map_timer(registerTimedSection("nodeToElemPtrMap", 5)),
     _node_to_active_semilocal_elem_map_timer(
         registerTimedSection("nodeToActiveSemilocalElemMap", 5)),
+    _elem_point_neighbor_map_timer(registerTimedSection("elemPointNeighborMap", 5)),
     _get_active_local_element_range_timer(registerTimedSection("getActiveLocalElementRange", 5)),
     _get_active_node_range_timer(registerTimedSection("getActiveNodeRange", 5)),
     _get_local_node_range_timer(registerTimedSection("getLocalNodeRange", 5)),
@@ -241,6 +243,7 @@ MooseMesh::MooseMesh(const MooseMesh & other_mesh)
     _node_to_elem_map_built(false),
     _node_to_elem_ptr_map_built(false),
     _node_to_active_semilocal_elem_map_built(false),
+    _elem_point_neighbor_map_built(false),
     _patch_size(other_mesh._patch_size),
     _ghosting_patch_size(other_mesh._ghosting_patch_size),
     _max_leaf_size(other_mesh._max_leaf_size),
@@ -259,6 +262,7 @@ MooseMesh::MooseMesh(const MooseMesh & other_mesh)
     _node_to_elem_ptr_map_timer(registerTimedSection("nodeToElemPtrMap", 5)),
     _node_to_active_semilocal_elem_map_timer(
         registerTimedSection("nodeToActiveSemilocalElemMap", 5)),
+    _elem_point_neighbor_map_timer(registerTimedSection("elemPointNeighborMap", 5)),
     _get_active_local_element_range_timer(registerTimedSection("getActiveLocalElementRange", 5)),
     _get_active_node_range_timer(registerTimedSection("getActiveNodeRange", 5)),
     _get_local_node_range_timer(registerTimedSection("getLocalNodeRange", 5)),
@@ -428,13 +432,15 @@ MooseMesh::update()
   // Rebuild the boundary conditions
   buildNodeListFromSideList();
 
-  // Update the node to elem map
+  // Update the maps
   _node_to_elem_map.clear();
   _node_to_elem_map_built = false;
   _node_to_elem_ptr_map.clear();
   _node_to_elem_ptr_map_built = false;
   _node_to_active_semilocal_elem_map.clear();
   _node_to_active_semilocal_elem_map_built = false;
+  _elem_point_neighbor_map.clear();
+  _elem_point_neighbor_map_built = false;
 
   buildNodeList();
   buildBndElemList();
@@ -784,6 +790,38 @@ MooseMesh::nodeToActiveSemilocalElemMap()
   }
 
   return _node_to_active_semilocal_elem_map;
+}
+
+const std::unordered_map<dof_id_type, std::vector<const Elem *>> &
+MooseMesh::elemPointNeighborMap()
+{
+  // Do this outside of the next if statement so that the thread locks don't conflict
+  const auto & node_to_elem_map = nodeToElemPtrMap();
+
+  if (!_elem_point_neighbor_map_built) // Guard the creation with a double checked lock
+  {
+    Threads::spin_mutex::scoped_lock lock(Threads::spin_mtx);
+
+    if (!_elem_point_neighbor_map_built)
+    {
+      TIME_SECTION(_elem_point_neighbor_map_timer);
+      CONSOLE_TIMED_PRINT("Building elem to point neighbor map");
+
+      for (const auto & elem : getMesh().active_element_ptr_range())
+      {
+        auto & fill = _elem_point_neighbor_map[elem->id()];
+        for (const auto & node : elem->node_ref_range())
+          for (const auto & neighbor : node_to_elem_map.at(node.id()))
+            if (neighbor != elem && std::count(fill.begin(), fill.end(), neighbor) == 0)
+              fill.push_back(neighbor);
+      }
+
+      _elem_point_neighbor_map_built =
+          true; // MUST be set at the end for double-checked locking to work!
+    }
+  }
+
+  return _elem_point_neighbor_map;
 }
 
 ConstElemRange *

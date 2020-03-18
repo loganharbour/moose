@@ -195,6 +195,12 @@ public:
   const std::map<dof_id_type, std::vector<dof_id_type>> & nodeToActiveSemilocalElemMap();
 
   /**
+   * If not already created, creates a map from every element to all of the point neighbors for said
+   * element.
+   */
+  const std::unordered_map<dof_id_type, std::vector<const Elem *>> & elemPointNeighborMap();
+
+  /**
    * These structs are required so that the bndNodes{Begin,End} and
    * bndElems{Begin,End} functions work...
    */
@@ -996,6 +1002,10 @@ protected:
   std::map<dof_id_type, std::vector<dof_id_type>> _node_to_active_semilocal_elem_map;
   bool _node_to_active_semilocal_elem_map_built;
 
+  /// A map of all the current elements to the point neighbors that they are connected to
+  std::unordered_map<dof_id_type, std::vector<const Elem *>> _elem_point_neighbor_map;
+  bool _elem_point_neighbor_map_built;
+
   /**
    * A set of subdomain IDs currently present in the mesh. For parallel meshes, includes subdomains
    * defined on other processors as well.
@@ -1199,6 +1209,7 @@ private:
   PerfID _node_to_elem_map_timer;
   PerfID _node_to_elem_ptr_map_timer;
   PerfID _node_to_active_semilocal_elem_map_timer;
+  PerfID _elem_point_neighbor_map_timer;
   PerfID _get_active_local_element_range_timer;
   PerfID _get_active_node_range_timer;
   PerfID _get_local_node_range_timer;
