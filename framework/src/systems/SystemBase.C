@@ -586,8 +586,9 @@ SystemBase::closeTaggedVectors(const std::set<TagID> & tags)
 {
   for (auto & tag : tags)
   {
-    mooseAssert(_subproblem.vectorTagExists(tag), "Tag: " << tag << " does not exsit");
-    getVector(tag).close();
+    mooseAssert(_subproblem.vectorTagExists(tag), "Tag: " << tag << " does not exist");
+    if (!_subproblem.vectorTagReadOnly(tag))
+      getVector(tag).close();
   }
 }
 
@@ -596,8 +597,9 @@ SystemBase::zeroTaggedVectors(const std::set<TagID> & tags)
 {
   for (auto & tag : tags)
   {
-    mooseAssert(_subproblem.vectorTagExists(tag), "Tag: " << tag << " does not exsit");
-    getVector(tag).zero();
+    mooseAssert(_subproblem.vectorTagExists(tag), "Tag: " << tag << " does not exist");
+    if (!_subproblem.vectorTagReadOnly(tag))
+      getVector(tag).zero();
   }
 }
 
@@ -833,6 +835,17 @@ SystemBase::associateVectorToTag(NumericVector<Number> & vec, TagID tag)
     _tagged_vectors.resize(tag + 1);
 
   _tagged_vectors[tag] = &vec;
+}
+
+void
+SystemBase::disassociateVectorFromTag(TagID tag)
+{
+  mooseAssert(_subproblem.vectorTagExists(tag),
+              "You can't associate a tag that does not exist " << tag);
+  if (_tagged_vectors.size() < tag + 1)
+    _tagged_vectors.resize(tag + 1);
+
+  _tagged_vectors[tag] = nullptr;
 }
 
 void

@@ -67,7 +67,7 @@ SubProblem::SubProblem(const InputParameters & parameters)
 SubProblem::~SubProblem() {}
 
 TagID
-SubProblem::addVectorTag(TagName tag_name)
+SubProblem::addVectorTag(TagName tag_name, const bool read_only)
 {
   auto tag_name_upper = MooseUtils::toUpper(tag_name);
   auto existing_tag = _vector_tag_name_to_tag_id.find(tag_name_upper);
@@ -80,11 +80,16 @@ SubProblem::addVectorTag(TagName tag_name)
     _vector_tag_id_to_tag_name[tag_id] = tag_name_upper;
   }
 
-  return _vector_tag_name_to_tag_id.at(tag_name_upper);
+  const auto tag_id = _vector_tag_name_to_tag_id.at(tag_name_upper);
+
+  if (read_only)
+    registerVectorTagReadOnly(tag_id);
+
+  return tag_id;
 }
 
 bool
-SubProblem::vectorTagExists(const TagName & tag_name)
+SubProblem::vectorTagExists(const TagName & tag_name) const
 {
   auto tag_name_upper = MooseUtils::toUpper(tag_name);
 
@@ -92,7 +97,7 @@ SubProblem::vectorTagExists(const TagName & tag_name)
 }
 
 TagID
-SubProblem::getVectorTagID(const TagName & tag_name)
+SubProblem::getVectorTagID(const TagName & tag_name) const
 {
   auto tag_name_upper = MooseUtils::toUpper(tag_name);
 
@@ -107,9 +112,12 @@ SubProblem::getVectorTagID(const TagName & tag_name)
 }
 
 TagName
-SubProblem::vectorTagName(TagID tag)
+SubProblem::vectorTagName(TagID tag) const
 {
-  return _vector_tag_id_to_tag_name[tag];
+  if (!vectorTagExists(tag))
+    mooseError("Vector tag with id ", tag, " does not exist");
+
+  return _vector_tag_id_to_tag_name.at(tag);
 }
 
 TagID
@@ -127,6 +135,36 @@ SubProblem::addMatrixTag(TagName tag_name)
   }
 
   return _matrix_tag_name_to_tag_id.at(tag_name_upper);
+}
+
+void
+SubProblem::registerVectorTagReadOnly(const TagName & tag_name)
+{
+  _read_only_vector_tags.insert(getVectorTagID(tag_name));
+}
+
+void
+SubProblem::registerVectorTagReadOnly(TagID tag)
+{
+  if (!vectorTagExists(tag))
+    mooseError("Vector tag with ID ", tag, " does not exist.");
+
+  _read_only_vector_tags.insert(tag);
+}
+
+bool
+SubProblem::vectorTagReadOnly(const TagName & tag_name) const
+{
+  return _read_only_vector_tags.count(getVectorTagID(tag_name));
+}
+
+bool
+SubProblem::vectorTagReadOnly(TagID tag) const
+{
+  if (!vectorTagExists(tag))
+    mooseError("Vector tag with ID ", tag, " does not exist.");
+
+  return _read_only_vector_tags.count(tag);
 }
 
 bool

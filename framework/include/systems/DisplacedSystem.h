@@ -54,6 +54,11 @@ public:
     _undisplaced_system.associateVectorToTag(vec, tag);
   }
 
+  virtual void disassociateVectorFromTag(TagID tag) override
+  {
+    _undisplaced_system.disassociateVectorFromTag(tag);
+  }
+
   virtual void disassociateVectorFromTag(NumericVector<Number> & vec, TagID tag) override
   {
     _undisplaced_system.disassociateVectorFromTag(vec, tag);

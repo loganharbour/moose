@@ -306,25 +306,25 @@ DisplacedProblem::updateMesh(const NumericVector<Number> & soln,
 }
 
 TagID
-DisplacedProblem::addVectorTag(TagName tag_name)
+DisplacedProblem::addVectorTag(TagName tag_name, const bool read_only)
 {
-  return _mproblem.addVectorTag(tag_name);
+  return _mproblem.addVectorTag(tag_name, read_only);
 }
 
 TagID
-DisplacedProblem::getVectorTagID(const TagName & tag_name)
+DisplacedProblem::getVectorTagID(const TagName & tag_name) const
 {
   return _mproblem.getVectorTagID(tag_name);
 }
 
 TagName
-DisplacedProblem::vectorTagName(TagID tag)
+DisplacedProblem::vectorTagName(TagID tag) const
 {
   return _mproblem.vectorTagName(tag);
 }
 
 bool
-DisplacedProblem::vectorTagExists(TagID tag)
+DisplacedProblem::vectorTagExists(TagID tag) const
 {
   return _mproblem.vectorTagExists(tag);
 }
@@ -339,6 +339,30 @@ std::map<TagName, TagID> &
 DisplacedProblem::getVectorTags()
 {
   return _mproblem.getVectorTags();
+}
+
+void
+DisplacedProblem::registerVectorTagReadOnly(const TagName & tag_name)
+{
+  _mproblem.registerVectorTagReadOnly(tag_name);
+}
+
+void
+DisplacedProblem::registerVectorTagReadOnly(TagID tag)
+{
+  _mproblem.registerVectorTagReadOnly(tag);
+}
+
+bool
+DisplacedProblem::vectorTagReadOnly(const TagName & tag_name) const
+{
+  return _mproblem.vectorTagReadOnly(tag_name);
+}
+
+bool
+DisplacedProblem::vectorTagReadOnly(TagID tag) const
+{
+  return _mproblem.vectorTagReadOnly(tag);
 }
 
 TagID

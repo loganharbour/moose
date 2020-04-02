@@ -30,6 +30,14 @@ public:
 
   virtual void computeResidual() override;
 
+  /**
+   * Entry point for additional computation for the local residual after the standard calls
+   *
+   * NOTE: This is an advanced interface and in nearly all cases you should just override
+   * computeQpResidual()!
+   */
+  virtual void computeResidualAdditional() {}
+
 protected:
   /// Time derivative of u
   const VariableValue & _u_dot;
@@ -37,4 +45,3 @@ protected:
   /// Derivative of u_dot with respect to u
   const VariableValue & _du_dot_du;
 };
-
