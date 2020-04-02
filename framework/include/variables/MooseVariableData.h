@@ -334,11 +334,7 @@ public:
 
   const FieldVariableValue & uDot() const;
 
-  const FieldVariableValue & uDotResidual() const;
-
   const FieldVariableValue & uDotDot() const;
-
-  const FieldVariableValue & uDotDotResidual() const;
 
   const FieldVariableValue & uDotOld() const;
 
@@ -362,8 +358,6 @@ public:
   const MooseArray<OutputType> & nodalValueArray(Moose::SolutionState state) const;
   const OutputType & nodalValueDot() const;
   const OutputType & nodalValueDotDot() const;
-  const OutputType & nodalValueDotResidual() const;
-  const OutputType & nodalValueDotDotResidual() const;
   const OutputType & nodalValueDotOld() const;
   const OutputType & nodalValueDotDotOld() const;
   const OutputType & nodalValueDuDotDu() const;
@@ -453,13 +447,13 @@ public:
   const DoFValue & dofValuesOlder() const;
   const DoFValue & dofValuesPreviousNL() const;
   const DoFValue & dofValuesDot() const;
-  const DoFValue & dofValuesDotResidual() const;
   const DoFValue & dofValuesDotOld() const;
   const DoFValue & dofValuesDotDot() const;
-  const DoFValue & dofValuesDotDotResidual() const;
   const DoFValue & dofValuesDotDotOld() const;
   const MooseArray<Number> & dofValuesDuDotDu() const;
   const MooseArray<Number> & dofValuesDuDotDotDu() const;
+
+  const DoFValue & vectorTagDofValue(TagID tag) const;
 
   /**
    * Return the AD dof values
@@ -574,10 +568,6 @@ private:
   OutputType _nodal_value_dot;
   /// nodal values of u_dotdot
   OutputType _nodal_value_dotdot;
-  /// nodal values of u_dot_residual
-  OutputType _nodal_value_dot_residual;
-  /// nodal values of u_dotdot_residual
-  OutputType _nodal_value_dotdot_residual;
   /// nodal values of u_dot_old
   OutputType _nodal_value_dot_old;
   /// nodal values of u_dotdot_old
@@ -603,8 +593,6 @@ private:
   mutable bool _need_u_dot;
   mutable bool _need_ad_u_dot;
   mutable bool _need_u_dotdot;
-  mutable bool _need_u_dot_residual;
-  mutable bool _need_u_dotdot_residual;
   mutable bool _need_u_dot_old;
   mutable bool _need_u_dotdot_old;
   mutable bool _need_du_dot_du;
@@ -643,8 +631,6 @@ private:
   mutable bool _need_dof_values_previous_nl;
   mutable bool _need_dof_values_dot;
   mutable bool _need_dof_values_dotdot;
-  mutable bool _need_dof_values_dot_residual;
-  mutable bool _need_dof_values_dotdot_residual;
   mutable bool _need_dof_values_dot_old;
   mutable bool _need_dof_values_dotdot_old;
   mutable bool _need_dof_du_dot_du;
@@ -663,10 +649,6 @@ private:
   DoFValue _dof_values_dot;
   /// nodal values of u_dotdot
   DoFValue _dof_values_dotdot;
-  /// nodal values of u_dot_residual
-  DoFValue _dof_values_dot_residual;
-  /// nodal values of u_dotdot_residual
-  DoFValue _dof_values_dotdot_residual;
   /// nodal values of u_dot_old
   DoFValue _dof_values_dot_old;
   /// nodal values of u_dotdot_old
@@ -718,12 +700,6 @@ private:
 
   /// u_dotdot (second time derivative)
   FieldVariableValue _u_dotdot, _u_dotdot_bak;
-
-  /// u_dot_residual (residual corresponding to first time derivative)
-  FieldVariableValue _u_dot_residual, _u_dot_residual_bak;
-
-  /// u_dotdot_residual (residual corresponding to second time derivative)
-  FieldVariableValue _u_dotdot_residual, _u_dotdot_residual_bak;
 
   /// u_dot_old (time derivative)
   FieldVariableValue _u_dot_old, _u_dot_old_bak;

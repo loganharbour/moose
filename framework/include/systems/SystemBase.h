@@ -305,7 +305,13 @@ public:
   virtual void associateVectorToTag(NumericVector<Number> & vec, TagID tag);
 
   /**
-   * Associate a vector for a given tag
+   * Disassociate the vector associated with a given tag
+   */
+  virtual void disassociateVectorFromTag(TagID tag);
+
+  /**
+   * Disassociate the vector associated with a given tag
+   * Has additional error checking for which vector is assocaited with said tag
    */
   virtual void disassociateVectorFromTag(NumericVector<Number> & vec, TagID tag);
 

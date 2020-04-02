@@ -99,6 +99,8 @@ Kernel::computeResidual()
     for (_qp = 0; _qp < _qrule->n_points(); _qp++)
       _local_re(_i) += _JxW[_qp] * _coord[_qp] * computeQpResidual();
 
+  computeAdditionalResidual();
+
   accumulateTaggedLocalResidual();
 
   if (_has_save_in)

@@ -126,20 +126,6 @@ public:
   virtual unsigned int getNumLinearIterations() const { return _n_linear_iterations; }
 
   /**
-   * Returns the residual corresponding to the second time derivative
-   * Same as the second time derivative by default.
-   * Different from the second time derivative for explicit solvers.
-   */
-  virtual NumericVector<Number> & uDotDotResidual() const;
-
-  /**
-   * Returns the residual corresponding to the time derivative
-   * Same as the time derivative by default.
-   * Different from the time derivative for explicit solvers.
-   */
-  virtual NumericVector<Number> & uDotResidual() const;
-
-  /**
    * Returns whether the explicit solvers are used
    */
   virtual const bool & isExplicit() const { return _is_explicit; }
@@ -148,6 +134,15 @@ public:
    * Returns whether mass matrix is lumped
    */
   virtual const bool & isLumped() const { return _is_lumped; }
+
+  /**
+   * Returns the nodal multiplication factor for the residual calculation of the udot term.
+   */
+  TagID uDotFactorTag() const { return _u_dot_factor_tag; }
+  /**
+   * Returns the nodal multiplication factor for the residual calculation of the udotdot term.
+   */
+  TagID uDotDotFactorTag() const { return _u_dotdot_factor_tag; }
 
 protected:
   /**
@@ -195,4 +190,7 @@ protected:
 
   /// Boolean flag that is set to true if lumped mass matrix is used
   bool _is_lumped;
+
+  const TagID _u_dot_factor_tag;
+  const TagID _u_dotdot_factor_tag;
 };

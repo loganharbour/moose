@@ -2991,7 +2991,7 @@ Assembly::cacheResidual()
   for (const auto & var : vars)
   {
     for (MooseIndex(_cached_residual_values) tag = 0; tag < _cached_residual_values.size(); tag++)
-      if (_sys.hasVector(tag))
+      if (_sys.hasVector(tag) && !_subproblem.vectorTagReadOnly(tag))
         cacheResidualBlock(_cached_residual_values[tag],
                            _cached_residual_rows[tag],
                            _sub_Re[tag][var->number()],

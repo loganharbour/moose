@@ -64,6 +64,14 @@ protected:
   virtual Real computeQpOffDiagJacobian(unsigned int /*jvar*/) { return 0; }
 
   /**
+   * Entry point for additional contribution to the local residual
+   *
+   * NOTE: This is an advanced interface and in nearly all cases you should just override
+   * computeQpResidual()!
+   */
+  virtual void computeAdditionalResidual() {}
+
+  /**
    * For coupling array variables
    */
   virtual RealEigenVector computeQpOffDiagJacobianArray(ArrayMooseVariable & jvar)

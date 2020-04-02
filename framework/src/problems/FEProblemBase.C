@@ -5047,7 +5047,8 @@ FEProblemBase::computeResidual(const NumericVector<Number> & soln, NumericVector
   _fe_vector_tags.clear();
 
   for (auto & tag : tags)
-    _fe_vector_tags.insert(tag.second);
+    if (!vectorTagReadOnly(tag.second))
+      _fe_vector_tags.insert(tag.second);
 
   computeResidualInternal(soln, residual, _fe_vector_tags);
 }

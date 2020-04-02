@@ -68,4 +68,3 @@ BDF2::computeTimeDerivativeHelper(T & u_dot,
     u_dot *= 1. / _dt;
   }
 }
-

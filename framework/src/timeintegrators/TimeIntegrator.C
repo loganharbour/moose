@@ -44,7 +44,9 @@ TimeIntegrator::TimeIntegrator(const InputParameters & parameters)
     _n_nonlinear_iterations(0),
     _n_linear_iterations(0),
     _is_explicit(false),
-    _is_lumped(false)
+    _is_lumped(false),
+    _u_dot_factor_tag(_fe_problem.addVectorTag("u_dot_factor", /* read_only = */ true)),
+    _u_dotdot_factor_tag(_fe_problem.addVectorTag("u_dotdot_factor", /* read_only = */ true))
 {
   _fe_problem.setUDotRequested(true);
 }
@@ -71,24 +73,4 @@ TimeIntegrator::getNumLinearIterationsLastSolve() const
       static_cast<NonlinearSolver<Real> &>(*_nonlinear_implicit_system->nonlinear_solver);
 
   return nonlinear_solver.get_total_linear_iterations();
-}
-
-NumericVector<Number> &
-TimeIntegrator::uDotResidual() const
-{
-  if (!_sys.solutionUDot())
-    mooseError("TimeIntegrator: Time derivative of solution (`u_dot`) is not stored. Please set "
-               "uDotRequested() to true in FEProblemBase befor requesting `u_dot`.");
-
-  return *_sys.solutionUDot();
-}
-
-NumericVector<Number> &
-TimeIntegrator::uDotDotResidual() const
-{
-  if (!_sys.solutionUDotDot())
-    mooseError("TimeIntegrator: Time derivative of solution (`u_dotdot`) is not stored. Please set "
-               "uDotDotRequested() to true in FEProblemBase befor requesting `u_dotdot`.");
-
-  return *_sys.solutionUDotDot();
 }

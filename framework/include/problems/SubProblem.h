@@ -93,18 +93,20 @@ public:
    * Note: If the tag is already present then this will simply return the TagID of that Tag
    *
    * @param tag_name The name of the tag to create, the TagID will get automatically generated
+   * @param read_only Whether or not the tag is be read only by the residual/Jacobian systems
+   * (setting this true is an advanced interface - it should usually base false!)
    */
-  virtual TagID addVectorTag(TagName tag_name);
+  virtual TagID addVectorTag(TagName tag_name, const bool read_only = false);
 
   /**
    * Get a TagID from a TagName.
    */
-  virtual TagID getVectorTagID(const TagName & tag_name);
+  virtual TagID getVectorTagID(const TagName & tag_name) const;
 
   /**
    * Retrieve the name associated with a TagID
    */
-  virtual TagName vectorTagName(TagID tag);
+  virtual TagName vectorTagName(TagID tag) const;
 
   /**
    * Return all vector tags, where a tag is represented by a map from name to ID
@@ -114,17 +116,46 @@ public:
   /**
    * Check to see if a particular Tag exists
    */
-  virtual bool vectorTagExists(TagID tag) { return tag < _vector_tag_name_to_tag_id.size(); }
+  virtual bool vectorTagExists(TagID tag) const { return tag < _vector_tag_name_to_tag_id.size(); }
 
   /**
    * Check to see if a particular Tag exists by using Tag name
    */
-  bool vectorTagExists(const TagName & tag_name);
+  bool vectorTagExists(const TagName & tag_name) const;
 
   /**
    * The total number of tags
    */
   virtual unsigned int numVectorTags() const { return _vector_tag_name_to_tag_id.size(); }
+
+  /**
+   * Register a vector tag as read only to the system
+   *
+   * This an advanced interface that requires the user to fill/zero/change the underlying vector
+   * manually.
+   */
+  virtual void registerVectorTagReadOnly(const TagName & tag_name);
+  /**
+   * Register a vector tag as read only to the system
+   *
+   * This an advanced interface that requires the user to fill/zero/change the underlying vector
+   * manually.
+   */
+  virtual void registerVectorTagReadOnly(TagID tag);
+
+  /**
+   * Whether or not a vector tag is a registered as read only
+   */
+  virtual bool vectorTagReadOnly(const TagName & tag_name) const;
+  /**
+   * Whether or not a vector tag is a registered as read only
+   */
+  virtual bool vectorTagReadOnly(TagID tag) const;
+
+  /**
+   * Whether or not the problem has tagged vectors that are read only
+   */
+  virtual bool hasReadOnlyVectorTags() const { return !_read_only_vector_tags.empty(); }
 
   /**
    * Create a Tag.  Tags can be associated with Vectors and Matrices and allow objects
@@ -695,6 +726,9 @@ protected:
 
   /// Reverse map
   std::map<TagID, TagName> _vector_tag_id_to_tag_name;
+
+  /// The read-only vector tags
+  std::set<TagID> _read_only_vector_tags;
 
   /// The currently declared tags
   std::map<TagName, TagID> _matrix_tag_name_to_tag_id;
