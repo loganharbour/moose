@@ -1,0 +1,49 @@
+//* This file is part of the MOOSE framework
+//* https://www.mooseframework.org
+//*
+//* All rights reserved, see COPYRIGHT for full restrictions
+//* https://github.com/idaholab/moose/blob/master/COPYRIGHT
+//*
+//* Licensed under LGPL 2.1, please see LICENSE for details
+//* https://www.gnu.org/licenses/lgpl-2.1.html
+
+#include "ViewFactorRayBC.h"
+
+#include "RayTracingStudy.h"
+
+registerMooseObject("RayTracingApp", ViewFactorRayBC);
+
+InputParameters
+ViewFactorRayBC::validParams()
+{
+  return RayBC::validParams();
+}
+
+ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
+  : RayBC(params),
+    _ray_index_dot(_study.getRayAuxDataIndex("dot")),
+    _ray_index_bnd_id(_study.getRayAuxDataIndex("bnd_id"))
+{
+}
+
+void
+ViewFactorRayBC::apply(const Elem * /* elem */,
+                       const unsigned short /* intersected_side */,
+                       const BoundaryID bnd_id,
+                       const Point & intersection_point,
+                       const std::shared_ptr<Ray> & ray)
+{
+  const Real dot = ray->auxData(_ray_index_dot);
+  const BoundaryID start_bnd_id = ray->auxData(_ray_index_bnd_id);
+
+  // If we're at the right end point, we made it
+  if (intersection_point.absolute_fuzzy_equals(ray->end()))
+  {
+    std::cerr << "at end from bnd " << start_bnd_id << " to bid " << bnd_id;
+    std::cerr << ": dot = " << dot;
+    std::cerr << ", distance = " << ray->distance() << std::endl;
+  }
+
+  // Die regardless
+  ray->setShouldContinue(false);
+}
