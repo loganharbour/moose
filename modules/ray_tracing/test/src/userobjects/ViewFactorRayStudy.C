@@ -36,6 +36,7 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _bnd_ids(_mesh.getBoundaryIDs(getParam<std::vector<BoundaryName>>("boundary"))),
     _ray_index_dot(registerRayAuxData("dot")),
     _ray_index_bnd_id(registerRayAuxData("bnd_id")),
+    _ray_index_weight(registerRayAuxData("weight")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(FIRST, LAGRANGE))),
     _q_face(QBase::build(QGAUSS, _mesh.dimension() - 1, FIRST))
 {
@@ -176,6 +177,7 @@ ViewFactorRayStudy::defineRays()
         const auto start_elem = std::get<1>(start_point_tup);
         const auto incoming_side = std::get<2>(start_point_tup);
         const auto normal = sideNormal(start_elem, incoming_side);
+        const auto weight = start_elem->side_ptr(incoming_side)->volume();
 
         // ...and all end points on said boundary
         for (const auto & end_point : _end_points[end_bnd_id_index])
@@ -184,7 +186,8 @@ ViewFactorRayStudy::defineRays()
           if (start_bnd_id == end_bnd_id && start_point.absolute_fuzzy_equals(end_point))
             continue;
 
-          defineRay(start_elem, start_point, end_point, normal, incoming_side, start_bnd_id);
+          defineRay(
+              start_elem, start_point, end_point, normal, incoming_side, start_bnd_id, weight);
         }
       }
     }
@@ -204,7 +207,8 @@ ViewFactorRayStudy::defineRay(const Elem * starting_elem,
                               const Point & end_point,
                               const Point & normal,
                               const unsigned short side,
-                              const BoundaryID bnd_id)
+                              const BoundaryID bnd_id,
+                              const Real weight)
 {
   std::shared_ptr<Ray> ray = _ray_pool.acquire();
   _working_buffer->push_back(ray);
@@ -221,6 +225,7 @@ ViewFactorRayStudy::defineRay(const Elem * starting_elem,
   ray->auxData().resize(rayAuxDataSize());
   ray->setAuxData(_ray_index_dot, -normal * direction);
   ray->setAuxData(_ray_index_bnd_id, bnd_id);
+  ray->setAuxData(_ray_index_weight, weight);
 }
 
 void
