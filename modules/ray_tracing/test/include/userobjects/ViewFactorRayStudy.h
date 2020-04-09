@@ -28,7 +28,8 @@ protected:
                  const Point & end_point,
                  const Point & normal,
                  const unsigned short side,
-                 const BoundaryID bnd_id);
+                 const BoundaryID bnd_id,
+                 const Real weight);
 
   Point sideNormal(const Elem * elem, const unsigned short side);
 
@@ -39,6 +40,8 @@ protected:
   const unsigned int _ray_index_dot;
   /// Index in the Ray aux data for the starting boundary ID
   const unsigned int _ray_index_bnd_id;
+  /// Index in the Ray aux data for the starting weight
+  const unsigned int _ray_index_weight;
 
   /// Face FE used for creating face normals
   std::unique_ptr<FEBase> _fe_face;
