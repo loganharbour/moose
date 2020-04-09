@@ -18,6 +18,24 @@ public:
 
   static InputParameters validParams();
 
+  struct StartElem
+  {
+    StartElem(const Elem * elem,
+              const unsigned short side,
+              const Point & normal,
+              const std::vector<Point> & points,
+              const std::vector<Real> & weights)
+      : _elem(elem), _side(side), _normal(normal), _points(points), _weights(weights)
+    {
+    }
+
+    const Elem * _elem;
+    const unsigned short int _side;
+    const Point _normal;
+    const std::vector<Point> _points;
+    const std::vector<Real> _weights;
+  };
+
 protected:
   virtual void generateRays() override;
   virtual void generatePoints();
@@ -29,19 +47,20 @@ protected:
                  const Point & normal,
                  const unsigned short side,
                  const BoundaryID bnd_id,
-                 const Real weight);
-
-  Point sideNormal(const Elem * elem, const unsigned short side);
+                 const Real start_weight,
+                 const Real end_weight);
 
   /// The user supplied boundary IDs we need view factors on
   const std::vector<BoundaryID> _bnd_ids;
 
   /// Index in the Ray aux data for the starting dot product
-  const unsigned int _ray_index_dot;
+  const unsigned int _ray_index_start_dot;
   /// Index in the Ray aux data for the starting boundary ID
-  const unsigned int _ray_index_bnd_id;
+  const unsigned int _ray_index_start_bnd_id;
   /// Index in the Ray aux data for the starting weight
-  const unsigned int _ray_index_weight;
+  const unsigned int _ray_index_start_weight;
+  /// Index in the Ray aux data for the ending weight
+  const unsigned int _ray_index_end_weight;
 
   /// Face FE used for creating face normals
   std::unique_ptr<FEBase> _fe_face;
@@ -49,9 +68,9 @@ protected:
   std::unique_ptr<QBase> _q_face;
 
   /// The objects that this proc needs to spawn Rays from (indexed by _bnd_ids)
-  std::vector<std::vector<std::tuple<Point, const Elem *, unsigned short>>> _start_points;
-  /// The objects that this proc needs to spawn Rays to (indexed by _bnd_ids)
-  std::vector<std::vector<Point>> _end_points;
+  std::vector<std::vector<StartElem>> _start_info;
+  /// The objects (point and weight) that this proc needs to spawn Rays to (indexed by _bnd_ids)
+  std::vector<std::vector<std::pair<Point, Real>>> _end_points;
 
   /// The next available ID to assign to a Ray in defineRay()
   dof_id_type _next_id;

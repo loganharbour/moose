@@ -28,28 +28,35 @@ ViewFactorRayStudy::validParams()
   params.addRequiredParam<std::vector<BoundaryName>>(
       "boundary", "The list of boundary IDs from the mesh where this boundary condition applies");
 
+  MooseEnum qorders("CONSTANT FIRST SECOND", "CONSTANT");
+  params.addParam<MooseEnum>("face_order", qorders, "The face quadrature rule order");
+
   return params;
 }
 
 ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
   : RayTracingStudy(parameters),
     _bnd_ids(_mesh.getBoundaryIDs(getParam<std::vector<BoundaryName>>("boundary"))),
-    _ray_index_dot(registerRayAuxData("dot")),
-    _ray_index_bnd_id(registerRayAuxData("bnd_id")),
-    _ray_index_weight(registerRayAuxData("weight")),
+    _ray_index_start_dot(registerRayAuxData("start_dot")),
+    _ray_index_start_bnd_id(registerRayAuxData("start_bnd_id")),
+    _ray_index_start_weight(registerRayAuxData("start_weight")),
+    _ray_index_end_weight(registerRayAuxData("end_weight")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(FIRST, LAGRANGE))),
-    _q_face(QBase::build(QGAUSS, _mesh.dimension() - 1, FIRST))
+    _q_face(QBase::build(QGAUSS,
+                         _mesh.dimension() - 1,
+                         Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order"))))
 {
   _use_ray_registration = false;
 
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_normals();
+  _fe_face->get_xyz();
 }
 
 void
 ViewFactorRayStudy::generatePoints()
 {
-  _start_points.resize(_bnd_ids.size());
+  _start_info.resize(_bnd_ids.size());
   _end_points.resize(_bnd_ids.size());
 
   // Get all possible centroids on the user defined boundaries on this proc
@@ -71,8 +78,12 @@ ViewFactorRayStudy::generatePoints()
     // The location in the _bnd_ids vector that bnd_id is
     const auto bnd_id_index = find_it - _bnd_ids.begin();
 
-    const auto centroid = elem->side_ptr(side)->centroid();
-    _start_points[bnd_id_index].emplace_back(centroid, elem, side);
+    // Reinit this face
+    _fe_face->reinit(elem, side);
+
+    // Add to the starting info
+    _start_info[bnd_id_index].emplace_back(
+        elem, side, _fe_face->get_normals()[0], _fe_face->get_xyz(), _fe_face->get_JxW());
   }
 
   // The processors that have elements on each boundary (indexed by indexing in _bnd_ids)
@@ -85,7 +96,7 @@ ViewFactorRayStudy::generatePoints()
     have.clear();
 
     // If we have this boundary, fill our entry with our pid
-    if (!_start_points[bnd_id_index].empty())
+    if (!_start_info[bnd_id_index].empty())
       have.push_back(_pid);
     // And if we don't fill with an invalid pid
     else
@@ -98,16 +109,17 @@ ViewFactorRayStudy::generatePoints()
         bnd_id_procs[bnd_id_index].push_back(pid);
   }
 
-  // Fill who we need to send points to
-  std::unordered_map<processor_id_type, std::vector<std::pair<unsigned int, Point>>> send_pairs;
+  // Fill who we need to send points (boundary ID, point, and weight) to
+  std::unordered_map<processor_id_type, std::vector<std::tuple<unsigned int, Point, Real>>>
+      send_tuples;
   for (unsigned int my_bnd_id_index = 0; my_bnd_id_index < _bnd_ids.size(); ++my_bnd_id_index)
   {
     // No points to send
-    if (_start_points[my_bnd_id_index].empty())
+    if (_start_info[my_bnd_id_index].empty())
       continue;
 
     const auto my_bnd_id = _bnd_ids[my_bnd_id_index];
-    const auto & my_point_tups = _start_points[my_bnd_id_index];
+    const auto & start_elems = _start_info[my_bnd_id_index];
 
     // Find procs that we need to send these boundary points to
     std::set<processor_id_type> send_to;
@@ -122,25 +134,28 @@ ViewFactorRayStudy::generatePoints()
     // Fill to send for each of these procs
     for (const auto & to_pid : send_to)
     {
-      auto & send_entry = send_pairs[to_pid];
-      send_entry.reserve(send_entry.size() + my_point_tups.size());
-      for (const auto & my_point_tup : my_point_tups)
-        send_entry.emplace_back(my_bnd_id_index, std::get<0>(my_point_tup));
+      auto & send_entry = send_tuples[to_pid];
+      send_entry.reserve(send_entry.size() + start_elems.size());
+      for (const auto & start_elem : start_elems)
+        for (unsigned int i = 0; i < start_elem._points.size(); ++i)
+          send_entry.emplace_back(my_bnd_id_index, start_elem._points[i], start_elem._weights[i]);
     }
   }
 
   // And send those points
   _end_points.clear();
-  auto receive_points_functor = [this](processor_id_type /* pid */,
-                                       const std::vector<std::pair<unsigned int, Point>> & pairs) {
-    for (const auto & pair : pairs)
-    {
-      const auto bnd_id_index = pair.first;
-      const auto & point = pair.second;
-      _end_points[bnd_id_index].push_back(point);
-    }
-  };
-  Parallel::push_parallel_vector_data(_comm, send_pairs, receive_points_functor);
+  auto receive_points_functor =
+      [this](processor_id_type /* pid */,
+             const std::vector<std::tuple<unsigned int, Point, Real>> & tuples) {
+        for (const auto & tuple : tuples)
+        {
+          const auto bnd_id_index = std::get<0>(tuple);
+          const auto & point = std::get<1>(tuple);
+          const auto weight = std::get<2>(tuple);
+          _end_points[bnd_id_index].emplace_back(point, weight);
+        }
+      };
+  Parallel::push_parallel_vector_data(_comm, send_tuples, receive_points_functor);
 }
 
 void
@@ -156,7 +171,7 @@ ViewFactorRayStudy::defineRays()
        ++start_bnd_id_index)
   {
     // Don't have any start points on this bounary
-    if (_start_points[start_bnd_id_index].empty())
+    if (_start_info[start_bnd_id_index].empty())
       continue;
 
     const auto start_bnd_id = _bnd_ids[start_bnd_id_index];
@@ -170,35 +185,38 @@ ViewFactorRayStudy::defineRays()
       if (start_bnd_id > end_bnd_id)
         continue;
 
-      // Loop through all start points on said boundary
-      for (const auto & start_point_tup : _start_points[start_bnd_id_index])
+      // Loop through all elems on said boundary
+      for (const auto & start_elem : _start_info[start_bnd_id_index])
       {
-        const auto start_point = std::get<0>(start_point_tup);
-        const auto start_elem = std::get<1>(start_point_tup);
-        const auto incoming_side = std::get<2>(start_point_tup);
-        const auto normal = sideNormal(start_elem, incoming_side);
-        const auto weight = start_elem->side_ptr(incoming_side)->volume();
+        const auto elem = start_elem._elem;
+        const auto side = start_elem._side;
+        const auto normal = start_elem._normal;
+        const auto & points = start_elem._points;
+        const auto & weights = start_elem._weights;
 
-        // ...and all end points on said boundary
-        for (const auto & end_point : _end_points[end_bnd_id_index])
+        // Loop over all start points associated with this boundary
+        for (unsigned int i = 0; i < points.size(); ++i)
         {
-          // Don't spawn when start == end
-          if (start_bnd_id == end_bnd_id && start_point.absolute_fuzzy_equals(end_point))
-            continue;
+          const auto start_point = points[i];
+          const auto start_weight = weights[i];
 
-          defineRay(
-              start_elem, start_point, end_point, normal, incoming_side, start_bnd_id, weight);
+          // And spawn from the start point to all of the end points
+          for (const auto & end_point_pair : _end_points[end_bnd_id_index])
+          {
+            const auto end_point = end_point_pair.first;
+            const auto end_weight = end_point_pair.second;
+
+            // Don't spawn when start == end
+            if (start_bnd_id == end_bnd_id && start_point.absolute_fuzzy_equals(end_point))
+              continue;
+
+            defineRay(
+                elem, start_point, end_point, normal, side, start_bnd_id, start_weight, end_weight);
+          }
         }
       }
     }
   }
-}
-
-Point
-ViewFactorRayStudy::sideNormal(const Elem * elem, const unsigned short side)
-{
-  _fe_face->reinit(elem, side);
-  return _fe_face->get_normals()[0];
 }
 
 void
@@ -208,7 +226,8 @@ ViewFactorRayStudy::defineRay(const Elem * starting_elem,
                               const Point & normal,
                               const unsigned short side,
                               const BoundaryID bnd_id,
-                              const Real weight)
+                              const Real start_weight,
+                              const Real end_weight)
 {
   std::shared_ptr<Ray> ray = _ray_pool.acquire();
   _working_buffer->push_back(ray);
@@ -223,9 +242,10 @@ ViewFactorRayStudy::defineRay(const Elem * starting_elem,
   ray->setDirection(direction);
 
   ray->auxData().resize(rayAuxDataSize());
-  ray->setAuxData(_ray_index_dot, -normal * direction);
-  ray->setAuxData(_ray_index_bnd_id, bnd_id);
-  ray->setAuxData(_ray_index_weight, weight);
+  ray->setAuxData(_ray_index_start_dot, -normal * direction);
+  ray->setAuxData(_ray_index_start_bnd_id, bnd_id);
+  ray->setAuxData(_ray_index_start_weight, start_weight);
+  ray->setAuxData(_ray_index_end_weight, end_weight);
 }
 
 void
