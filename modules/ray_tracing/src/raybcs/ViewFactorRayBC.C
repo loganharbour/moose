@@ -21,9 +21,10 @@ ViewFactorRayBC::validParams()
 
 ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
   : RayBC(params),
-    _ray_index_dot(_study.getRayAuxDataIndex("dot")),
-    _ray_index_bnd_id(_study.getRayAuxDataIndex("bnd_id")),
-    _ray_index_weight(_study.getRayAuxDataIndex("weight"))
+    _ray_index_start_dot(_study.getRayAuxDataIndex("start_dot")),
+    _ray_index_start_bnd_id(_study.getRayAuxDataIndex("start_bnd_id")),
+    _ray_index_start_weight(_study.getRayAuxDataIndex("start_weight")),
+    _ray_index_end_weight(_study.getRayAuxDataIndex("end_weight"))
 {
 }
 
@@ -34,9 +35,10 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
                        const Point & intersection_point,
                        const std::shared_ptr<Ray> & ray)
 {
-  const Real dot = ray->auxData(_ray_index_dot);
-  const BoundaryID start_bnd_id = ray->auxData(_ray_index_bnd_id);
-  const Real start_weight = ray->auxData(_ray_index_weight);
+  const Real dot = ray->auxData(_ray_index_start_dot);
+  const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
+  const Real start_weight = ray->auxData(_ray_index_start_weight);
+  const Real end_weight = ray->auxData(_ray_index_end_weight);
 
   // If we're at the right end point, we made it
   if (intersection_point.absolute_fuzzy_equals(ray->end()))

@@ -25,7 +25,8 @@ public:
                      const std::shared_ptr<Ray> & ray) override;
 
 protected:
-  const unsigned int _ray_index_dot;
-  const unsigned int _ray_index_bnd_id;
-  const unsigned int _ray_index_weight;
+  const unsigned int _ray_index_start_dot;
+  const unsigned int _ray_index_start_bnd_id;
+  const unsigned int _ray_index_start_weight;
+  const unsigned int _ray_index_end_weight;
 };
