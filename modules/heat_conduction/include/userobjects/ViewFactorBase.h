@@ -33,13 +33,16 @@ public:
 protected:
   virtual void threadJoin(const UserObject & y) override final;
 
+  /// helper function to get the index from the boundary name
+  unsigned int getSideNameIndex(std::string name) const;
+
   /// this function checks & normalizes view factors to sum to one, this is not always
   void checkAndNormalizeViewFactor();
 
   /// a purely virtural function called in finalize, must be overriden by derived class
   virtual void finalizeViewFactor() = 0;
 
-  /// a purely virtural function called in finalize, must be overriden by derived class
+  /// a purely virtual function called in finalize, must be overriden by derived class
   virtual void threadJoinViewFactor(const UserObject & y) = 0;
 
   /// number of boundaries of this side uo
