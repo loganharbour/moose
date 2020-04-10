@@ -1,0 +1,8 @@
+[Tests]
+  [./view_factor_2D_quad]
+    type = 'CSVDiff'
+    input = 'view_factor_2D_quad.i'
+    csvdiff = 'view_factor_2D_quad_out.csv'
+    allow_test_objects = true
+  []
+[]
