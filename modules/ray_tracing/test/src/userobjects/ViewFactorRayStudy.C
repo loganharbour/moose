@@ -44,13 +44,82 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _fe_face(FEBase::build(_mesh.dimension(), FEType(FIRST, LAGRANGE))),
     _q_face(QBase::build(QGAUSS,
                          _mesh.dimension() - 1,
-                         Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order"))))
+                         Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
+    _vf_info(libMesh::n_threads())
 {
   _use_ray_registration = false;
 
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_normals();
   _fe_face->get_xyz();
+}
+
+void
+ViewFactorRayStudy::initialize()
+{
+  for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
+    _vf_info[tid].clear();
+}
+
+Real &
+ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid)
+{
+  // linear search
+  auto & vf = _vf_info[tid];
+  for (unsigned int j = 0; j < vf.size(); ++j)
+    if (vf[j].from_bnd_id == from_id && vf[j].to_bnd_id == to_id)
+      return vf[j].view_factor;
+
+  // no suitable entry was found so create one
+  vf.push_back(ViewFactorEntry(from_id, to_id));
+  return vf.back().view_factor;
+}
+
+Real
+ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id) const
+{
+  // linear search
+  auto & vf = _vf_info[0];
+  for (unsigned int j = 0; j < vf.size(); ++j)
+    if (vf[j].from_bnd_id == from_id && vf[j].to_bnd_id == to_id)
+      return vf[j].view_factor;
+
+  for (unsigned int j = 0; j < vf.size(); ++j)
+    std::cout << vf[j].from_bnd_id << " " << vf[j].to_bnd_id << std::endl;
+
+  mooseError("From boundary id ", from_id, " to boundary_id ", to_id, " not found.");
+}
+
+void
+ViewFactorRayStudy::finalize()
+{
+  // accumulation of _vf_info for all threads into copy 0
+  /*
+    for (THREAD_ID tid = 1; tid < libMesh::n_threads(); ++tid)
+    {
+      for (auto & p : _vf_info[tid])
+        for (auto & pp : p.second)
+          _vf_info[0][p.first][pp.first] += pp.second;
+    }
+  */
+  // now accumulate over all processors
+
+  // now apply reciprocity
+  auto & vf = _vf_info[0];
+  unsigned int size = vf.size();
+  for (unsigned int j = 0; j < size; ++j)
+  {
+    BoundaryID from = vf[j].from_bnd_id;
+    BoundaryID to = vf[j].to_bnd_id;
+    Real v = vf[j].view_factor;
+
+    if (from > to)
+      mooseError(
+          "This should never happen, from boundary id can never be larger than to boundary id.");
+
+    // add in to -> from entry
+    vf.push_back(ViewFactorEntry(to, from, v));
+  }
 }
 
 void
@@ -242,7 +311,9 @@ ViewFactorRayStudy::defineRay(const Elem * starting_elem,
   ray->setDirection(direction);
 
   ray->auxData().resize(rayAuxDataSize());
-  ray->setAuxData(_ray_index_start_dot, -normal * direction);
+  // For computing the dot product, inward normals are assumed. We just
+  // use the absolute value and don't have to worry about it
+  ray->setAuxData(_ray_index_start_dot, std::abs(normal * direction));
   ray->setAuxData(_ray_index_start_bnd_id, bnd_id);
   ray->setAuxData(_ray_index_start_weight, start_weight);
   ray->setAuxData(_ray_index_end_weight, end_weight);

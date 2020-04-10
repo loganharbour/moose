@@ -17,6 +17,8 @@ public:
   ViewFactorRayStudy(const InputParameters & parameters);
 
   static InputParameters validParams();
+  virtual void initialize() override;
+  virtual void finalize() override;
 
   struct StartElem
   {
@@ -35,6 +37,29 @@ public:
     const std::vector<Point> _points;
     const std::vector<Real> _weights;
   };
+
+  struct ViewFactorEntry
+  {
+    ViewFactorEntry(BoundaryID from, BoundaryID to)
+    : from_bnd_id(from), to_bnd_id(to), view_factor(0)
+    {
+    }
+
+    ViewFactorEntry(BoundaryID from, BoundaryID to, Real v)
+    : from_bnd_id(from), to_bnd_id(to), view_factor(v)
+    {
+    }
+
+    BoundaryID from_bnd_id;
+    BoundaryID to_bnd_id;
+    Real view_factor;
+  };
+
+  // returns a writeable reference to _vf_info pair from_bnd_id -> to_bnd_id
+  Real & viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid);
+
+  // const accessor into view factor info
+  Real viewFactorInfo(BoundaryID from_id, BoundaryID to_id) const;
 
 protected:
   virtual void generateRays() override;
@@ -74,4 +99,7 @@ protected:
 
   /// The next available ID to assign to a Ray in defineRay()
   dof_id_type _next_id;
+
+  /// view factor information by tid and then from/to pair
+  std::vector<std::vector<ViewFactorEntry>> _vf_info;
 };

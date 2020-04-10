@@ -46,6 +46,15 @@ ViewFactorBase::ViewFactorBase(const InputParameters & parameters)
     _side_name_index[boundary_names[j]] = j;
 }
 
+unsigned int
+ViewFactorBase::getSideNameIndex(std::string name) const
+{
+  auto it = _side_name_index.find(name);
+  if (it == _side_name_index.end())
+    mooseError("Boundary ", name, " does not exist.");
+  return it->second;  
+}
+
 Real
 ViewFactorBase::getViewFactor(BoundaryID from_id, BoundaryID to_id) const
 {
