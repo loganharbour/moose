@@ -64,9 +64,3 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
   // Die regardless
   ray->setShouldContinue(false);
 }
-
-void
-ViewFactorRayBC::preExecuteStudy()
-{
-
-}
