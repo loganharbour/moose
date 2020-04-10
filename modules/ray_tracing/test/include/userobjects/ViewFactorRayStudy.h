@@ -38,23 +38,6 @@ public:
     const std::vector<Real> _weights;
   };
 
-  struct ViewFactorEntry
-  {
-    ViewFactorEntry(BoundaryID from, BoundaryID to)
-    : from_bnd_id(from), to_bnd_id(to), view_factor(0)
-    {
-    }
-
-    ViewFactorEntry(BoundaryID from, BoundaryID to, Real v)
-    : from_bnd_id(from), to_bnd_id(to), view_factor(v)
-    {
-    }
-
-    BoundaryID from_bnd_id;
-    BoundaryID to_bnd_id;
-    Real view_factor;
-  };
-
   // returns a writeable reference to _vf_info pair from_bnd_id -> to_bnd_id
   Real & viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid);
 
@@ -101,5 +84,5 @@ protected:
   dof_id_type _next_id;
 
   /// view factor information by tid and then from/to pair
-  std::vector<std::vector<ViewFactorEntry>> _vf_info;
+  std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _vf_info;
 };
