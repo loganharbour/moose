@@ -64,61 +64,73 @@ ViewFactorRayStudy::initialize()
 Real &
 ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid)
 {
-  // linear search
-  auto & vf = _vf_info[tid];
-  for (unsigned int j = 0; j < vf.size(); ++j)
-    if (vf[j].from_bnd_id == from_id && vf[j].to_bnd_id == to_id)
-      return vf[j].view_factor;
-
-  // no suitable entry was found so create one
-  vf.push_back(ViewFactorEntry(from_id, to_id));
-  return vf.back().view_factor;
+  return _vf_info[tid][from_id][to_id];
 }
 
 Real
 ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id) const
 {
-  // linear search
-  auto & vf = _vf_info[0];
-  for (unsigned int j = 0; j < vf.size(); ++j)
-    if (vf[j].from_bnd_id == from_id && vf[j].to_bnd_id == to_id)
-      return vf[j].view_factor;
+  // this function should be called after summation over all
+  // threads
+  auto it = _vf_info[0].find(from_id);
+  if (it == _vf_info[0].end())
+    mooseError("From id ", from_id, " not in view factor map.");
 
-  for (unsigned int j = 0; j < vf.size(); ++j)
-    std::cout << vf[j].from_bnd_id << " " << vf[j].to_bnd_id << std::endl;
-
-  mooseError("From boundary id ", from_id, " to boundary_id ", to_id, " not found.");
+  auto itt = it->second.find(to_id);
+  if (itt == it->second.end())
+    mooseError("From boundary id ", from_id, " to boundary_id ", to_id, " not in view factor map.");
+  return itt->second;
 }
 
 void
 ViewFactorRayStudy::finalize()
 {
   // accumulation of _vf_info for all threads into copy 0
-  /*
-    for (THREAD_ID tid = 1; tid < libMesh::n_threads(); ++tid)
-    {
-      for (auto & p : _vf_info[tid])
-        for (auto & pp : p.second)
-          _vf_info[0][p.first][pp.first] += pp.second;
-    }
-  */
-  // now accumulate over all processors
+  for (THREAD_ID tid = 1; tid < libMesh::n_threads(); ++tid)
+    for (auto & p : _vf_info[tid])
+      for (auto & pp : p.second)
+        _vf_info[0][p.first][pp.first] += pp.second;
 
-  // now apply reciprocity
-  auto & vf = _vf_info[0];
-  unsigned int size = vf.size();
-  for (unsigned int j = 0; j < size; ++j)
+  // first all processors must have the same map_of_map entries
+  std::set<std::pair<BoundaryID, BoundaryID>> bnd_id_pairs;
+  for (auto & p : _vf_info[0])
+    for (auto & pp : p.second)
+      bnd_id_pairs.insert(std::pair<BoundaryID, BoundaryID>(p.first, pp.first));
+  comm().set_union(bnd_id_pairs);
+
+  for (auto & p : bnd_id_pairs)
   {
-    BoundaryID from = vf[j].from_bnd_id;
-    BoundaryID to = vf[j].to_bnd_id;
-    Real v = vf[j].view_factor;
+    BoundaryID from = p.first;
+    BoundaryID to = p.second;
+    auto it = _vf_info[0].find(from);
+    if (it == _vf_info[0].end() || it->second.find(to) == it->second.end())
+      _vf_info[0][from][to] = 0;
+  }
 
-    if (from > to)
-      mooseError(
-          "This should never happen, from boundary id can never be larger than to boundary id.");
+  // now accumulate over all processors
+  for (auto & p : _vf_info[0])
+    for (auto & pp : p.second)
+      gatherSum(_vf_info[0][p.first][pp.first]);
 
-    // add in to -> from entry
-    vf.push_back(ViewFactorEntry(to, from, v));
+  // Apply reciprocity
+  // NOTE we modify the map so we need to make a copy
+  // here to avoid the problem of looping over entries
+  // we just created
+  auto vf = _vf_info[0];
+  for (auto & p : vf)
+  {
+    BoundaryID from = p.first;
+    for (auto & pp : p.second)
+    {
+      BoundaryID to = pp.first;
+      Real v = pp.second;
+
+      if (from > to)
+        mooseError(
+            "This should never happen, from boundary id can never be larger than to boundary id.");
+
+      _vf_info[0][to][from] = v;
+    }
   }
 }
 
