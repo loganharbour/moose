@@ -18,6 +18,10 @@ ADDITIONAL_CPPFLAGS += -Wall -Wextra
 include $(FRAMEWORK_DIR)/build.mk
 include $(FRAMEWORK_DIR)/moose.mk
 
+################################## MODULES ################################
+HEAT_CONDUCTION             := yes
+###########################################################################
+
 # Module
 MODULE_NAME := ray_tracing
 include $(MODULE_DIR)/modules.mk
