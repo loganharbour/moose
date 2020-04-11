@@ -49,7 +49,7 @@ Real
 MomentumFreeSlipBC::computeQpResidual()
 {
   for (auto tag : _vector_tags)
-    if (_sys.hasVector(tag) && _var.isNodalDefined())
+    if (_sys.hasVector(tag) && _var.isNodalDefined() && !_subproblem.vectorTagReadOnly(tag_id))
     {
       auto & residual = _sys.getVector(tag);
 

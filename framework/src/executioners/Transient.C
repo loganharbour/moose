@@ -415,7 +415,6 @@ Transient::takeStep(Real input_dt)
   for (MooseIndex(_num_grid_steps) step = 0; step <= _num_grid_steps; ++step)
   {
     _time_stepper->step();
-
     _xfem_repeat_step = _picard_solve.XFEMRepeatStep();
 
     _last_solve_converged = _time_stepper->converged();

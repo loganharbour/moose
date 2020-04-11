@@ -79,6 +79,14 @@ TaggingInterface::TaggingInterface(const MooseObject * moose_object)
 
   _re_blocks.resize(_vector_tags.size());
   _ke_blocks.resize(_matrix_tags.size());
+
+  for (const auto vector_tag : _vector_tags)
+    if (_subproblem.vectorTagReadOnly(vector_tag))
+      mooseError("Vector tag ",
+                 _subproblem.vectorTagName(vector_tag),
+                 " in kernel ",
+                 _moose_object.name(),
+                 " cannot be used because it is read only");
 }
 
 void

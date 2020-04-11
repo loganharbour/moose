@@ -45,7 +45,7 @@ ArrayNodalBC::computeResidual()
     RealEigenVector res = computeQpResidual();
 
     for (auto tag_id : _vector_tags)
-      if (_sys.hasVector(tag_id))
+      if (_sys.hasVector(tag_id) && !_subproblem.vectorTagReadOnly(tag_id))
         _var.insertNodalValue(_sys.getVector(tag_id), res);
   }
 }

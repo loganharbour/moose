@@ -144,18 +144,21 @@ public:
   virtual void registerVectorTagReadOnly(TagID tag);
 
   /**
-   * Whether or not a vector tag is a registered as read only
+   * Whether or not a vector tag is a registered as read only (not to be filled by the residual
+   * calls)
    */
   virtual bool vectorTagReadOnly(const TagName & tag_name) const;
   /**
-   * Whether or not a vector tag is a registered as read only
+   * Whether or not a vector tag is a registered as read only (not to be filled by the residual
+   * calls)
    */
   virtual bool vectorTagReadOnly(TagID tag) const;
 
   /**
-   * Whether or not the problem has tagged vectors that are read only
+   * Whether or not the problem has tagged vectors that are read only (vectors that are not to be
+   * filled by the residual calls)
    */
-  virtual bool hasReadOnlyVectorTags() const { return !_read_only_vector_tags.empty(); }
+  virtual bool hasReadOnlyVectorTags() const;
 
   /**
    * Create a Tag.  Tags can be associated with Vectors and Matrices and allow objects
@@ -727,8 +730,8 @@ protected:
   /// Reverse map
   std::map<TagID, TagName> _vector_tag_id_to_tag_name;
 
-  /// The read-only vector tags
-  std::set<TagID> _read_only_vector_tags;
+  /// The read-only (not to be filled during resdidual) vector tag flags
+  std::vector<unsigned int> _vector_tag_read_only;
 
   /// The currently declared tags
   std::map<TagName, TagID> _matrix_tag_name_to_tag_id;
