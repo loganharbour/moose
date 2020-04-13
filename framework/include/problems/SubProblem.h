@@ -108,15 +108,22 @@ public:
    */
   virtual TagName vectorTagName(TagID tag) const;
 
+
   /**
-   * Return all vector tags, where a tag is represented by a map from name to ID
+   * Get all of the vector tags
+   *
+   * First element in the pair is the tag name, second element is the read only flag
    */
-  virtual std::map<TagName, TagID> & getVectorTags() { return _vector_tag_name_to_tag_id; }
+  
+  /**
+   * Get the vector tags that are writeable during residual computation
+   */
+  virtual const std::vector<TagID> & getVectorTagsWrite() const { return _vector_tags_write; }
 
   /**
    * Check to see if a particular Tag exists
    */
-  virtual bool vectorTagExists(TagID tag) const { return tag < _vector_tag_name_to_tag_id.size(); }
+  virtual bool vectorTagExists(TagID tag) const { return tag < _vector_tags.size(); }
 
   /**
    * Check to see if a particular Tag exists by using Tag name
@@ -126,7 +133,11 @@ public:
   /**
    * The total number of tags
    */
-  virtual unsigned int numVectorTags() const { return _vector_tag_name_to_tag_id.size(); }
+  virtual unsigned int numVectorTags() const { return _vector_tags.size(); }
+  /**
+   * The total number of tags that are writeable during residual computation
+   */
+  virtual unsigned int numVectorTagsWrite() const { return _vector_tags_write.size(); }
 
   /**
    * Register a vector tag as read only to the system
@@ -158,7 +169,7 @@ public:
    * Whether or not the problem has tagged vectors that are read only (vectors that are not to be
    * filled by the residual calls)
    */
-  virtual bool hasReadOnlyVectorTags() const;
+  virtual bool hasReadOnlyVectorTags() const { return _has_read_only_vector_tags; };
 
   /**
    * Create a Tag.  Tags can be associated with Vectors and Matrices and allow objects
@@ -724,14 +735,12 @@ protected:
                                           SystemBase & nl,
                                           SystemBase & aux);
 
-  /// The currently declared tags
-  std::map<TagName, TagID> _vector_tag_name_to_tag_id;
-
-  /// Reverse map
-  std::map<TagID, TagName> _vector_tag_id_to_tag_name;
-
-  /// The read-only (not to be filled during resdidual) vector tag flags
-  std::vector<unsigned int> _vector_tag_read_only;
+  /// Registered vector tags (first pair is name, second pair is read only flag)
+  std::vector<std::pair<TagName, bool>> _vector_tags;
+  /// Whether or not any read only vector tags are registered
+  bool _has_read_only_vector_tags;
+  /// The IDs of the tags that are flagged as writeable (in residual calls)
+  std::vector<TagID> _vector_tags_write;
 
   /// The currently declared tags
   std::map<TagName, TagID> _matrix_tag_name_to_tag_id;

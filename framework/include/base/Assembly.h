@@ -630,7 +630,7 @@ public:
    * Add local residuals of all field variables for a set of tags onto the global residual vectors
    * associated with the tags.
    */
-  void addResidual(const std::map<TagName, TagID> & tags);
+  void addResidual(const std::vector<TagID> & tags);
   /**
    * Add local neighbor residuals of all field variables for a tag onto a given global residual
    * vector.
@@ -640,7 +640,7 @@ public:
    * Add local neighbor residuals of all field variables for a set of tags onto the global residual
    * vectors associated with the tags.
    */
-  void addResidualNeighbor(const std::map<TagName, TagID> & tags);
+  void addResidualNeighbor(const std::vector<TagID> & tags);
   /**
    * Add residuals of all scalar variables for a tag onto the global residual vector associated
    * with the tag.
@@ -650,7 +650,7 @@ public:
    * Add residuals of all scalar variables for a set of tags onto the global residual vectors
    * associated with the tags.
    */
-  void addResidualScalar(const std::map<TagName, TagID> & tags);
+  void addResidualScalar(const std::vector<TagID> & tags);
 
   /**
    * Takes the values that are currently in _sub_Re of all field variables and appends them to
@@ -707,7 +707,9 @@ public:
    *
    * Note that this will also clear the cache.
    */
-  void addCachedResidual(NumericVector<Number> & residual, TagID tag_id);
+  void addCachedResidual(NumericVector<Number> & residual, unsigned int index);
+
+  void addCachedResidualDirectly(NumericVector<Number> & residual, TagID tag);
 
   /**
    * Sets local residuals of all field variables to the global residual vector for a tag.
@@ -1497,6 +1499,8 @@ protected:
   void
   computeSinglePointMapAD(const Elem * elem, const std::vector<Real> & qw, unsigned p, FEBase * fe);
 
+  unsigned int cachedResidualIndex(TagID tag) const;
+
 private:
   /**
    * Build FEs with a type
@@ -1932,6 +1936,7 @@ private:
                    typename VariableTestGradientType<RealVectorValue, ComputeStage::JACOBIAN>::type>
       _ad_vector_grad_phi_data_face;
 
+  std::vector<TagID> _cached_residual_tags;
   /// Values cached by calling cacheResidual() (the first vector is for TIME vs NONTIME)
   std::vector<std::vector<Real>> _cached_residual_values;
 

@@ -1550,9 +1550,9 @@ NonlinearSystemBase::computeNodalBCs(NumericVector<Number> & residual)
 {
   _nl_vector_tags.clear();
 
-  auto & tags = _fe_problem.getVectorTags();
+  auto & tags = _fe_problem.getVectorTagsWrite();
   for (auto & tag : tags)
-    _nl_vector_tags.insert(tag.second);
+    _nl_vector_tags.insert(tag);
 
   associateVectorToTag(residual, residualVectorTag());
   computeNodalBCs(residual, _nl_vector_tags);

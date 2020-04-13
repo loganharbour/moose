@@ -112,7 +112,8 @@ public:
   virtual TagName vectorTagName(TagID tag) const override;
   virtual bool vectorTagExists(TagID tag) const override;
   virtual unsigned int numVectorTags() const override;
-  virtual std::map<TagName, TagID> & getVectorTags() override;
+  virtual unsigned int numVectorTagsWrite() const override;
+  virtual const std::vector<TagID> & getVectorTagsWrite() const override;
   virtual void registerVectorTagReadOnly(const TagName & tag_name) override;
   virtual void registerVectorTagReadOnly(TagID tag) override;
   virtual bool vectorTagReadOnly(const TagName & tag_name) const override;

@@ -36,13 +36,13 @@ FixedPointProblem::computeResidual(const NumericVector<Number> & soln,
   // excluding the previous tag evaluation
   _nl->disassociateVectorFromTag(_residual_previous, _tag_id);
 
-  auto & tags = getVectorTags();
+  auto & tags = getVectorTagsWrite();
 
   _fe_vector_tags.clear();
 
   for (auto & tag : tags)
-    if (tag.second != _tag_id)
-      _fe_vector_tags.insert(tag.second);
+    if (tag != _tag_id)
+      _fe_vector_tags.insert(tag);
 
   computeResidualInternal(soln, residual, _fe_vector_tags);
 

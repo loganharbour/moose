@@ -24,9 +24,6 @@ class MooseVariableScalar;
 template <>
 InputParameters validParams<MooseVariableScalar>();
 
-class Assembly;
-class TimeIntegrator;
-
 /**
  * Class for scalar variables (they are different).
  */

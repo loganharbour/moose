@@ -335,10 +335,16 @@ DisplacedProblem::numVectorTags() const
   return _mproblem.numVectorTags();
 }
 
-std::map<TagName, TagID> &
-DisplacedProblem::getVectorTags()
+unsigned int
+DisplacedProblem::numVectorTagsWrite() const
 {
-  return _mproblem.getVectorTags();
+  return _mproblem.numVectorTagsWrite();
+}
+
+const std::vector<TagID> &
+DisplacedProblem::getVectorTagsWrite() const
+{
+  return _mproblem.getVectorTagsWrite();
 }
 
 void
@@ -762,13 +768,13 @@ DisplacedProblem::clearDiracInfo()
 void
 DisplacedProblem::addResidual(THREAD_ID tid)
 {
-  _assembly[tid]->addResidual(getVectorTags());
+  _assembly[tid]->addResidual(getVectorTagsWrite());
 }
 
 void
 DisplacedProblem::addResidualNeighbor(THREAD_ID tid)
 {
-  _assembly[tid]->addResidualNeighbor(getVectorTags());
+  _assembly[tid]->addResidualNeighbor(getVectorTagsWrite());
 }
 
 void
@@ -792,8 +798,10 @@ DisplacedProblem::addCachedResidual(THREAD_ID tid)
 void
 DisplacedProblem::addCachedResidualDirectly(NumericVector<Number> & residual, THREAD_ID tid)
 {
-  _assembly[tid]->addCachedResidual(residual, _displaced_nl.timeVectorTag());
-  _assembly[tid]->addCachedResidual(residual, _displaced_nl.nonTimeVectorTag());
+  if (vectorTagExists(_displaced_nl.timeVectorTag()))
+    _assembly[tid]->addCachedResidualDirectly(residual, _displaced_nl.timeVectorTag());
+  if (vectorTagExists(_displaced_nl.nonTimeVectorTag()))
+    _assembly[tid]->addCachedResidualDirectly(residual, _displaced_nl.nonTimeVectorTag());
 }
 
 void

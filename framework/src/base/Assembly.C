@@ -69,9 +69,6 @@ Assembly::Assembly(SystemBase & sys, THREAD_ID tid)
 
     _current_lower_d_elem(nullptr),
 
-    _cached_residual_values(2), // The 2 is for TIME and NONTIME
-    _cached_residual_rows(2),   // The 2 is for TIME and NONTIME
-
     _max_cached_residuals(0),
     _max_cached_jacobians(0),
     _block_diagonal_matrix(false),
@@ -2188,12 +2185,20 @@ Assembly::init(const CouplingMatrix * cm)
   if (_block_diagonal_matrix && scalar_vars.size() != 0)
     _block_diagonal_matrix = false;
 
-  auto num_vector_tags = _subproblem.numVectorTags();
+  // In what follows, the cached items for each matrix tag are indexed directly with the TagID. That
+  // is, _cached_jacobian_values[0] for example are the cached Jacobian values for matrix tag 0.
+  //
+  // The cached items for each vector tag differ because the possibility of read only vector tags
+  // exist, which we cannot write to during residual calculation. Therefore, the index of all of
+  // these items is determined by _cached_residual_tags. That is, _cached_residual_values[0] are the
+  // residual values for vector tag _cached_vector_tags[0].
+
+  auto num_write_vector_tags = _subproblem.numVectorTagsWrite();
   auto num_matrix_tags = _subproblem.numMatrixTags();
 
-  _sub_Re.resize(num_vector_tags);
-  _sub_Rn.resize(num_vector_tags);
-  _sub_Rl.resize(num_vector_tags);
+  _sub_Re.resize(num_write_vector_tags);
+  _sub_Rn.resize(num_write_vector_tags);
+  _sub_Rl.resize(num_write_vector_tags);
   for (MooseIndex(_sub_Re) i = 0; i < _sub_Re.size(); i++)
   {
     _sub_Re[i].resize(n_vars);
@@ -2201,8 +2206,9 @@ Assembly::init(const CouplingMatrix * cm)
     _sub_Rl[i].resize(n_vars);
   }
 
-  _cached_residual_values.resize(num_vector_tags);
-  _cached_residual_rows.resize(num_vector_tags);
+  _cached_residual_tags = _subproblem.getVectorTagsWrite();
+  _cached_residual_values.resize(num_write_vector_tags);
+  _cached_residual_rows.resize(num_write_vector_tags);
 
   _cached_jacobian_values.resize(num_matrix_tags);
   _cached_jacobian_rows.resize(num_matrix_tags);
@@ -2345,8 +2351,8 @@ Assembly::prepareResidual()
 {
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
-    for (MooseIndex(_sub_Re) tag = 0; tag < _sub_Re.size(); tag++)
-      _sub_Re[tag][var->number()].resize(var->dofIndices().size() * var->count());
+    for (auto & sub_re_tag : _sub_Re)
+      sub_re_tag[var->number()].resize(var->dofIndices().size() * var->count());
 }
 
 void
@@ -2404,8 +2410,8 @@ Assembly::prepareVariable(MooseVariableFEBase * var)
     }
   }
 
-  for (MooseIndex(_sub_Re) tag = 0; tag < _sub_Re.size(); tag++)
-    _sub_Re[tag][var->number()].resize(var->dofIndices().size() * var->count());
+  for (auto & sub_re_tag : _sub_Re)
+    sub_re_tag[var->number()].resize(var->dofIndices().size() * var->count());
 }
 
 void
@@ -2470,8 +2476,8 @@ Assembly::prepareNeighbor()
 
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
-    for (MooseIndex(_sub_Rn) tag = 0; tag < _sub_Rn.size(); tag++)
-      _sub_Rn[tag][var->number()].resize(var->dofIndicesNeighbor().size() * var->count());
+    for (auto & sub_rn_tag : _sub_Rn)
+      sub_rn_tag[var->number()].resize(var->dofIndicesNeighbor().size() * var->count());
 }
 
 void
@@ -2525,8 +2531,8 @@ Assembly::prepareLowerD()
 
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
-    for (MooseIndex(_sub_Rl) tag = 0; tag < _sub_Rl.size(); tag++)
-      _sub_Rl[tag][var->number()].resize(var->dofIndicesLower().size() * var->count());
+    for (auto & sub_rl_tag : _sub_Rl)
+      sub_rl_tag[var->number()].resize(var->dofIndicesLower().size() * var->count());
 }
 
 void
@@ -2545,8 +2551,8 @@ Assembly::prepareBlock(unsigned int ivar,
     _jacobian_block_used[tag][ivar][jvar] = 0;
   }
 
-  for (MooseIndex(_sub_Re) tag = 0; tag < _sub_Re.size(); tag++)
-    _sub_Re[tag][ivar].resize(dof_indices.size() * icount);
+  for (auto & sub_re_tag : _sub_Re)
+    sub_re_tag[ivar].resize(dof_indices.size() * icount);
 }
 
 void
@@ -2578,8 +2584,8 @@ Assembly::prepareScalar()
   {
     auto idofs = ivar->dofIndices().size();
 
-    for (MooseIndex(_sub_Re) tag = 0; tag < _sub_Re.size(); tag++)
-      _sub_Re[tag][ivar->number()].resize(idofs);
+    for (auto & sub_re_tag : _sub_Re)
+      sub_re_tag[ivar->number()].resize(idofs);
 
     for (const auto & jvar : vars)
     {
@@ -2926,68 +2932,68 @@ Assembly::setResidualBlock(NumericVector<Number> & residual,
 void
 Assembly::addResidual(NumericVector<Number> & residual, TagID tag_id)
 {
-  if (!_sys.hasVector(tag_id) || _subproblem.vectorTagReadOnly(tag_id))
-    return;
+  const auto cached_index = cachedResidualIndex(tag_id);
 
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
     addResidualBlock(residual,
-                     _sub_Re[tag_id][var->number()],
+                     _sub_Re[cached_index][var->number()],
                      var->dofIndices(),
                      var->arrayScalingFactor(),
                      var->isNodal());
 }
 
 void
-Assembly::addResidual(const std::map<TagName, TagID> & tags)
+Assembly::addResidual(const std::vector<TagID> & tags)
 {
   for (auto & tag : tags)
-    addResidual(_sys.getVector(tag.second), tag.second);
+    if (_sys.hasVector(tag))
+      addResidual(_sys.getVector(tag), tag);
 }
 
 void
 Assembly::addResidualNeighbor(NumericVector<Number> & residual, TagID tag_id)
 {
-  if (!_sys.hasVector(tag_id) || _subproblem.vectorTagReadOnly(tag_id))
-    return;
+  const auto cached_index = cachedResidualIndex(tag_id);
 
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
     addResidualBlock(residual,
-                     _sub_Rn[tag_id][var->number()],
+                     _sub_Rn[cached_index][var->number()],
                      var->dofIndicesNeighbor(),
                      var->arrayScalingFactor(),
                      var->isNodal());
 }
 
 void
-Assembly::addResidualNeighbor(const std::map<TagName, TagID> & tags)
+Assembly::addResidualNeighbor(const std::vector<TagID> & tags)
 {
   for (auto & tag : tags)
-    addResidualNeighbor(_sys.getVector(tag.second), tag.second);
+    if (_sys.hasVector(tag))
+      addResidualNeighbor(_sys.getVector(tag), tag);
 }
 
 void
 Assembly::addResidualScalar(TagID tag_id)
 {
-  if (!_sys.hasVector(tag_id) || _subproblem.vectorTagReadOnly(tag_id))
-    return;
+  const auto cached_index = cachedResidualIndex(tag_id);
 
   // add the scalar variables residuals
   const std::vector<MooseVariableScalar *> & vars = _sys.getScalarVariables(_tid);
   for (const auto & var : vars)
     addResidualBlock(_sys.getVector(tag_id),
-                     _sub_Re[tag_id][var->number()],
+                     _sub_Re[cached_index][var->number()],
                      var->dofIndices(),
                      var->arrayScalingFactor(),
                      false);
 }
 
 void
-Assembly::addResidualScalar(const std::map<TagName, TagID> & tags)
+Assembly::addResidualScalar(const std::vector<TagID> & tags)
 {
   for (auto & tag : tags)
-    addResidualScalar(tag.second);
+    if (_sys.hasVector(tag))
+      addResidualScalar(tag);
 }
 
 void
@@ -2995,23 +3001,22 @@ Assembly::cacheResidual()
 {
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
-  {
-    for (MooseIndex(_cached_residual_values) tag = 0; tag < _cached_residual_values.size(); tag++)
-      if (_sys.hasVector(tag) && !_subproblem.vectorTagReadOnly(tag))
-        cacheResidualBlock(_cached_residual_values[tag],
-                           _cached_residual_rows[tag],
-                           _sub_Re[tag][var->number()],
+    for (unsigned int i = 0; i < _cached_residual_tags.size(); ++i)
+      if (_sys.hasVector(_cached_residual_tags[i]))
+        cacheResidualBlock(_cached_residual_values[i],
+                           _cached_residual_rows[i],
+                           _sub_Re[i][var->number()],
                            var->dofIndices(),
                            var->arrayScalingFactor(),
                            var->isNodal());
-  }
 }
 
 void
 Assembly::cacheResidualContribution(dof_id_type dof, Real value, TagID tag_id)
 {
-  _cached_residual_values[tag_id].push_back(value);
-  _cached_residual_rows[tag_id].push_back(dof);
+  const auto cached_index = cachedResidualIndex(tag_id);
+  _cached_residual_values[cached_index].push_back(value);
+  _cached_residual_rows[cached_index].push_back(dof);
 }
 
 void
@@ -3026,13 +3031,15 @@ Assembly::cacheResidualNodes(const DenseVector<Number> & res,
                              const std::vector<dof_id_type> & dof_index,
                              TagID tag)
 {
+  const auto cached_index = cachedResidualIndex(tag);
+
   // Add the residual value and dof_index to cached_residual_values and cached_residual_rows
   // respectively.
   // This is used by NodalConstraint.C to cache the residual calculated for master and slave node.
   for (MooseIndex(dof_index) i = 0; i < dof_index.size(); ++i)
   {
-    _cached_residual_values[tag].push_back(res(i));
-    _cached_residual_rows[tag].push_back(dof_index[i]);
+    _cached_residual_values[cached_index].push_back(res(i));
+    _cached_residual_rows[cached_index].push_back(dof_index[i]);
   }
 }
 
@@ -3041,18 +3048,14 @@ Assembly::cacheResidualNeighbor()
 {
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
-  {
-    for (MooseIndex(_cached_residual_values) tag = 0; tag < _cached_residual_values.size(); tag++)
-    {
-      if (_sys.hasVector(tag) && !_subproblem.vectorTagReadOnly(tag))
-        cacheResidualBlock(_cached_residual_values[tag],
-                           _cached_residual_rows[tag],
-                           _sub_Rn[tag][var->number()],
+    for (unsigned int i = 0; i < _cached_residual_tags.size(); ++i)
+      if (_sys.hasVector(_cached_residual_tags[i]))
+        cacheResidualBlock(_cached_residual_values[i],
+                           _cached_residual_rows[i],
+                           _sub_Rn[i][var->number()],
                            var->dofIndicesNeighbor(),
                            var->arrayScalingFactor(),
                            var->isNodal());
-    }
-  }
 }
 
 void
@@ -3060,51 +3063,39 @@ Assembly::cacheResidualLower()
 {
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
-  {
-    for (MooseIndex(_cached_residual_values) tag = 0; tag < _cached_residual_values.size(); tag++)
-    {
-      if (_sys.hasVector(tag) && !_subproblem.vectorTagReadOnly(tag))
-        cacheResidualBlock(_cached_residual_values[tag],
-                           _cached_residual_rows[tag],
-                           _sub_Rl[tag][var->number()],
+    for (unsigned int i = 0; i < _cached_residual_tags.size(); ++i)
+      if (_sys.hasVector(_cached_residual_tags[i]))
+        cacheResidualBlock(_cached_residual_values[i],
+                           _cached_residual_rows[i],
+                           _sub_Rl[i][var->number()],
                            var->dofIndicesLower(),
                            var->arrayScalingFactor(),
                            var->isNodal());
-    }
-  }
 }
 
 void
 Assembly::addCachedResiduals()
 {
-  for (MooseIndex(_cached_residual_values) tag = 0; tag < _cached_residual_values.size(); tag++)
+  for (unsigned int i = 0; i < _cached_residual_tags.size(); ++i)
   {
-    if (!_sys.hasVector(tag) || _subproblem.vectorTagReadOnly(tag))
+    const auto tag = _cached_residual_tags[i];
+
+    if (!_sys.hasVector(tag))
     {
-      _cached_residual_values[tag].clear();
-      _cached_residual_rows[tag].clear();
+      _cached_residual_values[i].clear();
+      _cached_residual_rows[i].clear();
       continue;
     }
-    addCachedResidual(_sys.getVector(tag), tag);
+
+    addCachedResidual(_sys.getVector(tag), i);
   }
 }
 
 void
-Assembly::addCachedResidual(NumericVector<Number> & residual, TagID tag_id)
+Assembly::addCachedResidual(NumericVector<Number> & residual, unsigned int cached_index)
 {
-  if (!_sys.hasVector(tag_id) || _subproblem.vectorTagReadOnly(tag_id))
-  {
-    // Only clean up things when tag exists
-    if (_subproblem.vectorTagExists(tag_id))
-    {
-      _cached_residual_values[tag_id].clear();
-      _cached_residual_rows[tag_id].clear();
-    }
-    return;
-  }
-
-  std::vector<Real> & cached_residual_values = _cached_residual_values[tag_id];
-  std::vector<dof_id_type> & cached_residual_rows = _cached_residual_rows[tag_id];
+  std::vector<Real> & cached_residual_values = _cached_residual_values[cached_index];
+  std::vector<dof_id_type> & cached_residual_rows = _cached_residual_rows[cached_index];
 
   mooseAssert(cached_residual_values.size() == cached_residual_rows.size(),
               "Number of cached residuals and number of rows must match!");
@@ -3124,12 +3115,20 @@ Assembly::addCachedResidual(NumericVector<Number> & residual, TagID tag_id)
 }
 
 void
+Assembly::addCachedResidualDirectly(NumericVector<Number> & residual, TagID tag)
+{
+  addCachedResidual(residual, cachedResidualIndex(tag));
+}
+
+void
 Assembly::setResidual(NumericVector<Number> & residual, TagID tag_id)
 {
+  const auto cached_index = cachedResidualIndex(tag_id);
+
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
     setResidualBlock(residual,
-                     _sub_Re[tag_id][var->number()],
+                     _sub_Re[cached_index][var->number()],
                      var->dofIndices(),
                      var->arrayScalingFactor(),
                      var->isNodal());
@@ -3138,10 +3137,12 @@ Assembly::setResidual(NumericVector<Number> & residual, TagID tag_id)
 void
 Assembly::setResidualNeighbor(NumericVector<Number> & residual, TagID tag_id)
 {
+  const auto cached_index = cachedResidualIndex(tag_id);
+
   const std::vector<MooseVariableFEBase *> & vars = _sys.getVariables(_tid);
   for (const auto & var : vars)
     setResidualBlock(residual,
-                     _sub_Rn[tag_id][var->number()],
+                     _sub_Rn[cached_index][var->number()],
                      var->dofIndicesNeighbor(),
                      var->arrayScalingFactor(),
                      var->isNodal());
@@ -4006,6 +4007,17 @@ Assembly::modifyFaceWeightsDueToXFEM(const Elem * elem, unsigned int side)
 
     xfem_face_weight_multipliers.release();
   }
+}
+
+unsigned int
+Assembly::cachedResidualIndex(TagID tag) const
+{
+  mooseAssert(!_subproblem.vectorTagReadOnly(tag), "Tag " << tag << " is read only");
+
+  const auto find = std::find(_cached_residual_tags.begin(), _cached_residual_tags.end(), tag);
+  mooseAssert(find != _cached_residual_tags.end(), "Tag not in cached residual");
+
+  return find - _cached_residual_tags.begin();
 }
 
 template <>

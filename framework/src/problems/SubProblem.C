@@ -42,6 +42,7 @@ SubProblem::validParams()
 // SubProblem /////
 SubProblem::SubProblem(const InputParameters & parameters)
   : Problem(parameters),
+    _has_read_only_vector_tags(false),
     _factory(_app.getFactory()),
     _nonlocal_cm(),
     _requires_nonlocal_coupling(false),
@@ -69,22 +70,33 @@ SubProblem::~SubProblem() {}
 TagID
 SubProblem::addVectorTag(TagName tag_name, const bool read_only)
 {
-  auto tag_name_upper = MooseUtils::toUpper(tag_name);
-  auto existing_tag = _vector_tag_name_to_tag_id.find(tag_name_upper);
-  if (existing_tag == _vector_tag_name_to_tag_id.end())
+  TagID id;
+  if (vectorTagExists(tag_name))
   {
-    auto tag_id = _vector_tag_name_to_tag_id.size();
-
-    _vector_tag_name_to_tag_id[tag_name_upper] = tag_id;
-
-    _vector_tag_id_to_tag_name[tag_id] = tag_name_upper;
-
-    _vector_tag_read_only.push_back(read_only);
+    id = getVectorTagID(tag_name);
+    if (read_only != _vector_tags[id].second)
+      mooseError("When trying to add vector tag ",
+                 tag_name,
+                 "a tag was already found with a different read only flag");
+  }
+  else
+  {
+    id = _vector_tags.size();
+    _vector_tags.emplace_back(MooseUtils::toUpper(tag_name), read_only);
   }
 
-  const auto tag_id = _vector_tag_name_to_tag_id.at(tag_name_upper);
+  // Rebuild the write tag cache and the read only flag
+  _vector_tags_write.clear();
+  for (unsigned int tag = 0; tag < _vector_tags.size(); ++tag)
+  {
+    const bool read_only = _vector_tags[tag].second;
+    if (read_only)
+      _has_read_only_vector_tags = true;
+    else
+      _vector_tags_write.push_back(tag);
+  }
 
-  return tag_id;
+  return id;
 }
 
 bool
@@ -92,7 +104,11 @@ SubProblem::vectorTagExists(const TagName & tag_name) const
 {
   auto tag_name_upper = MooseUtils::toUpper(tag_name);
 
-  return _vector_tag_name_to_tag_id.find(tag_name_upper) != _vector_tag_name_to_tag_id.end();
+  for (const auto & pair : _vector_tags)
+    if (pair.first == tag_name_upper)
+      return true;
+
+  return false;
 }
 
 TagID
@@ -100,14 +116,15 @@ SubProblem::getVectorTagID(const TagName & tag_name) const
 {
   auto tag_name_upper = MooseUtils::toUpper(tag_name);
 
-  if (!vectorTagExists(tag_name))
-    mooseError("Vector tag: ",
-               tag_name,
-               " does not exist. ",
-               "If this is a TimeKernel then this may have happened because you didn't "
-               "specify a Transient Executioner.");
+  for (TagID tag = 0; tag < _vector_tags.size(); ++tag)
+    if (_vector_tags[tag].first == tag_name_upper)
+      return tag;
 
-  return _vector_tag_name_to_tag_id.at(tag_name_upper);
+  mooseError("Vector tag: ",
+             tag_name,
+             " does not exist. ",
+             "If this is a TimeKernel then this may have happened because you didn't "
+             "specify a Transient Executioner.");
 }
 
 TagName
@@ -116,7 +133,7 @@ SubProblem::vectorTagName(TagID tag) const
   if (!vectorTagExists(tag))
     mooseError("Vector tag with id ", tag, " does not exist");
 
-  return _vector_tag_id_to_tag_name.at(tag);
+  return _vector_tags[tag].first;
 }
 
 void
@@ -131,7 +148,7 @@ SubProblem::registerVectorTagReadOnly(TagID tag)
   if (!vectorTagExists(tag))
     mooseError("Vector tag with ID ", tag, " does not exist.");
 
-  _vector_tag_read_only[tag] = 1;
+  _vector_tags[tag].second = true;
 }
 
 bool
@@ -146,17 +163,7 @@ SubProblem::vectorTagReadOnly(TagID tag) const
   if (!vectorTagExists(tag))
     mooseError("Vector tag with ID ", tag, " does not exist.");
 
-  return _vector_tag_read_only[tag];
-}
-
-bool
-SubProblem::hasReadOnlyVectorTags() const
-{
-  for (const auto read_only_flag : _vector_tag_read_only)
-    if (read_only_flag)
-      return true;
-
-  return false;
+  return _vector_tags[tag].second;
 }
 
 TagID

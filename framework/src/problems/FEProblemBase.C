@@ -1339,7 +1339,7 @@ FEProblemBase::prepareAssembly(THREAD_ID tid)
 void
 FEProblemBase::addResidual(THREAD_ID tid)
 {
-  _assembly[tid]->addResidual(getVectorTags());
+  _assembly[tid]->addResidual(getVectorTagsWrite());
 
   if (_displaced_problem)
     _displaced_problem->addResidual(tid);
@@ -1348,7 +1348,7 @@ FEProblemBase::addResidual(THREAD_ID tid)
 void
 FEProblemBase::addResidualNeighbor(THREAD_ID tid)
 {
-  _assembly[tid]->addResidualNeighbor(getVectorTags());
+  _assembly[tid]->addResidualNeighbor(getVectorTagsWrite());
 
   if (_displaced_problem)
     _displaced_problem->addResidualNeighbor(tid);
@@ -1357,7 +1357,7 @@ FEProblemBase::addResidualNeighbor(THREAD_ID tid)
 void
 FEProblemBase::addResidualScalar(THREAD_ID tid /* = 0*/)
 {
-  _assembly[tid]->addResidualScalar(getVectorTags());
+  _assembly[tid]->addResidualScalar(getVectorTagsWrite());
 }
 
 void
@@ -1388,8 +1388,10 @@ FEProblemBase::addCachedResidual(THREAD_ID tid)
 void
 FEProblemBase::addCachedResidualDirectly(NumericVector<Number> & residual, THREAD_ID tid)
 {
-  _assembly[tid]->addCachedResidual(residual, _nl->timeVectorTag());
-  _assembly[tid]->addCachedResidual(residual, _nl->nonTimeVectorTag());
+  if (vectorTagExists(_nl->timeVectorTag()))
+    _assembly[tid]->addCachedResidualDirectly(residual, _nl->timeVectorTag());
+  if (vectorTagExists(_nl->nonTimeVectorTag()))
+    _assembly[tid]->addCachedResidualDirectly(residual, _nl->nonTimeVectorTag());
 
   if (_displaced_problem)
     _displaced_problem->addCachedResidualDirectly(residual, tid);
@@ -5042,13 +5044,12 @@ FEProblemBase::computeResidual(NonlinearImplicitSystem & sys,
 void
 FEProblemBase::computeResidual(const NumericVector<Number> & soln, NumericVector<Number> & residual)
 {
-  auto & tags = getVectorTags();
+  auto & tags = getVectorTagsWrite();
 
   _fe_vector_tags.clear();
 
   for (auto & tag : tags)
-    if (!vectorTagReadOnly(tag.second))
-      _fe_vector_tags.insert(tag.second);
+    _fe_vector_tags.insert(tag);
 
   computeResidualInternal(soln, residual, _fe_vector_tags);
 }
