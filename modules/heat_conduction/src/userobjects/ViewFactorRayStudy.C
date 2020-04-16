@@ -16,9 +16,7 @@
 #include "libmesh/fe_base.h"
 #include "libmesh/quadrature.h"
 
-#include "SerializerGuard.h"
-
-registerMooseObject("RayTracingApp", ViewFactorRayStudy);
+registerMooseObject("HeatConductionApp", ViewFactorRayStudy);
 
 InputParameters
 ViewFactorRayStudy::validParams()
@@ -28,8 +26,16 @@ ViewFactorRayStudy::validParams()
   params.addRequiredParam<std::vector<BoundaryName>>(
       "boundary", "The list of boundary IDs from the mesh where this boundary condition applies");
 
-  MooseEnum qorders("CONSTANT FIRST SECOND", "CONSTANT");
+  MooseEnum qorders("CONSTANT FIRST SECOND THIRD", "CONSTANT");
   params.addParam<MooseEnum>("face_order", qorders, "The face quadrature rule order");
+
+  // Shouldn't ever need RayKernels for view factors
+  params.set<bool>("ray_kernel_coverage_check") = false;
+  params.suppressParameter<bool>("ray_kernel_coverage_check");
+
+  // So that the study executes before the RayTracingViewFactor
+  params.set<bool>("force_preaux") = true;
+  params.suppressParameter<bool>("force_preaux");
 
   return params;
 }
@@ -61,9 +67,24 @@ ViewFactorRayStudy::initialize()
     _vf_info[tid].clear();
 }
 
+void
+ViewFactorRayStudy::initialSetup()
+{
+  RayTracingStudy::initialSetup();
+
+  if (!_internal_sidesets_subdomain_bounded)
+    mooseError("ViewFactorRayStudy is only compatible with internal sidesets if they are bounded "
+               "by subdomains");
+}
+
 Real &
 ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid)
 {
+  mooseAssert(std::find(_bnd_ids.begin(), _bnd_ids.end(), from_id) != _bnd_ids.end(),
+              "Invalid from_id");
+  mooseAssert(std::find(_bnd_ids.begin(), _bnd_ids.end(), to_id) != _bnd_ids.end(),
+              "Invalid to_id");
+
   return _vf_info[tid][from_id][to_id];
 }
 

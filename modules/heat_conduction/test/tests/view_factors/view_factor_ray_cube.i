@@ -12,16 +12,25 @@
   nz = 2
 []
 
-# needed for a higher order quadrature for the UO
-[Variables/u]
+[UserObjects]
+  [./view_factor_study]
+    type = ViewFactorRayStudy
+    execute_on = initial
+    boundary = 'left right front back bottom top'
+    face_order = SECOND
+  [../]
+
+  [./view_factor]
+    type = RayTracingViewFactor
+    boundary = 'left right front back bottom top'
+    execute_on = INITIAL
+    ray_study_name = view_factor_study
+  [../]
 []
 
-[UserObjects]
-  [./view_factor]
-    type = UnobstructedPlanarViewFactor
-    boundary = 'left right front back bottom top'
-    execute_on = 'INITIAL'
-  [../]
+[RayBCs/viewfactor]
+  type = ViewFactorRayBC
+  boundary = 'left right front back bottom top'
 []
 
 [Postprocessors]

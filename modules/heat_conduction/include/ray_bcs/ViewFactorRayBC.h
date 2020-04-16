@@ -27,9 +27,14 @@ public:
                      const std::shared_ptr<Ray> & ray) override;
 
 protected:
+  /// Index in the Ray aux data for the starting dot product
   const unsigned int _ray_index_start_dot;
+  /// Index in the Ray aux data for the starting boundary ID
   const unsigned int _ray_index_start_bnd_id;
+  /// Index in the Ray aux data for the starting weight
   const unsigned int _ray_index_start_weight;
+  /// Index in the Ray aux data for the ending weight
   const unsigned int _ray_index_end_weight;
+
   ViewFactorRayStudy * _vf_study;
 };

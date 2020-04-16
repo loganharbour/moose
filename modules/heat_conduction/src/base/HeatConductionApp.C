@@ -10,6 +10,7 @@
 #include "HeatConductionApp.h"
 #include "Moose.h"
 #include "AppFactory.h"
+#include "RayTracingApp.h"
 #include "MooseSyntax.h"
 
 InputParameters
@@ -63,6 +64,7 @@ associateSyntaxInner(Syntax & syntax, ActionFactory & /*action_factory*/)
 void
 HeatConductionApp::registerAll(Factory & f, ActionFactory & af, Syntax & s)
 {
+  RayTracingApp::registerAll(f, af, s);
   Registry::registerObjectsTo(f, {"HeatConductionApp"});
   Registry::registerActionsTo(af, {"HeatConductionApp"});
   associateSyntaxInner(s, af);

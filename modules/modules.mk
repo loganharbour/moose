@@ -64,6 +64,10 @@ ifeq ($(XFEM),yes)
         TENSOR_MECHANICS            := yes
 endif
 
+ifeq ($(HEAT_CONDUCTION),yes)
+        RAY_TRACING                 := yes
+endif
+
 # The master list of all moose modules
 MODULE_NAMES := "chemical_reactions contact external_petsc_solver fluid_properties functional_expansion_tools geochemistry heat_conduction level_set misc navier_stokes peridynamics phase_field porous_flow ray_tracing rdg richards stochastic_tools tensor_mechanics xfem"
 
@@ -104,9 +108,18 @@ ifeq ($(GEOCHEMISTRY),yes)
   include $(FRAMEWORK_DIR)/app.mk
 endif
 
+ifeq ($(RAY_TRACING),yes)
+  APPLICATION_DIR    := $(MOOSE_DIR)/modules/ray_tracing
+  APPLICATION_NAME   := ray_tracing
+  SUFFIX             := ray
+  include $(FRAMEWORK_DIR)/app.mk
+endif
+
 ifeq ($(HEAT_CONDUCTION),yes)
   APPLICATION_DIR    := $(MOOSE_DIR)/modules/heat_conduction
   APPLICATION_NAME   := heat_conduction
+
+	DEPEND_MODULES     := ray_tracing
   SUFFIX             := hc
   include $(FRAMEWORK_DIR)/app.mk
 endif
@@ -177,13 +190,6 @@ ifeq ($(POROUS_FLOW),yes)
 
   DEPEND_MODULES     := tensor_mechanics fluid_properties chemical_reactions
   SUFFIX             := pflow
-  include $(FRAMEWORK_DIR)/app.mk
-endif
-
-ifeq ($(RAY_TRACING),yes)
-  APPLICATION_DIR    := $(MOOSE_DIR)/modules/ray_tracing
-  APPLICATION_NAME   := ray_tracing
-  SUFFIX             := ray
   include $(FRAMEWORK_DIR)/app.mk
 endif
 
