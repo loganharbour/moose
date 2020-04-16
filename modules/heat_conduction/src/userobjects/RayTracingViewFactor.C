@@ -20,7 +20,7 @@
 #include "libmesh/point_locator_base.h"
 #include "libmesh/elem.h"
 
-registerMooseObject("RayTracingApp", RayTracingViewFactor);
+registerMooseObject("HeatConductionApp", RayTracingViewFactor);
 
 defineLegacyParams(RayTracingViewFactor);
 
@@ -37,8 +37,6 @@ RayTracingViewFactor::validParams()
 RayTracingViewFactor::RayTracingViewFactor(const InputParameters & parameters)
   : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudy>("ray_study_name"))
 {
-  _mesh.errorIfDistributedMesh("RayTracingViewFactor");
-
   if (_mesh.dimension() == 1)
     mooseError("View factor calculations for 1D geometry makes no sense");
   else if (_mesh.dimension() == 2)

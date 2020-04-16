@@ -19,4 +19,26 @@
     mesh_mode = REPLICATED
     requirement = 'The system shall compute view factors for unobstructed, planar surfaces in radiative exchange and normalize view factors from each surface to sum to one'
   [../]
+
+  # TODO: add design/requirement/doco
+  [./view_factor_ray_cube]
+    type = CSVDiff
+    input = 'view_factor_ray_cube.i'
+    csvdiff = 'view_factor_ray_cube_out.csv'
+  [../]
+
+  [./view_factor_quad]
+    type = CSVDiff
+    input = 'view_factor_quad.i'
+    csvdiff = 'view_factor_quad_out.csv'
+    design = 'UnobstructedPlanarViewFactor.md'
+    requirement = 'The system shall compute view factors for unobstructed, planar surfaces in radiative exchange'
+  [../]
+
+  # TODO: add design/requirement/doco
+  [./view_factor_ray_quad]
+    type = CSVDiff
+    input = 'view_factor_ray_quad.i'
+    csvdiff = 'view_factor_ray_quad_out.csv'
+  [../]
 []

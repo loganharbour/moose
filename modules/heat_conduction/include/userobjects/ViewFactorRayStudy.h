@@ -18,6 +18,7 @@ public:
 
   static InputParameters validParams();
   virtual void initialize() override;
+  virtual void initialSetup() override;
   virtual void finalize() override;
 
   struct StartElem
