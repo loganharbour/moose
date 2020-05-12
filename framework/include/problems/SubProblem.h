@@ -676,6 +676,11 @@ public:
    */
   bool automaticScaling() const;
 
+  /**
+   * Set the enabled status of a MooseObject
+   */
+  void setEnabled(const MooseObject & moose_object, const bool enabled);
+
 protected:
   /**
    * Helper function called by getVariable that handles the logic for

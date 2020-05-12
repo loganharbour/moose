@@ -790,3 +790,25 @@ SubProblem::automaticScaling() const
 {
   return systemBaseNonlinear().automaticScaling();
 }
+
+void
+SubProblem::setEnabled(const MooseObject & moose_object, const bool enabled)
+{
+  // The unique name that this MooseObject has in the param warehouse
+  const auto base = moose_object.parameters().get<std::string>("_moose_base");
+  MooseObjectName unique_name(base, moose_object.name(), "::");
+  // The unique name for this MooseObject's enable parameter
+  MooseObjectParameterName param_name(unique_name, "enable");
+
+  // Get the controllable parameter for enable
+  ControllableParameter controllable_param =
+      getMooseApp().getInputParameterWarehouse().getControllableParameter(param_name);
+
+  if (controllable_param.empty())
+    mooseError("The object '",
+               unique_name,
+               "' cannot be enabled or disabled via SubProblem::setEnabled() because its 'enable' "
+               "param is not controllable.");
+
+  controllable_param.set<bool>(enabled);
+}

@@ -16,6 +16,7 @@
 #include "ControllableParameter.h"
 #include "Factory.h"
 #include "ControlOutput.h"
+#include "SubProblem.h"
 
 // Forward declarations
 class InputParameters;
@@ -172,12 +173,16 @@ private:
   friend void Factory::releaseSharedObjects(const MooseObject &, THREAD_ID);
   ///@}
 
-  /// Only controls are allowed to call getControllableParameter. The
-  /// Control::getControllableParameter is the only method that calls getControllableParameter.
+  ///@{
+  /// Only Controls and SubProblem::setEnabled are allowed to call getControllableParameter.
+  ///
+  /// Control::getControllableParameter is the only method in Control that calls getControllableParameter.
   /// However, this method cannot be made a friend explicitly because the method would need to be
   /// public. If the method is public then it is possible to call the method by getting access to
   /// the Control object.
   friend class Control;
+  friend void SubProblem::setEnabled(const MooseObject &, const bool);
+  ///&}
 
   // Allow unit test to call methods
   FRIEND_TEST(InputParameterWarehouse, getControllableItems);

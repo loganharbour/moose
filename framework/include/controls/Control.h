@@ -285,4 +285,3 @@ Control::setControllableValueByName(const std::string & tag,
   ControllableParameter helper = getControllableParameterByName(desired);
   helper.set<T>(value);
 }
-
