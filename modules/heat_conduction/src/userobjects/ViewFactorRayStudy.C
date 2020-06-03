@@ -37,6 +37,9 @@ ViewFactorRayStudy::validParams()
   params.set<bool>("force_preaux") = true;
   params.suppressParameter<bool>("force_preaux");
 
+  // No need to use Ray registration
+  params.set<bool>("use_ray_registration") = false;
+
   return params;
 }
 
@@ -53,8 +56,6 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
     _vf_info(libMesh::n_threads())
 {
-  _use_ray_registration = false;
-
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_normals();
   _fe_face->get_xyz();
@@ -64,17 +65,14 @@ void
 ViewFactorRayStudy::initialize()
 {
   for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
+  {
     _vf_info[tid].clear();
-}
 
-void
-ViewFactorRayStudy::initialSetup()
-{
-  RayTracingStudy::initialSetup();
-
-  if (!_internal_sidesets_subdomain_bounded)
-    mooseError("ViewFactorRayStudy is only compatible with internal sidesets if they are bounded "
-               "by subdomains");
+    for (const BoundaryID from_id : _bnd_ids)
+      for (const BoundaryID to_id : _bnd_ids)
+        if (from_id <= to_id)
+          _vf_info[tid][from_id][to_id] = 0;
+  }
 }
 
 Real &
@@ -261,7 +259,7 @@ ViewFactorRayStudy::generatePoints()
 }
 
 void
-ViewFactorRayStudy::defineRays()
+ViewFactorRayStudy::generateRays()
 {
   // Start with an ID for Rays that is unique to this processor
   _next_id = DofObject::invalid_id / (dof_id_type)_comm.size() * (dof_id_type)_pid;
@@ -312,60 +310,34 @@ ViewFactorRayStudy::defineRays()
             if (start_bnd_id == end_bnd_id && start_point.absolute_fuzzy_equals(end_point))
               continue;
 
-            defineRay(
-                elem, start_point, end_point, normal, side, start_bnd_id, start_weight, end_weight);
+            // Direction from start -> end
+            const Point direction = (end_point - start_point).unit();
+            // Dot product with direction and normal (if this is 0, we can skip this Ray)
+            const Real dot = std::abs(normal * direction);
+            if (MooseUtils::absoluteFuzzyEqual(dot, 0))
+              continue;
+
+            // Create a Ray and add it to the buffer for future tracing
+            std::shared_ptr<Ray> ray = _ray_pool.acquire();
+            addToWorkingBuffer(ray);
+
+            ray->setStartingElem(elem);
+            ray->setIncomingSide(side);
+            ray->setID(_next_id++);
+            ray->setStart(start_point);
+            ray->setEnd(end_point);
+            ray->setDirection(direction);
+
+            ray->auxData().resize(rayAuxDataSize());
+            // For computing the dot product, inward normals are assumed. We just
+            // use the absolute value and don't have to worry about it
+            ray->setAuxData(_ray_index_start_dot, dot);
+            ray->setAuxData(_ray_index_start_bnd_id, start_bnd_id);
+            ray->setAuxData(_ray_index_start_weight, start_weight);
+            ray->setAuxData(_ray_index_end_weight, end_weight);
           }
         }
       }
     }
-  }
-}
-
-void
-ViewFactorRayStudy::defineRay(const Elem * starting_elem,
-                              const Point & start_point,
-                              const Point & end_point,
-                              const Point & normal,
-                              const unsigned short side,
-                              const BoundaryID bnd_id,
-                              const Real start_weight,
-                              const Real end_weight)
-{
-  std::shared_ptr<Ray> ray = _ray_pool.acquire();
-  _working_buffer->push_back(ray);
-
-  ray->setStartingElem(starting_elem);
-  ray->setIncomingSide(side);
-  ray->setID(_next_id++);
-
-  const Point direction = (end_point - start_point).unit();
-  ray->setStart(start_point);
-  ray->setEnd(end_point);
-  ray->setDirection(direction);
-
-  ray->auxData().resize(rayAuxDataSize());
-  // For computing the dot product, inward normals are assumed. We just
-  // use the absolute value and don't have to worry about it
-  ray->setAuxData(_ray_index_start_dot, std::abs(normal * direction));
-  ray->setAuxData(_ray_index_start_bnd_id, bnd_id);
-  ray->setAuxData(_ray_index_start_weight, start_weight);
-  ray->setAuxData(_ray_index_end_weight, end_weight);
-}
-
-void
-ViewFactorRayStudy::generateRays()
-{
-  defineRays();
-
-  // Increment required variable when adding rays
-  _local_rays_started += _working_buffer->size();
-
-  // And spawn
-  if (_method == SMART)
-    chunkyTraceAndBuffer();
-  else
-  {
-    traceAndBuffer(_working_buffer->begin(), _working_buffer->end());
-    _working_buffer->clear();
   }
 }

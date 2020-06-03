@@ -24,7 +24,8 @@ public:
                      const unsigned short intersected_side,
                      const BoundaryID bnd_id,
                      const Point & intersection_point,
-                     const std::shared_ptr<Ray> & ray) override;
+                     const std::shared_ptr<Ray> & ray,
+                     const bool applying_at_corner) override;
 
 protected:
   /// Index in the Ray aux data for the starting dot product
