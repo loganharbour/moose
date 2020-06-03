@@ -10,6 +10,7 @@
 #pragma once
 
 #include "RayTracingStudy.h"
+#include "Ray.h"
 
 class ViewFactorRayStudy : public RayTracingStudy
 {
@@ -18,7 +19,6 @@ public:
 
   static InputParameters validParams();
   virtual void initialize() override;
-  virtual void initialSetup() override;
   virtual void finalize() override;
 
   struct StartElem
@@ -48,28 +48,18 @@ public:
 protected:
   virtual void generateRays() override;
   virtual void generatePoints();
-  virtual void defineRays();
-
-  void defineRay(const Elem * starting_elem,
-                 const Point & start_point,
-                 const Point & end_point,
-                 const Point & normal,
-                 const unsigned short side,
-                 const BoundaryID bnd_id,
-                 const Real start_weight,
-                 const Real end_weight);
 
   /// The user supplied boundary IDs we need view factors on
   const std::vector<BoundaryID> _bnd_ids;
 
   /// Index in the Ray aux data for the starting dot product
-  const unsigned int _ray_index_start_dot;
+  const RayDataIndex _ray_index_start_dot;
   /// Index in the Ray aux data for the starting boundary ID
-  const unsigned int _ray_index_start_bnd_id;
+  const RayDataIndex _ray_index_start_bnd_id;
   /// Index in the Ray aux data for the starting weight
-  const unsigned int _ray_index_start_weight;
+  const RayDataIndex _ray_index_start_weight;
   /// Index in the Ray aux data for the ending weight
-  const unsigned int _ray_index_end_weight;
+  const RayDataIndex _ray_index_end_weight;
 
   /// Face FE used for creating face normals
   std::unique_ptr<FEBase> _fe_face;
@@ -82,7 +72,7 @@ protected:
   std::vector<std::vector<std::pair<Point, Real>>> _end_points;
 
   /// The next available ID to assign to a Ray in defineRay()
-  dof_id_type _next_id;
+  RayID _next_id;
 
   /// view factor information by tid and then from/to pair
   std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _vf_info;

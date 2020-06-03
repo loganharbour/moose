@@ -39,7 +39,8 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
                        const unsigned short /* intersected_side */,
                        const BoundaryID bnd_id,
                        const Point & intersection_point,
-                       const std::shared_ptr<Ray> & ray)
+                       const std::shared_ptr<Ray> & ray,
+                       const bool /* applying_at_corner */)
 {
   const Real dot = ray->auxData(_ray_index_start_dot);
   // NOTE: in reality this should use _normals[_qp] BUT
