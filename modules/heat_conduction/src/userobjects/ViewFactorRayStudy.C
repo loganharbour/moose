@@ -313,9 +313,9 @@ ViewFactorRayStudy::generateRays()
 
             // Direction from start -> end
             const Point direction = (end_point - start_point).unit();
-            // Dot product with direction and normal (if this is 0, we can skip this Ray)
-            const Real dot = std::abs(normal * direction);
-            if (MooseUtils::absoluteFuzzyEqual(dot, 0))
+            // Dot product with direction and normal (only keep when dot < 0)
+            const Real dot = normal * direction;
+            if (dot >= 0)
               continue;
 
             // We need to make a fake end point that ends up somewhere on an external boundary in
@@ -338,7 +338,7 @@ ViewFactorRayStudy::generateRays()
             ray->auxData().resize(rayAuxDataSize());
             // For computing the dot product, inward normals are assumed. We just
             // use the absolute value and don't have to worry about it
-            ray->setAuxData(_ray_index_start_dot, dot);
+            ray->setAuxData(_ray_index_start_dot, std::abs(dot));
             ray->setAuxData(_ray_index_start_bnd_id, start_bnd_id);
             ray->setAuxData(_ray_index_start_weight, start_weight);
             ray->setAuxData(_ray_index_end_bnd_id, end_bnd_id);
