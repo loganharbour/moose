@@ -49,6 +49,7 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _ray_index_start_dot(registerRayAuxData("start_dot")),
     _ray_index_start_bnd_id(registerRayAuxData("start_bnd_id")),
     _ray_index_start_weight(registerRayAuxData("start_weight")),
+    _ray_index_end_bnd_id(registerRayAuxData("end_bnd_id")),
     _ray_index_end_weight(registerRayAuxData("end_weight")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(FIRST, LAGRANGE))),
     _q_face(QBase::build(QGAUSS,
@@ -307,7 +308,7 @@ ViewFactorRayStudy::generateRays()
             const auto end_weight = end_point_pair.second;
 
             // Don't spawn when start == end
-            if (start_bnd_id == end_bnd_id && start_point.absolute_fuzzy_equals(end_point))
+            if (start_point.absolute_fuzzy_equals(end_point))
               continue;
 
             // Direction from start -> end
@@ -317,6 +318,12 @@ ViewFactorRayStudy::generateRays()
             if (MooseUtils::absoluteFuzzyEqual(dot, 0))
               continue;
 
+            // We need to make a fake end point that ends up somewhere on an external boundary in
+            // the event that the actual end point is on an internal boundary - this is required to
+            // enable a Ray to enter and die on an internal boundary that occurs /after/ the end
+            // point is found
+            const auto fake_end = rayDomainIntersection(start_point, direction);
+
             // Create a Ray and add it to the buffer for future tracing
             std::shared_ptr<Ray> ray = _ray_pool.acquire();
             addToWorkingBuffer(ray);
@@ -325,7 +332,7 @@ ViewFactorRayStudy::generateRays()
             ray->setIncomingSide(side);
             ray->setID(_next_id++);
             ray->setStart(start_point);
-            ray->setEnd(end_point);
+            ray->setEnd(fake_end);
             ray->setDirection(direction);
 
             ray->auxData().resize(rayAuxDataSize());
@@ -334,6 +341,7 @@ ViewFactorRayStudy::generateRays()
             ray->setAuxData(_ray_index_start_dot, dot);
             ray->setAuxData(_ray_index_start_bnd_id, start_bnd_id);
             ray->setAuxData(_ray_index_start_weight, start_weight);
+            ray->setAuxData(_ray_index_end_bnd_id, end_bnd_id);
             ray->setAuxData(_ray_index_end_weight, end_weight);
           }
         }
