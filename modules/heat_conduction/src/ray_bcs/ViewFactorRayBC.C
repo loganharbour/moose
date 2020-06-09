@@ -43,8 +43,11 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
                        const std::shared_ptr<Ray> & ray,
                        const bool /* applying_at_corner */)
 {
-  const BoundaryID end_bnd_id = ray->auxData(_ray_index_end_bnd_id);
+  // Nothing to do if we haven't moved
+  if (ray->distance() == 0)
+    return;
 
+  const BoundaryID end_bnd_id = ray->auxData(_ray_index_end_bnd_id);
   // If we actually hit the boundary we were trying to get to: contribute
   if (bnd_id == end_bnd_id)
   {
@@ -65,9 +68,6 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
     _vf_study->viewFactorInfo(start_bnd_id, bnd_id, _tid) += value;
   }
 
-  // Kill the Ray if it's moved some
-  // We guard this with a distance check because some Rays may start on an internal boundary, in
-  // which case they would be immediately killed before moving
-  if (ray->distance() > 0)
-    ray->setShouldContinue(false);
+  // Kill the Ray
+  ray->setShouldContinue(false);
 }
