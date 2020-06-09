@@ -52,7 +52,7 @@ ViewFactorBase::getSideNameIndex(std::string name) const
   auto it = _side_name_index.find(name);
   if (it == _side_name_index.end())
     mooseError("Boundary ", name, " does not exist.");
-  return it->second;  
+  return it->second;
 }
 
 Real
@@ -124,5 +124,22 @@ ViewFactorBase::checkAndNormalizeViewFactor()
     if (_normalize_view_factor)
       for (unsigned int to = 0; to < _n_sides; ++to)
         _view_factors[from][to] /= s;
+  }
+
+  for (unsigned int from = 0; from < _n_sides; ++from)
+  {
+    std::string from_name;
+    for (auto pair : _side_name_index)
+      if (pair.second == from)
+        from_name = pair.first;
+
+    for (unsigned int to = 0; to < _n_sides; ++to)
+    {
+      std::string to_name;
+      for (auto pair : _side_name_index)
+        if (pair.second == to)
+          to_name = pair.first;
+      _console << from_name << "->" << to_name << " = " << _view_factors[from][to] << std::endl;
+    }
   }
 }
