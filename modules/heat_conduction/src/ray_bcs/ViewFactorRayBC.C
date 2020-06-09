@@ -25,6 +25,7 @@ ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
     _ray_index_start_dot(_study.getRayAuxDataIndex("start_dot")),
     _ray_index_start_bnd_id(_study.getRayAuxDataIndex("start_bnd_id")),
     _ray_index_start_weight(_study.getRayAuxDataIndex("start_weight")),
+    _ray_index_end_bnd_id(_study.getRayAuxDataIndex("end_bnd_id")),
     _ray_index_end_weight(_study.getRayAuxDataIndex("end_weight")),
     _vf_study(nullptr)
 {
@@ -38,23 +39,25 @@ void
 ViewFactorRayBC::apply(const Elem * /* elem */,
                        const unsigned short /* intersected_side */,
                        const BoundaryID bnd_id,
-                       const Point & intersection_point,
+                       const Point & /* intersection_point */,
                        const std::shared_ptr<Ray> & ray,
                        const bool /* applying_at_corner */)
 {
-  const Real dot = ray->auxData(_ray_index_start_dot);
-  // NOTE: in reality this should use _normals[_qp] BUT
-  // raytracing works only with first order elems so all
-  // normals are the same; the absolute value is used to not
-  // having to worry of the sign of the normal
-  const Real dot_end = std::abs(ray->direction() * _normals[0]);
-  const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
-  const Real start_weight = ray->auxData(_ray_index_start_weight);
-  const Real end_weight = ray->auxData(_ray_index_end_weight);
+  const BoundaryID end_bnd_id = ray->auxData(_ray_index_end_bnd_id);
 
-  // If we're at the right end point, we made it
-  if (intersection_point.absolute_fuzzy_equals(ray->end()))
+  // If we actually hit the boundary we were trying to get to: contribute
+  if (bnd_id == end_bnd_id)
   {
+    const Real dot = ray->auxData(_ray_index_start_dot);
+    // NOTE: in reality this should use _normals[_qp] BUT
+    // raytracing works only with first order elems so all
+    // normals are the same; the absolute value is used to not
+    // having to worry of the sign of the normal
+    const Real dot_end = std::abs(ray->direction() * _normals[0]);
+    const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
+    const Real start_weight = ray->auxData(_ray_index_start_weight);
+    const Real end_weight = ray->auxData(_ray_index_end_weight);
+
     Real denom = ray->distance();
     if (_mesh.dimension() == 3)
       denom *= ray->distance();
@@ -62,6 +65,9 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
     _vf_study->viewFactorInfo(start_bnd_id, bnd_id, _tid) += value;
   }
 
-  // Die regardless
-  ray->setShouldContinue(false);
+  // Kill the Ray if it's moved some
+  // We guard this with a distance check because some Rays may start on an internal boundary, in
+  // which case they would be immediately killed before moving
+  if (ray->distance() > 0)
+    ray->setShouldContinue(false);
 }
