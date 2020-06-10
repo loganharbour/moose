@@ -27,6 +27,9 @@ ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
     _ray_index_start_weight(_study.getRayAuxDataIndex("start_weight")),
     _ray_index_end_bnd_id(_study.getRayAuxDataIndex("end_bnd_id")),
     _ray_index_end_weight(_study.getRayAuxDataIndex("end_weight")),
+    _ray_index_end_x(_study.getRayAuxDataIndex("end_x")),
+    _ray_index_end_y(_study.getRayAuxDataIndex("end_y")),
+    _ray_index_end_z(_study.getRayAuxDataIndex("end_z")),
     _vf_study(nullptr)
 {
   // make sure we have a have a ViewFactorRayStudy
@@ -39,7 +42,7 @@ void
 ViewFactorRayBC::apply(const Elem * /* elem */,
                        const unsigned short /* intersected_side */,
                        const BoundaryID bnd_id,
-                       const Point & /* intersection_point */,
+                       const Point & intersection_point,
                        const std::shared_ptr<Ray> & ray,
                        const bool /* applying_at_corner */)
 {
@@ -48,24 +51,31 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
     return;
 
   const BoundaryID end_bnd_id = ray->auxData(_ray_index_end_bnd_id);
-  // If we actually hit the boundary we were trying to get to: contribute
+  // If we actually hit the boundary we were trying to get to: possibly contribute
   if (bnd_id == end_bnd_id)
   {
-    const Real dot = ray->auxData(_ray_index_start_dot);
-    // NOTE: in reality this should use _normals[_qp] BUT
-    // raytracing works only with first order elems so all
-    // normals are the same; the absolute value is used to not
-    // having to worry of the sign of the normal
-    const Real dot_end = std::abs(ray->direction() * _normals[0]);
-    const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
-    const Real start_weight = ray->auxData(_ray_index_start_weight);
-    const Real end_weight = ray->auxData(_ray_index_end_weight);
+    // Are we at the end point?
+    const Point end_point = Point(ray->auxData(_ray_index_end_x),
+                                  ray->auxData(_ray_index_end_y),
+                                  ray->auxData(_ray_index_end_z));
+    if (end_point.absolute_fuzzy_equals(intersection_point))
+    {
+      const Real dot = ray->auxData(_ray_index_start_dot);
+      // NOTE: in reality this should use _normals[_qp] BUT
+      // raytracing works only with first order elems so all
+      // normals are the same; the absolute value is used to not
+      // having to worry of the sign of the normal
+      const Real dot_end = std::abs(ray->direction() * _normals[0]);
+      const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
+      const Real start_weight = ray->auxData(_ray_index_start_weight);
+      const Real end_weight = ray->auxData(_ray_index_end_weight);
 
-    Real denom = ray->distance();
-    if (_mesh.dimension() == 3)
-      denom *= ray->distance();
-    Real value = start_weight * end_weight * dot * dot_end / denom;
-    _vf_study->viewFactorInfo(start_bnd_id, bnd_id, _tid) += value;
+      Real denom = ray->distance();
+      if (_mesh.dimension() == 3)
+        denom *= ray->distance();
+      Real value = start_weight * end_weight * dot * dot_end / denom;
+      _vf_study->viewFactorInfo(start_bnd_id, bnd_id, _tid) += value;
+    }
   }
 
   // Kill the Ray

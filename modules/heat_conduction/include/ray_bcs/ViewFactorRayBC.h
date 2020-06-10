@@ -38,6 +38,12 @@ protected:
   const RayDataIndex _ray_index_end_bnd_id;
   /// Index in the Ray aux data for the ending weight
   const RayDataIndex _ray_index_end_weight;
+  /// The x-index for the point on the boundary where this Ray should end
+  const RayDataIndex _ray_index_end_x;
+  /// The y-index for the point on the boundary where this Ray should end
+  const RayDataIndex _ray_index_end_y;
+  /// The z-index for the point on the boundary where this Ray should end
+  const RayDataIndex _ray_index_end_z;
 
   ViewFactorRayStudy * _vf_study;
 };
