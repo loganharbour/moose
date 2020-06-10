@@ -51,6 +51,9 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _ray_index_start_weight(registerRayAuxData("start_weight")),
     _ray_index_end_bnd_id(registerRayAuxData("end_bnd_id")),
     _ray_index_end_weight(registerRayAuxData("end_weight")),
+    _ray_index_end_x(registerRayAuxData("end_x")),
+    _ray_index_end_y(registerRayAuxData("end_y")),
+    _ray_index_end_z(registerRayAuxData("end_z")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(FIRST, LAGRANGE))),
     _q_face(QBase::build(QGAUSS,
                          _mesh.dimension() - 1,
@@ -343,6 +346,16 @@ ViewFactorRayStudy::generateRays()
             ray->setAuxData(_ray_index_start_weight, start_weight);
             ray->setAuxData(_ray_index_end_bnd_id, end_bnd_id);
             ray->setAuxData(_ray_index_end_weight, end_weight);
+
+            // Note that ray->end() is a fake end point. We must do this due to Rays that end on
+            // internal sidesets. These Rays cannot have ray->end() = end_point, because in the case
+            // where the Ray ends on the ending side but not on the ending internal side (an
+            // internal side is associated with a single element, and the Ray may hit the neighbor
+            // first), the Ray would never hit the internal side! It would die first. Therefore, we
+            // also need to keep track of the real end point.
+            ray->setAuxData(_ray_index_end_x, end_point(0));
+            ray->setAuxData(_ray_index_end_y, end_point(1));
+            ray->setAuxData(_ray_index_end_z, end_point(2));
           }
         }
       }
