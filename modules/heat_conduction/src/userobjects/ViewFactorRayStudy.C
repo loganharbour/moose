@@ -265,11 +265,12 @@ ViewFactorRayStudy::generatePoints()
 void
 ViewFactorRayStudy::generateRays()
 {
-  // Start with an ID for Rays that is unique to this processor
-  _next_id = DofObject::invalid_id / (dof_id_type)_comm.size() * (dof_id_type)_pid;
-
   // Generate the start and end points
   generatePoints();
+
+  // The Rays we are creating. We will not put these into the buffer yet because
+  // we will have to set their IDs at the very end before we insert into the buffer
+  std::vector<std::shared_ptr<Ray>> rays;
 
   for (unsigned int start_bnd_id_index = 0; start_bnd_id_index < _bnd_ids.size();
        ++start_bnd_id_index)
@@ -329,11 +330,10 @@ ViewFactorRayStudy::generateRays()
 
             // Create a Ray and add it to the buffer for future tracing
             std::shared_ptr<Ray> ray = _ray_pool.acquire();
-            addToWorkingBuffer(ray);
+            rays.push_back(ray);
 
             ray->setStartingElem(elem);
             ray->setIncomingSide(side);
-            ray->setID(_next_id++);
             ray->setStart(start_point);
             ray->setEnd(fake_end);
             ray->setDirection(direction);
@@ -361,4 +361,38 @@ ViewFactorRayStudy::generateRays()
       }
     }
   }
+
+  // Now we will decide on the IDs for each Ray. Each rank will have a contiguous
+  // set of IDs for its rays and there will be no holes in the IDs.
+
+  // Number of rays this proc has
+  const std::size_t local_size = rays.size();
+  // Vector of sizes across all processors (for rank 0 only)
+  std::vector<std::size_t> proc_sizes;
+  // Send this procesor's local size to rank 0
+  _comm.gather(0, local_size, proc_sizes);
+  // Rank 0 has the proc sizes and will decide on a starting ID for every rank
+  std::vector<RayID> proc_starting_id;
+  if (processor_id() == 0)
+  {
+    proc_starting_id.resize(_comm.size());
+    RayID current_starting_id = 0;
+    for (processor_id_type pid = 0; pid < _comm.size(); ++pid)
+    {
+      proc_starting_id[pid] = current_starting_id;
+      current_starting_id += proc_sizes[pid];
+    }
+  }
+
+  // Send the starting ID to each rank
+  RayID next_id;
+  _comm.scatter(proc_starting_id, next_id, 0);
+
+  // Set the local IDs
+  for (const std::shared_ptr<Ray> & ray : rays)
+    ray->setID(next_id++);
+
+  // Add Rays to the buffer
+  addToWorkingBuffer(rays);
+  rays.clear();
 }

@@ -79,9 +79,6 @@ protected:
   /// The objects (point and weight) that this proc needs to spawn Rays to (indexed by _bnd_ids)
   std::vector<std::vector<std::pair<Point, Real>>> _end_points;
 
-  /// The next available ID to assign to a Ray in defineRay()
-  RayID _next_id;
-
   /// view factor information by tid and then from/to pair
   std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _vf_info;
 };
