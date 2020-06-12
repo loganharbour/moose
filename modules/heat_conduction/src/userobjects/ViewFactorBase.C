@@ -132,6 +132,7 @@ ViewFactorBase::checkAndNormalizeViewFactor()
     for (auto pair : _side_name_index)
       if (pair.second == from)
         from_name = pair.first;
+    auto from_id = _mesh.getBoundaryID(from_name);
 
     for (unsigned int to = 0; to < _n_sides; ++to)
     {
@@ -139,7 +140,9 @@ ViewFactorBase::checkAndNormalizeViewFactor()
       for (auto pair : _side_name_index)
         if (pair.second == to)
           to_name = pair.first;
-      _console << from_name << "->" << to_name << " = " << _view_factors[from][to] << std::endl;
+      auto to_id = _mesh.getBoundaryID(to_name);
+      _console << from_name << " (" << from_id << ") -> " << to_name << " (" << to_id
+               << ") = " << _view_factors[from][to] << std::endl;
     }
   }
 }
