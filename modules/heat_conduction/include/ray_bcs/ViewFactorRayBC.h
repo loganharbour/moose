@@ -28,6 +28,15 @@ public:
                      const bool applying_at_corner) override;
 
 protected:
+  /**
+   * Get the outward facing normal on the centroid of a given element's side.
+   *
+   * Re-computing the normal on the fly was determined to be quite costly.
+   * This checks to see if we have cached said normal already in _cached_side_normals,
+   * and otherwise computes said normal locally and caches it for future use.
+   */
+  const Point & getSideNormal(const Elem * elem, const unsigned short side);
+
   /// Index in the Ray aux data for the starting dot product
   const RayDataIndex _ray_index_start_dot;
   /// Index in the Ray aux data for the starting boundary ID
@@ -45,5 +54,6 @@ protected:
   /// The z-index for the point on the boundary where this Ray should end
   const RayDataIndex _ray_index_end_z;
 
+  /// The ViewFactorRayStudy
   ViewFactorRayStudy * _vf_study;
 };

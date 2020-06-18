@@ -39,8 +39,8 @@ ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
 }
 
 void
-ViewFactorRayBC::apply(const Elem * /* elem */,
-                       const unsigned short /* intersected_side */,
+ViewFactorRayBC::apply(const Elem * elem,
+                       const unsigned short intersected_side,
                        const BoundaryID bnd_id,
                        const Point & intersection_point,
                        const std::shared_ptr<Ray> & ray,
@@ -50,30 +50,42 @@ ViewFactorRayBC::apply(const Elem * /* elem */,
   if (ray->distance() == 0)
     return;
 
+  // The boundary ID this Ray wants to end on
   const BoundaryID end_bnd_id = ray->auxData(_ray_index_end_bnd_id);
+
   // If we actually hit the boundary we were trying to get to: possibly contribute
   if (bnd_id == end_bnd_id)
   {
-    // Are we at the end point?
+    // Build the end point from the individual values
     const Point end_point = Point(ray->auxData(_ray_index_end_x),
                                   ray->auxData(_ray_index_end_y),
                                   ray->auxData(_ray_index_end_z));
+
+    // Accumulate only if we're at the end point
     if (end_point.absolute_fuzzy_equals(intersection_point))
     {
-      const Real dot = ray->auxData(_ray_index_start_dot);
-      // NOTE: in reality this should use _normals[_qp] BUT
-      // raytracing works only with first order elems so all
-      // normals are the same; the absolute value is used to not
-      // having to worry of the sign of the normal
-      const Real dot_end = std::abs(ray->direction() * _normals[0]);
+      // Starting dot product
+      const Real start_dot = ray->auxData(_ray_index_start_dot);
+
+      // Ending dot product
+      // NOTE: This should really be _normals[_qp] but because ray-tracing only works
+      // with first order elements, we simply use the cached centroid normal from the
+      // study
+      const auto & normal = _study.getSideNormal(elem, intersected_side, _tid);
+      const Real dot_end = std::abs(ray->direction() * normal);
+
+      // The boundary ID this Ray started on
       const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
+
+      // The start and end weights for this Ray
       const Real start_weight = ray->auxData(_ray_index_start_weight);
       const Real end_weight = ray->auxData(_ray_index_end_weight);
 
+      // Accumulate into the view factor info
       Real denom = ray->distance();
       if (_mesh.dimension() == 3)
         denom *= ray->distance();
-      Real value = start_weight * end_weight * dot * dot_end / denom;
+      Real value = start_weight * end_weight * start_dot * dot_end / denom;
       _vf_study->viewFactorInfo(start_bnd_id, bnd_id, _tid) += value;
     }
   }
