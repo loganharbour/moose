@@ -9,6 +9,9 @@
 
 #include "ViewFactorRayStudy.h"
 
+// MOOSE includes
+#include "TimedPrint.h"
+
 // libMesh includes
 #include "libmesh/parallel_algebra.h"
 #include "libmesh/parallel_sync.h"
@@ -26,7 +29,10 @@ ViewFactorRayStudy::validParams()
   params.addRequiredParam<std::vector<BoundaryName>>(
       "boundary", "The list of boundary IDs from the mesh where this boundary condition applies");
 
-  MooseEnum qorders("CONSTANT FIRST SECOND THIRD", "CONSTANT");
+  MooseEnum qorders("CONSTANT FIRST SECOND THIRD FOURTH FIFTH SIXTH SEVENTH EIGHTH NINTH TENTH "
+                    "ELEVENTH TWELFTH THIRTEENTH FOURTEENTH FIFTEENTH SIXTEENTH SEVENTEENTH "
+                    "EIGHTTEENTH NINTEENTH TWENTIETH",
+                    "CONSTANT");
   params.addParam<MooseEnum>("face_order", qorders, "The face quadrature rule order");
 
   // Shouldn't ever need RayKernels for view factors
@@ -39,6 +45,9 @@ ViewFactorRayStudy::validParams()
 
   // No need to use Ray registration
   params.set<bool>("use_ray_registration") = false;
+
+  // Need to use internal sidesets
+  params.set<bool>("use_internal_sidesets") = true;
 
   return params;
 }
@@ -54,8 +63,8 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _ray_index_end_x(registerRayAuxData("end_x")),
     _ray_index_end_y(registerRayAuxData("end_y")),
     _ray_index_end_z(registerRayAuxData("end_z")),
-    _fe_face(FEBase::build(_mesh.dimension(), FEType(FIRST, LAGRANGE))),
-    _q_face(QBase::build(QGAUSS,
+    _fe_face(FEBase::build(_mesh.dimension(), FEType(CONSTANT, MONOMIAL))),
+    _q_face(QBase::build(QGRID,
                          _mesh.dimension() - 1,
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
     _vf_info(libMesh::n_threads())
@@ -180,7 +189,7 @@ ViewFactorRayStudy::generatePoints()
       continue;
 
     // The location in the _bnd_ids vector that bnd_id is
-    const auto bnd_id_index = find_it - _bnd_ids.begin();
+    const auto bnd_id_index = std::distance(_bnd_ids.begin(), find_it);
 
     // Reinit this face
     _fe_face->reinit(elem, side);
@@ -256,10 +265,56 @@ ViewFactorRayStudy::generatePoints()
           const auto bnd_id_index = std::get<0>(tuple);
           const auto & point = std::get<1>(tuple);
           const auto weight = std::get<2>(tuple);
+
           _end_points[bnd_id_index].emplace_back(point, weight);
         }
       };
   Parallel::push_parallel_vector_data(_comm, send_tuples, receive_points_functor);
+
+  // Determine number of Rays and points
+  std::size_t num_local_start_points = 0;
+  std::size_t num_local_rays = 0;
+  for (unsigned int start_bnd_id_index = 0; start_bnd_id_index < _bnd_ids.size();
+       ++start_bnd_id_index)
+    for (const auto & start_elem : _start_info[start_bnd_id_index])
+    {
+      num_local_start_points += start_elem._points.size();
+      for (unsigned int end_bnd_id_index = 0; end_bnd_id_index < _bnd_ids.size();
+           ++end_bnd_id_index)
+        if (_bnd_ids[start_bnd_id_index] <= _bnd_ids[end_bnd_id_index])
+          num_local_rays += start_elem._points.size() * _end_points[end_bnd_id_index].size();
+    }
+
+  // While we're at it, set the work buffer capacity ahead of time
+  setWorkingBufferCapacity(num_local_rays);
+
+  std::size_t num_total_points = num_local_start_points;
+  std::size_t num_total_rays = num_local_rays;
+  _communicator.sum(num_total_points);
+  _communicator.sum(num_total_rays);
+  _console << "\nView factor study generated " << num_total_points << " points requiring "
+           << num_total_rays << " rays" << std::endl;
+
+  // Decide on the starting Ray IDs for each rank. Each rank will have a contiguous set of IDs for
+  // its rays and there will be no holes in the IDs between ranks Number of rays this proc has
+  // Vector of sizes across all processors (for rank 0 only)
+  std::vector<std::size_t> proc_sizes;
+  // Send this procesor's local size to rank 0
+  _comm.gather(0, num_local_rays, proc_sizes);
+  // Rank 0 has the proc sizes and will decide on a starting ID for every rank
+  std::vector<RayID> proc_starting_id;
+  if (processor_id() == 0)
+  {
+    proc_starting_id.resize(_comm.size());
+    RayID current_starting_id = 0;
+    for (processor_id_type pid = 0; pid < _comm.size(); ++pid)
+    {
+      proc_starting_id[pid] = current_starting_id;
+      current_starting_id += proc_sizes[pid];
+    }
+  }
+  // Send the starting ID to each rank
+  _comm.scatter(proc_starting_id, _current_starting_id, 0);
 }
 
 void
@@ -268,9 +323,7 @@ ViewFactorRayStudy::generateRays()
   // Generate the start and end points
   generatePoints();
 
-  // The Rays we are creating. We will not put these into the buffer yet because
-  // we will have to set their IDs at the very end before we insert into the buffer
-  std::vector<std::shared_ptr<Ray>> rays;
+  CONSOLE_TIMED_PRINT("View factor study generating rays");
 
   for (unsigned int start_bnd_id_index = 0; start_bnd_id_index < _bnd_ids.size();
        ++start_bnd_id_index)
@@ -322,16 +375,17 @@ ViewFactorRayStudy::generateRays()
             if (dot >= 0)
               continue;
 
-            // We need to make a fake end point that ends up somewhere on an external boundary in
-            // the event that the actual end point is on an internal boundary - this is required to
-            // enable a Ray to enter and die on an internal boundary that occurs /after/ the end
-            // point is found
+            // We need to make a fake end point that ends up somewhere on an external boundary
+            // in the event that the actual end point is on an internal boundary - this is
+            // required to enable a Ray to enter and die on an internal boundary that occurs
+            // /after/ the end point is found
             const auto fake_end = rayDomainIntersection(start_point, direction);
 
             // Create a Ray and add it to the buffer for future tracing
             std::shared_ptr<Ray> ray = _ray_pool.acquire();
-            rays.push_back(ray);
+            addToWorkingBuffer(ray);
 
+            ray->setID(_current_starting_id++);
             ray->setStartingElem(elem);
             ray->setIncomingSide(side);
             ray->setStart(start_point);
@@ -348,11 +402,11 @@ ViewFactorRayStudy::generateRays()
             ray->setAuxData(_ray_index_end_weight, end_weight);
 
             // Note that ray->end() is a fake end point. We must do this due to Rays that end on
-            // internal sidesets. These Rays cannot have ray->end() = end_point, because in the case
-            // where the Ray ends on the ending side but not on the ending internal side (an
-            // internal side is associated with a single element, and the Ray may hit the neighbor
-            // first), the Ray would never hit the internal side! It would die first. Therefore, we
-            // also need to keep track of the real end point.
+            // internal sidesets. These Rays cannot have ray->end() = end_point, because in the
+            // case where the Ray ends on the ending side but not on the ending internal side
+            // (an internal side is associated with a single element, and the Ray may hit the
+            // neighbor first), the Ray would never hit the internal side! It would die first.
+            // Therefore, we also need to keep track of the real end point.
             ray->setAuxData(_ray_index_end_x, end_point(0));
             ray->setAuxData(_ray_index_end_y, end_point(1));
             ray->setAuxData(_ray_index_end_z, end_point(2));
@@ -360,39 +414,12 @@ ViewFactorRayStudy::generateRays()
         }
       }
     }
+
+    // Done creating Rays from this start boundary
+    _start_info[start_bnd_id_index].clear();
   }
 
-  // Now we will decide on the IDs for each Ray. Each rank will have a contiguous
-  // set of IDs for its rays and there will be no holes in the IDs.
-
-  // Number of rays this proc has
-  const std::size_t local_size = rays.size();
-  // Vector of sizes across all processors (for rank 0 only)
-  std::vector<std::size_t> proc_sizes;
-  // Send this procesor's local size to rank 0
-  _comm.gather(0, local_size, proc_sizes);
-  // Rank 0 has the proc sizes and will decide on a starting ID for every rank
-  std::vector<RayID> proc_starting_id;
-  if (processor_id() == 0)
-  {
-    proc_starting_id.resize(_comm.size());
-    RayID current_starting_id = 0;
-    for (processor_id_type pid = 0; pid < _comm.size(); ++pid)
-    {
-      proc_starting_id[pid] = current_starting_id;
-      current_starting_id += proc_sizes[pid];
-    }
-  }
-
-  // Send the starting ID to each rank
-  RayID next_id;
-  _comm.scatter(proc_starting_id, next_id, 0);
-
-  // Set the local IDs
-  for (const std::shared_ptr<Ray> & ray : rays)
-    ray->setID(next_id++);
-
-  // Add Rays to the buffer
-  addToWorkingBuffer(rays);
-  rays.clear();
+  // Clear the point info now that we're done with it
+  _start_info.clear();
+  _end_points.clear();
 }

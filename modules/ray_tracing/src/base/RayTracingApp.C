@@ -13,7 +13,6 @@
 #include "MooseSyntax.h"
 
 #include "RayTracingAttributes.h"
-#include "HeatConductionApp.h"
 
 InputParameters
 RayTracingApp::validParams()
