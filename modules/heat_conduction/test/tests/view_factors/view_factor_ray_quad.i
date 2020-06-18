@@ -14,7 +14,7 @@
     type = ViewFactorRayStudy
     execute_on = INITIAL
     boundary = 'top left right bottom'
-    face_order = SECOND
+    face_order = TENTH
   [../]
 
   [./view_factor]
