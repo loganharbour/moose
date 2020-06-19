@@ -43,6 +43,8 @@ public:
     const std::vector<Real> _weights;
   };
 
+  void initialSetup() override;
+
   // returns a writeable reference to _vf_info pair from_bnd_id -> to_bnd_id
   Real & viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid);
 
@@ -59,11 +61,11 @@ public:
    * computation manually for optimization in ViewFactorRayBC and don't need to do
    * anything here.
    */
-  virtual void reinitBoundary(const Elem * /* elem */,
-                              const unsigned short /* side */,
-                              const Point & /* point */,
-                              const BoundaryID /* bnd_id */,
-                              const THREAD_ID /* tid */) override
+  void reinitBoundary(const Elem * /* elem */,
+                      const unsigned short /* side */,
+                      const Point & /* point */,
+                      const BoundaryID /* bnd_id */,
+                      const THREAD_ID /* tid */) override
   {
   }
 
@@ -73,8 +75,7 @@ public:
    * With view factor computation, there is no depenence on subdomain. Therefore, we optimize
    * the trace by setting this to do nothing.
    */
-  virtual void
-      subdomainSetup(SubdomainID /* subdomain */, THREAD_ID /* tid */, RayID /* ray_id */) override
+  void subdomainSetup(SubdomainID /* subdomain */, THREAD_ID /* tid */, RayID /* ray_id */) override
   {
   }
 
@@ -84,12 +85,32 @@ public:
    * With view factor computation, there is no work to be done on a segment of a Ray. Therefore,
    * we optimize the trace by setting this to do nothing.
    */
-  virtual void reinitSegment(const Elem * /* elem */,
-                             const Point & /* start */,
-                             const Point & /* end */,
-                             THREAD_ID /* tid */) override
+  void reinitSegment(const Elem * /* elem */,
+                     const Point & /* start */,
+                     const Point & /* end */,
+                     THREAD_ID /* tid */) override
   {
   }
+
+  /**
+   * This is called in RayStudyTraceRay to grab the RayBCs on a boundary.
+   *
+   * With view factor computation, we only have one RayBC. Therefore, cache it up front in
+   * initialSetup() and return the cached object here.
+   */
+  void getRayBCs(std::vector<RayBC *> & result,
+                 const std::vector<ConstBndElement> & /* bnd_elems */,
+                 THREAD_ID tid,
+                 RayID /* ray_id */) override
+  {
+    result = _threaded_cached_ray_bcs[tid];
+  }
+
+  /**
+   * Casts the RayTracingStudy found in the given input parameters to a ViewFactorRayStudy with a
+   * meaningful error message if it fails
+   */
+  static ViewFactorRayStudy & castFromStudy(const InputParameters & params);
 
 protected:
   virtual void generateRays() override;
@@ -98,22 +119,16 @@ protected:
   /// The user supplied boundary IDs we need view factors on
   const std::vector<BoundaryID> _bnd_ids;
 
-  /// Index in the Ray aux data for the starting dot product
-  const RayDataIndex _ray_index_start_dot;
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;
-  /// Index in the Ray aux data for the starting weight
-  const RayDataIndex _ray_index_start_weight;
+  /// Index in the Ray aux data for the starting total weight (dot * qp weight)
+  const RayDataIndex _ray_index_start_total_weight;
   /// Index in the Ray aux data for the ending boundary ID
   const RayDataIndex _ray_index_end_bnd_id;
   /// Index in the Ray aux data for the ending weight
   const RayDataIndex _ray_index_end_weight;
-  /// The x-index for the point on the boundary where this Ray should end
-  const RayDataIndex _ray_index_end_x;
-  /// The y-index for the point on the boundary where this Ray should end
-  const RayDataIndex _ray_index_end_y;
-  /// The z-index for the point on the boundary where this Ray should end
-  const RayDataIndex _ray_index_end_z;
+  /// Index in the Ray aux data for the distance from start to end
+  const RayDataIndex _ray_index_start_end_distance;
 
   /// Face FE used for creating face normals
   std::unique_ptr<FEBase> _fe_face;
@@ -122,6 +137,8 @@ protected:
 
   /// The next available ID to assign to a Ray for this rank
   RayID _current_starting_id;
+  /// The BoundaryIDs in _bnd_ids that are internal
+  std::set<BoundaryID> _internal_bnd_ids;
 
 private:
   /// The objects that this proc needs to spawn Rays from (indexed by _bnd_ids)
@@ -131,4 +148,7 @@ private:
 
   /// view factor information by tid and then from/to pair
   std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _vf_info;
+
+  /// Used for caching the single RayBC per thread for use in getRayBCs()
+  std::vector<std::vector<RayBC *>> _threaded_cached_ray_bcs;
 };

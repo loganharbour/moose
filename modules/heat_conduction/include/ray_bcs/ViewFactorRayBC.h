@@ -11,8 +11,12 @@
 
 #include "RayBC.h"
 
+// Forward declarations
 class ViewFactorRayStudy;
 
+/**
+ * RayBC used in the computation of view factors.
+ */
 class ViewFactorRayBC : public RayBC
 {
 public:
@@ -20,40 +24,25 @@ public:
 
   static InputParameters validParams();
 
-  virtual void apply(const Elem * elem,
-                     const unsigned short intersected_side,
-                     const BoundaryID bnd_id,
-                     const Point & intersection_point,
-                     const std::shared_ptr<Ray> & ray,
-                     const bool applying_at_corner) override;
+  void apply(const Elem * elem,
+             const unsigned short intersected_side,
+             const BoundaryID bnd_id,
+             const Point & intersection_point,
+             const std::shared_ptr<Ray> & ray,
+             const bool applying_multiple) override;
 
 protected:
-  /**
-   * Get the outward facing normal on the centroid of a given element's side.
-   *
-   * Re-computing the normal on the fly was determined to be quite costly.
-   * This checks to see if we have cached said normal already in _cached_side_normals,
-   * and otherwise computes said normal locally and caches it for future use.
-   */
-  const Point & getSideNormal(const Elem * elem, const unsigned short side);
+  /// The ViewFactorRayStudy
+  ViewFactorRayStudy & _vf_study;
 
-  /// Index in the Ray aux data for the starting dot product
-  const RayDataIndex _ray_index_start_dot;
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;
-  /// Index in the Ray aux data for the starting weight
-  const RayDataIndex _ray_index_start_weight;
+  /// Index in the Ray aux data for the starting total weight (dot * qp weight)
+  const RayDataIndex _ray_index_start_total_weight;
   /// Index in the Ray aux data for the ending boundary ID
   const RayDataIndex _ray_index_end_bnd_id;
   /// Index in the Ray aux data for the ending weight
   const RayDataIndex _ray_index_end_weight;
-  /// The x-index for the point on the boundary where this Ray should end
-  const RayDataIndex _ray_index_end_x;
-  /// The y-index for the point on the boundary where this Ray should end
-  const RayDataIndex _ray_index_end_y;
-  /// The z-index for the point on the boundary where this Ray should end
-  const RayDataIndex _ray_index_end_z;
-
-  /// The ViewFactorRayStudy
-  ViewFactorRayStudy * _vf_study;
+  /// Index in the Ray aux data for the distance from start to end
+  const RayDataIndex _ray_index_start_end_distance;
 };
