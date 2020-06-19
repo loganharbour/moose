@@ -12,6 +12,9 @@
 // MOOSE includes
 #include "TimedPrint.h"
 
+// Local includes
+#include "ViewFactorRayBC.h"
+
 // libMesh includes
 #include "libmesh/parallel_algebra.h"
 #include "libmesh/parallel_sync.h"
@@ -43,11 +46,14 @@ ViewFactorRayStudy::validParams()
   params.set<bool>("force_preaux") = true;
   params.suppressParameter<bool>("force_preaux");
 
-  // No need to use Ray registration
-  params.set<bool>("use_ray_registration") = false;
-
   // Need to use internal sidesets
   params.set<bool>("use_internal_sidesets") = true;
+  params.suppressParameter<bool>("use_internal_sidesets");
+
+  // No need to use Ray registration
+  params.set<bool>("_use_ray_registration") = false;
+  // Do not need to bank Rays on completion
+  params.set<bool>("_bank_rays_on_completion") = false;
 
   return params;
 }
@@ -55,19 +61,17 @@ ViewFactorRayStudy::validParams()
 ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
   : RayTracingStudy(parameters),
     _bnd_ids(_mesh.getBoundaryIDs(getParam<std::vector<BoundaryName>>("boundary"))),
-    _ray_index_start_dot(registerRayAuxData("start_dot")),
     _ray_index_start_bnd_id(registerRayAuxData("start_bnd_id")),
-    _ray_index_start_weight(registerRayAuxData("start_weight")),
+    _ray_index_start_total_weight(registerRayAuxData("start_total_weight")),
     _ray_index_end_bnd_id(registerRayAuxData("end_bnd_id")),
     _ray_index_end_weight(registerRayAuxData("end_weight")),
-    _ray_index_end_x(registerRayAuxData("end_x")),
-    _ray_index_end_y(registerRayAuxData("end_y")),
-    _ray_index_end_z(registerRayAuxData("end_z")),
+    _ray_index_start_end_distance(registerRayAuxData("start_end_distance")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(CONSTANT, MONOMIAL))),
     _q_face(QBase::build(QGRID,
                          _mesh.dimension() - 1,
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
-    _vf_info(libMesh::n_threads())
+    _vf_info(libMesh::n_threads()),
+    _threaded_cached_ray_bcs(libMesh::n_threads())
 {
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_normals();
@@ -85,6 +89,43 @@ ViewFactorRayStudy::initialize()
       for (const BoundaryID to_id : _bnd_ids)
         if (from_id <= to_id)
           _vf_info[tid][from_id][to_id] = 0;
+  }
+}
+
+void
+ViewFactorRayStudy::initialSetup()
+{
+  RayTracingStudy::initialSetup();
+
+  // We optimized away RayKernels, so don't allow them
+  std::vector<RayKernelBase *> ray_kernels;
+  RayTracingStudy::getRayKernels(ray_kernels, 0);
+  if (!ray_kernels.empty())
+    mooseError("The ViewFactorRayStudy '", name(), "' is not compatible with RayKernels");
+
+  // Make sure we have only one RayBC: a ViewFactorRayBC with the same boundaries
+  std::vector<RayBC *> ray_bcs;
+  RayTracingStudy::getRayBCs(ray_bcs, 0);
+  if (ray_bcs.size() != 1)
+    mooseError(
+        "The ViewFactorRayStudy '", name(), "' requires one and only one RayBC, a ViewFactorRayBC");
+  ViewFactorRayBC * vf_ray_bc = dynamic_cast<ViewFactorRayBC *>(ray_bcs[0]);
+  if (!vf_ray_bc)
+    mooseError(
+        "The ViewFactorRayStudy '", name(), "' requires one and only one RayBC, a ViewFactorRayBC");
+  if (!vf_ray_bc->hasBoundary(_bnd_ids))
+    mooseError("The ViewFactorRayBC '",
+               vf_ray_bc->name(),
+               "' must be applied to the same boundaries as the ViewFactorRayStudy '",
+               name(),
+               "'");
+
+  // Cache our one RayBC per thread so that we don't spend unnecessary time querying for RayBCs on
+  // every boundary
+  for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
+  {
+    RayTracingStudy::getRayBCs(ray_bcs, tid);
+    _threaded_cached_ray_bcs[tid] = ray_bcs;
   }
 }
 
@@ -158,8 +199,8 @@ ViewFactorRayStudy::finalize()
       Real v = pp.second;
 
       if (from > to)
-        mooseError(
-            "This should never happen, from boundary id can never be larger than to boundary id.");
+        mooseError("This should never happen, from boundary id can never be larger than to "
+                   "boundary id.");
 
       _vf_info[0][to][from] = v;
     }
@@ -171,6 +212,7 @@ ViewFactorRayStudy::generatePoints()
 {
   _start_info.resize(_bnd_ids.size());
   _end_points.resize(_bnd_ids.size());
+  _internal_bnd_ids.clear();
 
   // Get all possible centroids on the user defined boundaries on this proc
   for (const auto & belem : *_mesh.getBoundaryElementRange())
@@ -188,6 +230,10 @@ ViewFactorRayStudy::generatePoints()
     if (find_it == _bnd_ids.end())
       continue;
 
+    // Mark if this is an internal sideset for future use
+    if (elem->neighbor_ptr(side))
+      _internal_bnd_ids.insert(bnd_id);
+
     // The location in the _bnd_ids vector that bnd_id is
     const auto bnd_id_index = std::distance(_bnd_ids.begin(), find_it);
 
@@ -198,6 +244,9 @@ ViewFactorRayStudy::generatePoints()
     _start_info[bnd_id_index].emplace_back(
         elem, side, _fe_face->get_normals()[0], _fe_face->get_xyz(), _fe_face->get_JxW());
   }
+
+  // Decide on the internal boundaries
+  _communicator.set_union(_internal_bnd_ids);
 
   // The processors that have elements on each boundary (indexed by indexing in _bnd_ids)
   std::vector<std::vector<processor_id_type>> bnd_id_procs(_bnd_ids.size());
@@ -274,25 +323,33 @@ ViewFactorRayStudy::generatePoints()
   // Determine number of Rays and points
   std::size_t num_local_start_points = 0;
   std::size_t num_local_rays = 0;
-  for (unsigned int start_bnd_id_index = 0; start_bnd_id_index < _bnd_ids.size();
-       ++start_bnd_id_index)
-    for (const auto & start_elem : _start_info[start_bnd_id_index])
+  for (unsigned int start_bnd_id_i = 0; start_bnd_id_i < _bnd_ids.size(); ++start_bnd_id_i)
+    for (const auto & start_elem : _start_info[start_bnd_id_i])
     {
       num_local_start_points += start_elem._points.size();
-      for (unsigned int end_bnd_id_index = 0; end_bnd_id_index < _bnd_ids.size();
-           ++end_bnd_id_index)
-        if (_bnd_ids[start_bnd_id_index] <= _bnd_ids[end_bnd_id_index])
-          num_local_rays += start_elem._points.size() * _end_points[end_bnd_id_index].size();
+      for (unsigned int end_bnd_id_i = 0; end_bnd_id_i < _bnd_ids.size(); ++end_bnd_id_i)
+        if (_bnd_ids[start_bnd_id_i] <= _bnd_ids[end_bnd_id_i])
+          for (const auto & start_point : start_elem._points)
+            for (const auto & end_point_pair : _end_points[end_bnd_id_i])
+            {
+              const auto & end_point = end_point_pair.first;
+              if (start_point.absolute_fuzzy_equals(end_point))
+                continue;
+              const Point direction = (end_point - start_point).unit();
+              if (start_elem._normal * direction < -TOLERANCE)
+                ++num_local_rays;
+            }
     }
 
   // While we're at it, set the work buffer capacity ahead of time
   setWorkingBufferCapacity(num_local_rays);
 
+  // Print out totals while we're here
   std::size_t num_total_points = num_local_start_points;
   std::size_t num_total_rays = num_local_rays;
   _communicator.sum(num_total_points);
   _communicator.sum(num_total_rays);
-  _console << "\nView factor study generated " << num_total_points << " points requiring "
+  _console << "View factor study generated " << num_total_points << " points requiring "
            << num_total_rays << " rays" << std::endl;
 
   // Decide on the starting Ray IDs for each rank. Each rank will have a contiguous set of IDs for
@@ -325,26 +382,26 @@ ViewFactorRayStudy::generateRays()
 
   CONSOLE_TIMED_PRINT("View factor study generating rays");
 
-  for (unsigned int start_bnd_id_index = 0; start_bnd_id_index < _bnd_ids.size();
-       ++start_bnd_id_index)
+  for (unsigned int start_bnd_id_i = 0; start_bnd_id_i < _bnd_ids.size(); ++start_bnd_id_i)
   {
     // Don't have any start points on this bounary
-    if (_start_info[start_bnd_id_index].empty())
+    if (_start_info[start_bnd_id_i].empty())
       continue;
 
-    const auto start_bnd_id = _bnd_ids[start_bnd_id_index];
+    const auto start_bnd_id = _bnd_ids[start_bnd_id_i];
 
     // Loop through all end boundaries to see which we need to send Rays to
-    for (unsigned int end_bnd_id_index = 0; end_bnd_id_index < _bnd_ids.size(); ++end_bnd_id_index)
+    for (unsigned int end_bnd_id_i = 0; end_bnd_id_i < _bnd_ids.size(); ++end_bnd_id_i)
     {
-      const auto end_bnd_id = _bnd_ids[end_bnd_id_index];
+      const auto end_bnd_id = _bnd_ids[end_bnd_id_i];
+      const bool end_is_internal = _internal_bnd_ids.count(end_bnd_id);
 
       // Only send rays when start_bnd_id <= end_bnd_id
       if (start_bnd_id > end_bnd_id)
         continue;
 
       // Loop through all elems on said boundary
-      for (const auto & start_elem : _start_info[start_bnd_id_index])
+      for (const auto & start_elem : _start_info[start_bnd_id_i])
       {
         const auto elem = start_elem._elem;
         const auto side = start_elem._side;
@@ -355,13 +412,13 @@ ViewFactorRayStudy::generateRays()
         // Loop over all start points associated with this boundary
         for (unsigned int i = 0; i < points.size(); ++i)
         {
-          const auto start_point = points[i];
+          const auto & start_point = points[i];
           const auto start_weight = weights[i];
 
           // And spawn from the start point to all of the end points
-          for (const auto & end_point_pair : _end_points[end_bnd_id_index])
+          for (const auto & end_point_pair : _end_points[end_bnd_id_i])
           {
-            const auto end_point = end_point_pair.first;
+            const auto & end_point = end_point_pair.first;
             const auto end_weight = end_point_pair.second;
 
             // Don't spawn when start == end
@@ -370,16 +427,19 @@ ViewFactorRayStudy::generateRays()
 
             // Direction from start -> end
             const Point direction = (end_point - start_point).unit();
-            // Dot product with direction and normal (only keep when dot < 0)
+            // Dot product with direction and normal: Only keep when dot < -TOLERANCE
+            // dot = (0, 1] is the wrong direction and [-TOLERANCE, 0] implies in the same plane
             const Real dot = normal * direction;
-            if (dot >= 0)
+            if (dot > -TOLERANCE)
               continue;
 
-            // We need to make a fake end point that ends up somewhere on an external boundary
-            // in the event that the actual end point is on an internal boundary - this is
-            // required to enable a Ray to enter and die on an internal boundary that occurs
-            // /after/ the end point is found
-            const auto fake_end = rayDomainIntersection(start_point, direction);
+            // For Rays that could possibly end on an internal boundary, the end point we set on the
+            // Ray must be past where it may end on the internal boundary. This is a requirement of
+            // the ray tracer. Therefore, if the end boundary is internal, bump the end point a
+            // little in the direction of the Ray.
+            Point mock_end_point = end_point;
+            if (end_is_internal)
+              mock_end_point += direction;
 
             // Create a Ray and add it to the buffer for future tracing
             std::shared_ptr<Ray> ray = _ray_pool.acquire();
@@ -389,15 +449,12 @@ ViewFactorRayStudy::generateRays()
             ray->setStartingElem(elem);
             ray->setIncomingSide(side);
             ray->setStart(start_point);
-            ray->setEnd(fake_end);
+            ray->setEnd(mock_end_point);
             ray->setDirection(direction);
 
             ray->auxData().resize(rayAuxDataSize());
-            // For computing the dot product, inward normals are assumed. We just
-            // use the absolute value and don't have to worry about it
-            ray->setAuxData(_ray_index_start_dot, std::abs(dot));
             ray->setAuxData(_ray_index_start_bnd_id, start_bnd_id);
-            ray->setAuxData(_ray_index_start_weight, start_weight);
+            ray->setAuxData(_ray_index_start_total_weight, start_weight * std::abs(dot));
             ray->setAuxData(_ray_index_end_bnd_id, end_bnd_id);
             ray->setAuxData(_ray_index_end_weight, end_weight);
 
@@ -406,20 +463,32 @@ ViewFactorRayStudy::generateRays()
             // case where the Ray ends on the ending side but not on the ending internal side
             // (an internal side is associated with a single element, and the Ray may hit the
             // neighbor first), the Ray would never hit the internal side! It would die first.
-            // Therefore, we also need to keep track of the real end point.
-            ray->setAuxData(_ray_index_end_x, end_point(0));
-            ray->setAuxData(_ray_index_end_y, end_point(1));
-            ray->setAuxData(_ray_index_end_z, end_point(2));
+            // Therefore, we will use the distance from start -> actual end to see if we've
+            // hit the actual end point.
+            ray->setAuxData(_ray_index_start_end_distance, (start_point - end_point).norm());
           }
         }
       }
     }
 
     // Done creating Rays from this start boundary
-    _start_info[start_bnd_id_index].clear();
+    _start_info[start_bnd_id_i].clear();
   }
 
   // Clear the point info now that we're done with it
   _start_info.clear();
   _end_points.clear();
+}
+
+ViewFactorRayStudy &
+ViewFactorRayStudy::castFromStudy(const InputParameters & params)
+{
+  RayTracingStudy * study = params.getCheckedPointerParam<RayTracingStudy *>("_ray_tracing_study");
+  ViewFactorRayStudy * vf_study = dynamic_cast<ViewFactorRayStudy *>(study);
+  if (!vf_study)
+    ::mooseError(params.get<std::string>("_type"),
+                 " '",
+                 params.get<std::string>("_object_name"),
+                 "' must be paired with a ViewFactorRayStudy");
+  return *vf_study;
 }
