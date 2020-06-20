@@ -70,26 +70,12 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _q_face(QBase::build(QGRID,
                          _mesh.dimension() - 1,
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
-    _vf_info(libMesh::n_threads()),
+    _threaded_vf_info(libMesh::n_threads()),
     _threaded_cached_ray_bcs(libMesh::n_threads())
 {
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_normals();
   _fe_face->get_xyz();
-}
-
-void
-ViewFactorRayStudy::initialize()
-{
-  for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
-  {
-    _vf_info[tid].clear();
-
-    for (const BoundaryID from_id : _bnd_ids)
-      for (const BoundaryID to_id : _bnd_ids)
-        if (from_id <= to_id)
-          _vf_info[tid][from_id][to_id] = 0;
-  }
 }
 
 void
@@ -129,82 +115,76 @@ ViewFactorRayStudy::initialSetup()
   }
 }
 
-Real &
-ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid)
+void
+ViewFactorRayStudy::preExecuteStudy()
 {
-  mooseAssert(std::find(_bnd_ids.begin(), _bnd_ids.end(), from_id) != _bnd_ids.end(),
-              "Invalid from_id");
-  mooseAssert(std::find(_bnd_ids.begin(), _bnd_ids.end(), to_id) != _bnd_ids.end(),
-              "Invalid to_id");
+  RayTracingStudy::preExecuteStudy();
 
-  return _vf_info[tid][from_id][to_id];
+  // Clear and zero the view factor maps we're about to accumulate into for each thread
+  for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
+  {
+    _threaded_vf_info[tid].clear();
+    for (const BoundaryID from_id : _bnd_ids)
+      for (const BoundaryID to_id : _bnd_ids)
+        if (from_id <= to_id)
+          _threaded_vf_info[tid][from_id][to_id] = 0;
+  }
+}
+
+void
+ViewFactorRayStudy::postExecuteStudy()
+{
+  RayTracingStudy::postExecuteStudy();
+
+  // Finalize the cumulative _vf_info
+  _vf_info.clear();
+  for (const BoundaryID from_id : _bnd_ids)
+    for (const BoundaryID to_id : _bnd_ids)
+      if (from_id <= to_id)
+      {
+        Real & entry = _vf_info[from_id][to_id];
+
+        // Zero before summing
+        entry = 0;
+        // Sum over threads
+        for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
+          entry += _threaded_vf_info[tid][from_id][to_id];
+        // Sum over processors
+        _communicator.sum(entry);
+        // Apply reciprocity
+        if (from_id != to_id)
+          _vf_info[to_id][from_id] = entry;
+      }
+}
+
+void
+ViewFactorRayStudy::addToViewFactorInfo(Real value,
+                                        const BoundaryID from_id,
+                                        const BoundaryID to_id,
+                                        const THREAD_ID tid)
+{
+  if (!currentlyPropagating())
+    mooseError("addToViewFactorInfo() can only be called during Ray propagation");
+  mooseAssert(from_id <= to_id, "From ID should never be > to ID");
+  mooseAssert(_threaded_vf_info[tid].count(from_id),
+              "Threaded view factor info does not have from boundary");
+  mooseAssert(_threaded_vf_info[tid][from_id].count(to_id),
+              "Threaded view factor info does not have from -> to boundary");
+
+  _threaded_vf_info[tid][from_id][to_id] += value;
 }
 
 Real
-ViewFactorRayStudy::viewFactorInfo(BoundaryID from_id, BoundaryID to_id) const
+ViewFactorRayStudy::viewFactorInfo(const BoundaryID from_id, const BoundaryID to_id) const
 {
-  // this function should be called after summation over all
-  // threads
-  auto it = _vf_info[0].find(from_id);
-  if (it == _vf_info[0].end())
-    mooseError("From id ", from_id, " not in view factor map.");
+  auto it = _vf_info.find(from_id);
+  if (it == _vf_info.end())
+    mooseError("From boundary id ", from_id, " not in view factor map.");
 
   auto itt = it->second.find(to_id);
   if (itt == it->second.end())
     mooseError("From boundary id ", from_id, " to boundary_id ", to_id, " not in view factor map.");
   return itt->second;
-}
-
-void
-ViewFactorRayStudy::finalize()
-{
-  // accumulation of _vf_info for all threads into copy 0
-  for (THREAD_ID tid = 1; tid < libMesh::n_threads(); ++tid)
-    for (auto & p : _vf_info[tid])
-      for (auto & pp : p.second)
-        _vf_info[0][p.first][pp.first] += pp.second;
-
-  // first all processors must have the same map_of_map entries
-  std::set<std::pair<BoundaryID, BoundaryID>> bnd_id_pairs;
-  for (auto & p : _vf_info[0])
-    for (auto & pp : p.second)
-      bnd_id_pairs.insert(std::pair<BoundaryID, BoundaryID>(p.first, pp.first));
-  comm().set_union(bnd_id_pairs);
-
-  for (auto & p : bnd_id_pairs)
-  {
-    BoundaryID from = p.first;
-    BoundaryID to = p.second;
-    auto it = _vf_info[0].find(from);
-    if (it == _vf_info[0].end() || it->second.find(to) == it->second.end())
-      _vf_info[0][from][to] = 0;
-  }
-
-  // now accumulate over all processors
-  for (auto & p : _vf_info[0])
-    for (auto & pp : p.second)
-      gatherSum(_vf_info[0][p.first][pp.first]);
-
-  // Apply reciprocity
-  // NOTE we modify the map so we need to make a copy
-  // here to avoid the problem of looping over entries
-  // we just created
-  auto vf = _vf_info[0];
-  for (auto & p : vf)
-  {
-    BoundaryID from = p.first;
-    for (auto & pp : p.second)
-    {
-      BoundaryID to = pp.first;
-      Real v = pp.second;
-
-      if (from > to)
-        mooseError("This should never happen, from boundary id can never be larger than to "
-                   "boundary id.");
-
-      _vf_info[0][to][from] = v;
-    }
-  }
 }
 
 void
@@ -442,17 +422,11 @@ ViewFactorRayStudy::generateRays()
               mock_end_point += direction;
 
             // Create a Ray and add it to the buffer for future tracing
-            std::shared_ptr<Ray> ray = _ray_pool.acquire();
+            std::shared_ptr<Ray> ray = _ray_pool.acquire(
+                start_point, mock_end_point, rayDataSize(), rayAuxDataSize(), elem, side);
             addToWorkingBuffer(ray);
 
             ray->setID(_current_starting_id++);
-            ray->setStartingElem(elem);
-            ray->setIncomingSide(side);
-            ray->setStart(start_point);
-            ray->setEnd(mock_end_point);
-            ray->setDirection(direction);
-
-            ray->auxData().resize(rayAuxDataSize());
             ray->setAuxData(_ray_index_start_bnd_id, start_bnd_id);
             ray->setAuxData(_ray_index_start_total_weight, start_weight * std::abs(dot));
             ray->setAuxData(_ray_index_end_bnd_id, end_bnd_id);

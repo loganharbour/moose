@@ -18,8 +18,6 @@ public:
   ViewFactorRayStudy(const InputParameters & parameters);
 
   static InputParameters validParams();
-  virtual void initialize() override;
-  virtual void finalize() override;
 
   /**
    * Data structure used for storing all of the information needed to spawn
@@ -45,11 +43,24 @@ public:
 
   void initialSetup() override;
 
-  // returns a writeable reference to _vf_info pair from_bnd_id -> to_bnd_id
-  Real & viewFactorInfo(BoundaryID from_id, BoundaryID to_id, THREAD_ID tid);
+  /**
+   * Adds into the view factor info; to be used in ViewFactorRayBC
+   * @param value The value to add
+   * @param from_id The from boundary
+   * @param to_id The to boundary
+   * @param tid The thread
+   */
+  void addToViewFactorInfo(Real value,
+                           const BoundaryID from_id,
+                           const BoundaryID to_id,
+                           const THREAD_ID tid);
 
-  // const accessor into view factor info
-  Real viewFactorInfo(BoundaryID from_id, BoundaryID to_id) const;
+  /**
+   * Accessor for the finalized view factor info
+   * @param from_id The from boundary
+   * @param to_id The to boundary
+   */
+  Real viewFactorInfo(const BoundaryID from_id, const BoundaryID to_id) const;
 
   /**
    * This is called before calling RayBCs on a Ray when it hits a boundary.
@@ -113,8 +124,11 @@ public:
   static ViewFactorRayStudy & castFromStudy(const InputParameters & params);
 
 protected:
-  virtual void generateRays() override;
-  virtual void generatePoints();
+  void generateRays() override;
+  void generatePoints();
+
+  void preExecuteStudy() override;
+  void postExecuteStudy() override;
 
   /// The user supplied boundary IDs we need view factors on
   const std::vector<BoundaryID> _bnd_ids;
@@ -130,6 +144,7 @@ protected:
   /// Index in the Ray aux data for the distance from start to end
   const RayDataIndex _ray_index_start_end_distance;
 
+private:
   /// Face FE used for creating face normals
   std::unique_ptr<FEBase> _fe_face;
   /// Face quadrature used for creating face normals
@@ -140,14 +155,15 @@ protected:
   /// The BoundaryIDs in _bnd_ids that are internal
   std::set<BoundaryID> _internal_bnd_ids;
 
-private:
   /// The objects that this proc needs to spawn Rays from (indexed by _bnd_ids)
   std::vector<std::vector<StartElem>> _start_info;
   /// The objects (point and weight) that this proc needs to spawn Rays to (indexed by _bnd_ids)
   std::vector<std::vector<std::pair<Point, Real>>> _end_points;
 
-  /// view factor information by tid and then from/to pair
-  std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _vf_info;
+  /// View factor information by tid and then from/to pair
+  std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _threaded_vf_info;
+  /// Cumulative view factor information
+  std::map<BoundaryID, std::map<BoundaryID, Real>> _vf_info;
 
   /// Used for caching the single RayBC per thread for use in getRayBCs()
   std::vector<std::vector<RayBC *>> _threaded_cached_ray_bcs;
