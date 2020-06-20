@@ -65,7 +65,7 @@ ViewFactorRayBC::apply(const Elem * elem,
     if (_mesh.dimension() == 3)
       denom *= ray->distance();
     const Real value = start_total_weight * end_total_weight / denom;
-    _vf_study.viewFactorInfo(start_bnd_id, bnd_id, _tid) += value;
+    _vf_study.addToViewFactorInfo(value, start_bnd_id, bnd_id, _tid);
   }
 
   // Either hit an obstacle here or hit its end and contributed: done with this Ray
