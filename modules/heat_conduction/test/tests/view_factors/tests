@@ -41,4 +41,11 @@
     input = 'view_factor_ray_quad.i'
     csvdiff = 'view_factor_ray_quad_out.csv'
   [../]
+
+  # view factor with obstructions
+  [./analytical_with_obstruction]
+    type = CSVDiff
+    input = 'analytical_with_obstruction.i'
+    csvdiff = 'analytical_with_obstruction_out.csv'
+  [../]
 []
