@@ -24,11 +24,15 @@ protected:
   void addRadiationObject() const;
   void addViewFactorObject() const;
   void addRadiationBCs() const;
+  void addRayStudyObject() const;
+  void addRayBCs() const;
 
   std::vector<std::vector<std::string>> radiationPatchNames() const;
   std::vector<std::vector<std::string>> bcRadiationPatchNames() const;
   UserObjectName viewFactorObjectName() const;
+  UserObjectName rayStudyName() const;
   UserObjectName radiationObjectName() const;
+  std::string rayBCName() const;
 
   /// the boundary ids participating in the radiative heat transfer
   std::vector<BoundaryName> _boundary_names;

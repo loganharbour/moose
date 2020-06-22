@@ -48,6 +48,10 @@ associateSyntaxInner(Syntax & syntax, ActionFactory & /*action_factory*/)
   registerTask("add_secondary_flux_vector", false);
   addTaskDependency("add_secondary_flux_vector", "ready_to_init");
   addTaskDependency("init_problem", "add_secondary_flux_vector");
+
+  registerMooseObjectTask("add_ray_boundary_condition", RayBC, false);
+  addTaskDependency("add_ray_boundary_condition", "add_kernel");
+
   registerSyntaxTask("ThermalContactAction", "ThermalContact/*", "add_aux_kernel");
   registerSyntaxTask("ThermalContactAction", "ThermalContact/*", "add_aux_variable");
   registerSyntaxTask("ThermalContactAction", "ThermalContact/*", "add_bc");
@@ -59,6 +63,8 @@ associateSyntaxInner(Syntax & syntax, ActionFactory & /*action_factory*/)
   registerSyntaxTask("RadiationTransferAction", "GrayDiffuseRadiation/*", "setup_mesh_complete");
   registerSyntaxTask("RadiationTransferAction", "GrayDiffuseRadiation/*", "add_user_object");
   registerSyntaxTask("RadiationTransferAction", "GrayDiffuseRadiation/*", "add_bc");
+  registerSyntaxTask(
+      "RadiationTransferAction", "GrayDiffuseRadiation/*", "add_ray_boundary_condition");
 }
 
 void

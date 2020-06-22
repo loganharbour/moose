@@ -12,11 +12,15 @@
 #include "MooseMesh.h"
 #include "MeshGeneratorMesh.h"
 #include "FEProblemBase.h"
+#include "RayTracingStudy.h"
+#include "RayBC.h"
+#include "ViewFactorRayStudy.h"
 
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_mesh_generator");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "setup_mesh_complete");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_user_object");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_bc");
+registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_ray_boundary_condition");
 
 template <>
 InputParameters
@@ -59,6 +63,19 @@ validParams<RadiationTransferAction>()
 
   params.addRequiredParam<VariableName>("temperature", "The coupled temperature variable.");
   params.addRequiredParam<std::vector<Real>>("emissivity", "Emissivities for each boundary.");
+
+  params.addParam<bool>("unobstructed_cavity",
+                        false,
+                        "If set to true, the UnobstructedPlanarViewFactor is used. This view "
+                        "factor UO is more efficient than the ray tracing UO but only works in "
+                        "cavities without obstruction and planar walls.");
+
+  MooseEnum qorders("CONSTANT FIRST SECOND THIRD FOURTH FIFTH SIXTH SEVENTH EIGHTH NINTH TENTH "
+                    "ELEVENTH TWELFTH THIRTEENTH FOURTEENTH FIFTEENTH SIXTEENTH SEVENTEENTH "
+                    "EIGHTTEENTH NINTEENTH TWENTIETH",
+                    "CONSTANT");
+  params.addParam<MooseEnum>(
+      "ray_tracing_face_order", qorders, "The face quadrature rule order used for ray tracing.");
   return params;
 }
 
@@ -79,10 +96,14 @@ RadiationTransferAction::act()
   else if (_current_task == "add_user_object")
   {
     addRadiationObject();
+    if (!getParam<bool>("unobstructed_cavity"))
+      addRayStudyObject();
     addViewFactorObject();
   }
   else if (_current_task == "add_bc")
     addRadiationBCs();
+  else if (!getParam<bool>("unobstructed_cavity") && _current_task == "add_ray_boundary_condition")
+    addRayBCs();
 }
 
 void
@@ -110,10 +131,43 @@ RadiationTransferAction::addRadiationBCs() const
 void
 RadiationTransferAction::addViewFactorObject() const
 {
-  // add the view factor userobject; currently there is only one object implemented so no choices
-  // in the future this section will allow switching different types
-  InputParameters params = _factory.getValidParams("UnobstructedPlanarViewFactor");
+  std::vector<std::vector<std::string>> radiation_patch_names = radiationPatchNames();
+  std::vector<BoundaryName> boundary_names;
+  for (auto & e1 : radiation_patch_names)
+    for (auto & e2 : e1)
+      boundary_names.push_back(e2);
 
+  // this userobject is only executed on initial
+  ExecFlagEnum exec_enum = MooseUtils::getDefaultExecFlagEnum();
+  exec_enum = {EXEC_INITIAL};
+
+  if (getParam<bool>("unobstructed_cavity"))
+  {
+    // this branch adds the UnobstructedPlanarViewFactor
+    InputParameters params = _factory.getValidParams("UnobstructedPlanarViewFactor");
+    params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
+    params.set<ExecFlagEnum>("execute_on") = exec_enum;
+
+    _problem->addUserObject("UnobstructedPlanarViewFactor", viewFactorObjectName(), params);
+  }
+  else
+  {
+    // this branch adds the ray tracing UO
+    InputParameters params = _factory.getValidParams("RayTracingViewFactor");
+    params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
+    params.set<ExecFlagEnum>("execute_on") = exec_enum;
+    params.set<UserObjectName>("ray_study_name") = rayStudyName();
+
+    _problem->addUserObject("RayTracingViewFactor", viewFactorObjectName(), params);
+  }
+}
+
+void
+RadiationTransferAction::addRayStudyObject() const
+{
+  InputParameters params = _factory.getValidParams("ViewFactorRayStudy");
+
+  // set the boundary parameter
   std::vector<std::vector<std::string>> radiation_patch_names = radiationPatchNames();
   std::vector<BoundaryName> boundary_names;
   for (auto & e1 : radiation_patch_names)
@@ -121,12 +175,30 @@ RadiationTransferAction::addViewFactorObject() const
       boundary_names.push_back(e2);
   params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
 
-  // this userobject is only executed on initial
+  // set this object to be execute on initial only
   ExecFlagEnum exec_enum = MooseUtils::getDefaultExecFlagEnum();
   exec_enum = {EXEC_INITIAL};
   params.set<ExecFlagEnum>("execute_on") = exec_enum;
 
-  _problem->addUserObject("UnobstructedPlanarViewFactor", viewFactorObjectName(), params);
+  // set face order
+  params.set<MooseEnum>("face_order") = getParam<MooseEnum>("ray_tracing_face_order");
+
+  _problem->addUserObject("ViewFactorRayStudy", rayStudyName(), params);
+}
+
+void
+RadiationTransferAction::addRayBCs() const
+{
+  InputParameters params = _factory.getValidParams("ViewFactorRayBC");
+  std::vector<std::vector<std::string>> radiation_patch_names = radiationPatchNames();
+  std::vector<BoundaryName> boundary_names;
+  for (auto & e1 : radiation_patch_names)
+    for (auto & e2 : e1)
+      boundary_names.push_back(e2);
+  params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
+  params.set<RayTracingStudy *>("_ray_tracing_study") =
+      &_problem->getUserObject<ViewFactorRayStudy>(rayStudyName());
+  _problem->addObject<RayBC>("ViewFactorRayBC", rayBCName(), params);
 }
 
 UserObjectName
@@ -136,9 +208,21 @@ RadiationTransferAction::viewFactorObjectName() const
 }
 
 UserObjectName
+RadiationTransferAction::rayStudyName() const
+{
+  return "ray_study_uo_" + _name;
+}
+
+UserObjectName
 RadiationTransferAction::radiationObjectName() const
 {
   return "view_factor_surface_radiation_" + _name;
+}
+
+std::string
+RadiationTransferAction::rayBCName() const
+{
+  return "ray_bc_" + _name;
 }
 
 void
