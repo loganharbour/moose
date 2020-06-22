@@ -369,6 +369,7 @@ ViewFactorRayStudy::generateRays()
       continue;
 
     const auto start_bnd_id = _bnd_ids[start_bnd_id_i];
+    const auto start_is_internal = _internal_bnd_ids.count(start_bnd_id);
 
     // Loop through all end boundaries to see which we need to send Rays to
     for (unsigned int end_bnd_id_i = 0; end_bnd_id_i < _bnd_ids.size(); ++end_bnd_id_i)
@@ -407,9 +408,13 @@ ViewFactorRayStudy::generateRays()
 
             // Direction from start -> end
             const Point direction = (end_point - start_point).unit();
-            // Dot product with direction and normal: Only keep when dot < -TOLERANCE
-            // dot = (0, 1] is the wrong direction and [-TOLERANCE, 0] implies in the same plane
-            const Real dot = normal * direction;
+            // Dot product with direction and normal
+            // Note: if the starting boundary is external, the normal naturally points outward,
+            //       but if the starting boundary is internal, the convention is that the normal points inward.
+            //       (This allows coupling to heat equation in radiation calcs)
+            //       To guarantee consistent behavior, we flip the normal direction if the
+            //       starting boundary is internal.
+            const Real dot = normal * direction * (start_is_internal ? -1.0 : 1.0);
             if (dot > -TOLERANCE)
               continue;
 
