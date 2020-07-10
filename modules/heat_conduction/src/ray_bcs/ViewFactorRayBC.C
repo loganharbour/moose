@@ -46,7 +46,8 @@ ViewFactorRayBC::apply(const Elem * elem,
       MooseUtils::absoluteFuzzyEqual(ray->distance(), ray->auxData(_ray_index_start_end_distance)))
   {
     if (applying_multiple)
-      mooseError("Should not contribute while applying multiple ViewFactorRayBC");
+      mooseError("Should not contribute while applying multiple ViewFactorRayBC\n\n",
+                 ray->getInfo(&_study));
 
     // The boundary ID this Ray started on
     const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
