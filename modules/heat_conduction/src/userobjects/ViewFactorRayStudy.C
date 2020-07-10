@@ -10,6 +10,7 @@
 #include "ViewFactorRayStudy.h"
 
 // MOOSE includes
+#include "Conversion.h"
 #include "TimedPrint.h"
 
 // Local includes
@@ -37,6 +38,9 @@ ViewFactorRayStudy::validParams()
                     "EIGHTTEENTH NINTEENTH TWENTIETH",
                     "CONSTANT");
   params.addParam<MooseEnum>("face_order", qorders, "The face quadrature rule order");
+
+  MooseEnum qtypes("GAUSS GRID", "GRID");
+  params.addParam<MooseEnum>("face_type", qtypes, "The face quadrature type");
 
   MooseEnum convention("positive=0 negative=1", "positive");
   params.addParam<MooseEnum>(
@@ -79,7 +83,7 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _ray_index_end_weight(registerRayAuxData("end_weight")),
     _ray_index_start_end_distance(registerRayAuxData("start_end_distance")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(CONSTANT, MONOMIAL))),
-    _q_face(QBase::build(QGRID,
+    _q_face(QBase::build(Moose::stringToEnum<QuadratureType>(getParam<MooseEnum>("face_type")),
                          _mesh.dimension() - 1,
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
     _threaded_vf_info(libMesh::n_threads()),
@@ -253,6 +257,13 @@ ViewFactorRayStudy::generatePoints()
     if (std::find(_bnd_ids.begin(), _bnd_ids.end(), bnd_id) == _bnd_ids.end())
       continue;
 
+    // Sanity check on QGRID not working on some types
+    if (_q_face->type() == QGRID && elem->type() == TET4)
+      mooseError(
+          "Cannot use GRID quadrature type with tetrahedral elements in ViewFactorRayStudy '",
+          _name,
+          "'");
+
     // Reinit this face
     _fe_face->reinit(elem, side);
     const auto & normal = normals[0];
@@ -390,9 +401,12 @@ ViewFactorRayStudy::generateRayIDs()
       for (const auto & start_point : start_elem._points)
         for (const auto & end_point : end_elem._points)
         {
+          if (start_point.absolute_fuzzy_equals(end_point))
+            continue;
+
           const Point direction = (end_point - start_point).unit();
           const Real dot = start_normal * direction;
-          if (dot < -TOLERANCE * TOLERANCE)
+          if (dot < -1e-6)
             ++num_local_rays;
         }
     }
@@ -464,12 +478,12 @@ ViewFactorRayStudy::generateRays()
           const auto & end_point = end_elem._points[end_i];
           const auto end_weight = end_elem._weights[end_i];
 
-          if (start_elem_id == end_elem_id && start_point.absolute_fuzzy_equals(end_point))
+          if (start_point.absolute_fuzzy_equals(end_point))
             continue;
 
           const auto direction = (end_point - start_point).unit();
           const Real dot = start_normal * direction;
-          if (dot > -TOLERANCE * TOLERANCE)
+          if (dot > -1e-6)
             continue;
 
           Point mock_end_point = end_point;
