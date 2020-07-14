@@ -76,6 +76,9 @@ validParams<RadiationTransferAction>()
                     "CONSTANT");
   params.addParam<MooseEnum>(
       "ray_tracing_face_order", qorders, "The face quadrature rule order used for ray tracing.");
+
+  MooseEnum qtypes("GAUSS GRID", "GRID");
+  params.addParam<MooseEnum>("ray_tracing_face_type", qtypes, "The face quadrature type");
   return params;
 }
 
@@ -117,6 +120,7 @@ RadiationTransferAction::addRadiationBCs() const
   for (auto & e1 : radiation_patch_names)
     for (auto & e2 : e1)
       boundary_names.push_back(e2);
+
   params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
 
   // set temperature variable
@@ -182,6 +186,7 @@ RadiationTransferAction::addRayStudyObject() const
 
   // set face order
   params.set<MooseEnum>("face_order") = getParam<MooseEnum>("ray_tracing_face_order");
+  params.set<MooseEnum>("face_type") = getParam<MooseEnum>("ray_tracing_face_type");
 
   _problem->addUserObject("ViewFactorRayStudy", rayStudyName(), params);
 }
