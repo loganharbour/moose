@@ -28,7 +28,8 @@ ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
     _ray_index_start_total_weight(_study.getRayAuxDataIndex("start_total_weight")),
     _ray_index_end_bnd_id(_study.getRayAuxDataIndex("end_bnd_id")),
     _ray_index_end_weight(_study.getRayAuxDataIndex("end_weight")),
-    _ray_index_start_end_distance(_study.getRayAuxDataIndex("start_end_distance"))
+    _ray_index_end_elem_id(_study.getRayAuxDataIndex("end_elem_id")),
+    _ray_index_end_side(_study.getRayAuxDataIndex("end_side"))
 {
 }
 
@@ -40,10 +41,10 @@ ViewFactorRayBC::apply(const Elem * elem,
                        const std::shared_ptr<Ray> & ray,
                        const bool applying_multiple)
 {
-  // If we hit the end boundary and are at the end point (determined by the correct distance), then
-  // we can contribute to the view factor info
+  // Hit the end boundary and are on the correct elem and side -> contribute to view factor info
   if (ray->auxData(_ray_index_end_bnd_id) == bnd_id &&
-      MooseUtils::absoluteFuzzyEqual(ray->distance(), ray->auxData(_ray_index_start_end_distance)))
+      elem->id() == (dof_id_type)ray->auxData(_ray_index_end_elem_id) &&
+      intersected_side == ray->auxData(_ray_index_end_side))
   {
     if (applying_multiple)
       mooseError("Should not contribute while applying multiple ViewFactorRayBC\n\n",
