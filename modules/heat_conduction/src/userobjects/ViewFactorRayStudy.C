@@ -49,6 +49,13 @@ ViewFactorRayStudy::validParams()
       "The convention for spawning rays from internal sidesets; denotes the sign of the dot "
       "product between a ray and the internal sideset side normal");
 
+  params.addRangeCheckedParam<Real>(
+      "dot_tol",
+      1.0e-3,
+      "dot_tol > 0",
+      "Tolerance for the dot product of a ray and a side normal, i.e., if the dot "
+      "product is less than this, the ray will not be spawned");
+
   // Shouldn't ever need RayKernels for view factors
   params.set<bool>("ray_kernel_coverage_check") = false;
   params.suppressParameter<bool>("ray_kernel_coverage_check");
@@ -77,11 +84,13 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
   : RayTracingStudy(parameters),
     _bnd_ids(_mesh.getBoundaryIDs(getParam<std::vector<BoundaryName>>("boundary"))),
     _internal_convention(getParam<MooseEnum>("internal_convention")),
+    _dot_tol(getParam<Real>("dot_tol")),
     _ray_index_start_bnd_id(registerRayAuxData("start_bnd_id")),
     _ray_index_start_total_weight(registerRayAuxData("start_total_weight")),
     _ray_index_end_bnd_id(registerRayAuxData("end_bnd_id")),
     _ray_index_end_weight(registerRayAuxData("end_weight")),
-    _ray_index_start_end_distance(registerRayAuxData("start_end_distance")),
+    _ray_index_end_elem_id(registerRayAuxData("end_elem_id")),
+    _ray_index_end_side(registerRayAuxData("end_side")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(CONSTANT, MONOMIAL))),
     _q_face(QBase::build(Moose::stringToEnum<QuadratureType>(getParam<MooseEnum>("face_type")),
                          _mesh.dimension() - 1,
@@ -264,6 +273,11 @@ ViewFactorRayStudy::generatePoints()
           _name,
           "'");
 
+    // The elem/side that we will actually start the trace from
+    // (this may change on internal sidesets)
+    const Elem * start_elem = elem;
+    auto start_side = side;
+
     // Reinit this face
     _fe_face->reinit(elem, side);
     const auto & normal = normals[0];
@@ -284,25 +298,20 @@ ViewFactorRayStudy::generatePoints()
       // side instead
       if (_internal_convention == 0)
       {
-        const unsigned short neighbor_side = neighbor->which_neighbor_am_i(elem);
-
-        // If the neighbor is on another processor, ship this send elem to it instead
-        if (neighbor->processor_id() != processor_id())
-          send_start_info.emplace_back(neighbor, neighbor_side, bnd_id, -normal, points, weights);
-        // If the neighbor is local, add it to our own send info
-        else
-          _start_info.emplace_back(neighbor, neighbor_side, bnd_id, -normal, points, weights);
-
-        // Use the new elem id/side for the end elem as well
-        local_end_info.emplace_back(neighbor->id(), bnd_id, points, weights);
-
-        continue;
+        start_elem = neighbor;
+        start_side = neighbor->which_neighbor_am_i(elem);
       }
     }
 
-    // The boundary is external and we can add it like normal
-    _start_info.emplace_back(elem, side, bnd_id, normal, points, weights);
-    local_end_info.emplace_back(elem->id(), bnd_id, points, weights);
+    // Add to our local end points
+    local_end_info.emplace_back(elem->id(), side, bnd_id, points, weights);
+
+    // If the start elem is local, add to _start_info, otherwise add to send_start_info
+    // so that we can ship it to who will actually start it
+    auto & add_start_info =
+        start_elem->processor_id() == processor_id() ? _start_info : send_start_info;
+    add_start_info.emplace_back(
+        elem, side, start_elem, start_side, bnd_id, normal, points, weights);
   }
 
   // Decide on the internal boundaries
@@ -385,31 +394,21 @@ ViewFactorRayStudy::generateRayIDs()
   std::size_t num_local_start_points = 0;
   for (const auto & start_elem : _start_info)
   {
-    const auto start_elem_id = start_elem._elem->id();
-    const auto start_bnd_id = start_elem._bnd_id;
-    const auto & start_normal = start_elem._normal;
-
     num_local_start_points += start_elem._points.size();
 
     for (const auto & end_elem : _end_info)
-    {
-      const auto end_elem_id = end_elem._elem_id;
-      const auto end_bnd_id = end_elem._bnd_id;
-      if (!shouldGenerate(start_elem_id, end_elem_id, start_bnd_id, end_bnd_id))
-        continue;
-
-      for (const auto & start_point : start_elem._points)
-        for (const auto & end_point : end_elem._points)
-        {
-          if (start_point.absolute_fuzzy_equals(end_point))
-            continue;
-
-          const Point direction = (end_point - start_point).unit();
-          const Real dot = start_normal * direction;
-          if (dot < -1e-6)
-            ++num_local_rays;
-        }
-    }
+      if (shouldGenerate(
+              start_elem._elem->id(), end_elem._elem_id, start_elem._bnd_id, end_elem._bnd_id))
+        for (const auto & start_point : start_elem._points)
+          for (const auto & end_point : end_elem._points)
+            if (!start_point.absolute_fuzzy_equals(end_point))
+            {
+              const Point direction = (end_point - start_point).unit();
+              const Real dot = start_elem._normal * direction *
+                               (start_elem._elem != start_elem._start_elem ? -1 : 1);
+              if (dot < -_dot_tol)
+                ++num_local_rays;
+            }
   }
 
   // Decide on the starting Ray IDs for each rank. Each rank will have a contiguous set of IDs for
@@ -451,72 +450,58 @@ ViewFactorRayStudy::generateRays()
   CONSOLE_TIMED_PRINT("View factor study generating rays");
 
   for (const auto & start_elem : _start_info)
-  {
-    const Elem * elem = start_elem._elem;
-    const auto start_elem_id = start_elem._elem->id();
-    const auto side = start_elem._side;
-    const auto start_bnd_id = start_elem._bnd_id;
-    const auto & start_normal = start_elem._normal;
-
     for (const auto & end_elem : _end_info)
-    {
-      const auto end_elem_id = end_elem._elem_id;
-      const auto end_bnd_id = end_elem._bnd_id;
-
-      if (!shouldGenerate(start_elem_id, end_elem_id, start_bnd_id, end_bnd_id))
-        continue;
-
-      const bool end_is_internal = _internal_bnd_ids.count(end_bnd_id);
-
-      for (std::size_t start_i = 0; start_i < start_elem._points.size(); ++start_i)
+      if (shouldGenerate(
+              start_elem._elem->id(), end_elem._elem_id, start_elem._bnd_id, end_elem._bnd_id))
       {
-        const auto & start_point = start_elem._points[start_i];
-        const auto start_weight = start_elem._weights[start_i];
+        const bool end_is_internal = _internal_bnd_ids.count(end_elem._bnd_id);
 
-        for (std::size_t end_i = 0; end_i < end_elem._points.size(); ++end_i)
+        for (std::size_t start_i = 0; start_i < start_elem._points.size(); ++start_i)
         {
-          const auto & end_point = end_elem._points[end_i];
-          const auto end_weight = end_elem._weights[end_i];
+          const auto & start_point = start_elem._points[start_i];
+          const auto start_weight = start_elem._weights[start_i];
 
-          if (start_point.absolute_fuzzy_equals(end_point))
-            continue;
+          for (std::size_t end_i = 0; end_i < end_elem._points.size(); ++end_i)
+          {
+            const auto & end_point = end_elem._points[end_i];
+            const auto end_weight = end_elem._weights[end_i];
 
-          const auto direction = (end_point - start_point).unit();
-          const Real dot = start_normal * direction;
-          if (dot > -1e-6)
-            continue;
+            if (start_point.absolute_fuzzy_equals(end_point))
+              continue;
 
-          Point mock_end_point = end_point;
-          if (end_is_internal)
-            mock_end_point += direction;
+            const auto direction = (end_point - start_point).unit();
+            const Real dot = start_elem._normal * direction *
+                             (start_elem._elem != start_elem._start_elem ? -1 : 1);
+            if (dot > -_dot_tol)
+              continue;
 
-          // Create a Ray and add it to the buffer for future tracing
-          std::shared_ptr<Ray> ray = _ray_pool.acquire(
-              start_point, mock_end_point, rayDataSize(), rayAuxDataSize(), elem, side);
-          addToWorkingBuffer(ray);
+            Point mock_end_point = end_point;
+            if (end_is_internal)
+              mock_end_point += direction;
 
-          ray->setID(_current_starting_id++);
-          ray->setAuxData(_ray_index_start_bnd_id, start_bnd_id);
-          ray->setAuxData(_ray_index_start_total_weight, start_weight * std::abs(dot));
-          ray->setAuxData(_ray_index_end_bnd_id, end_bnd_id);
-          ray->setAuxData(_ray_index_end_weight, end_weight);
+            // Create a Ray and add it to the buffer for future tracing
+            std::shared_ptr<Ray> ray = _ray_pool.acquire(start_point,
+                                                         mock_end_point,
+                                                         rayDataSize(),
+                                                         rayAuxDataSize(),
+                                                         start_elem._start_elem,
+                                                         start_elem._start_side);
+            addToWorkingBuffer(ray);
 
-          // Note that ray->end() is a fake end point. We must do this due to Rays that end on
-          // internal sidesets. These Rays cannot have ray->end() = end_point, because in the
-          // case where the Ray ends on the ending side but not on the ending internal side
-          // (an internal side is associated with a single element, and the Ray may hit the
-          // neighbor first), the Ray would never hit the internal side! It would die first.
-          // Therefore, we will use the distance from start -> actual end to see if we've
-          // hit the actual end point.
-          ray->setAuxData(_ray_index_start_end_distance, (start_point - end_point).norm());
+            ray->setID(_current_starting_id++);
+            ray->setAuxData(_ray_index_start_bnd_id, start_elem._bnd_id);
+            ray->setAuxData(_ray_index_start_total_weight, start_weight * std::abs(dot));
+            ray->setAuxData(_ray_index_end_bnd_id, end_elem._bnd_id);
+            ray->setAuxData(_ray_index_end_weight, end_weight);
+            ray->setAuxData(_ray_index_end_elem_id, end_elem._elem_id);
+            ray->setAuxData(_ray_index_end_side, end_elem._side);
 
-          ray.reset();
+            ray.reset();
 
-          chunkyTraceAndBuffer();
+            chunkyTraceAndBuffer();
+          }
         }
       }
-    }
-  }
 }
 
 namespace libMesh
@@ -532,8 +517,8 @@ Packing<ViewFactorRayStudy::StartElem *>::packed_size(typename std::vector<Real>
   // Number of points
   unsigned int num_points = *in++;
 
-  // Number of points, elem, side, bnd_id, normal
-  total_size += 7;
+  // Number of points, elem, side, start_elem, start_side, bnd_id, normal
+  total_size += 9;
   // Points and weights
   total_size += num_points * 4;
 
@@ -546,8 +531,8 @@ Packing<ViewFactorRayStudy::StartElem *>::packable_size(
 {
   unsigned int total_size = 0;
 
-  // Number of points, elem, side, bnd_id, normal
-  total_size += 7;
+  // Number of points, elem, side, start_elem, start_side, bnd_id, normal
+  total_size += 9;
   // Points and weights
   total_size += start_elem->_points.size() * 4;
 
@@ -569,6 +554,15 @@ Packing<ViewFactorRayStudy::StartElem *>::unpack(std::vector<Real>::const_iterat
 
   // Side
   const unsigned short side = *in++;
+
+  // Start elem id
+  const dof_id_type start_elem_id = *in++;
+  const Elem * start_elem = start_elem_id != DofObject::invalid_id
+                                ? study->meshBase().query_elem_ptr(start_elem_id)
+                                : nullptr;
+
+  // Start side
+  const unsigned short start_side = *in++;
 
   // Boundary ID
   const BoundaryID bnd_id = *in++;
@@ -594,8 +588,14 @@ Packing<ViewFactorRayStudy::StartElem *>::unpack(std::vector<Real>::const_iterat
     weights[i] = *in++;
 
   // We store this with std::move, so this is safe if we do it right!
-  return new ViewFactorRayStudy::StartElem(
-      elem, side, bnd_id, std::move(normal), std::move(points), std::move(weights));
+  return new ViewFactorRayStudy::StartElem(elem,
+                                           side,
+                                           start_elem,
+                                           start_side,
+                                           bnd_id,
+                                           std::move(normal),
+                                           std::move(points),
+                                           std::move(weights));
 }
 
 template <>
@@ -613,6 +613,12 @@ Packing<ViewFactorRayStudy::StartElem *>::pack(
 
   // Side
   data_out = start_elem->_side;
+
+  // Start elem id
+  data_out = start_elem->_start_elem->id();
+
+  // Start side
+  data_out = start_elem->_start_side;
 
   // Boundary id
   data_out = start_elem->_bnd_id;
@@ -642,8 +648,8 @@ Packing<ViewFactorRayStudy::EndElem *>::packed_size(typename std::vector<Real>::
   // Number of points
   unsigned int num_points = *in++;
 
-  // Number of points, elem id, bnd_id
-  total_size += 3;
+  // Number of points, elem_id, side, bnd_id
+  total_size += 4;
   // Points and weights
   total_size += num_points * 4;
 
@@ -656,8 +662,8 @@ Packing<ViewFactorRayStudy::EndElem *>::packable_size(
 {
   unsigned int total_size = 0;
 
-  // Number of points, elem_id, bnd_id
-  total_size += 3;
+  // Number of points, elem_id, side, bnd_id
+  total_size += 4;
   // Points and weights
   total_size += end_elem->_points.size() * 4;
 
@@ -673,6 +679,9 @@ Packing<ViewFactorRayStudy::EndElem *>::unpack(std::vector<Real>::const_iterator
 
   // Elem id
   const dof_id_type elem_id = *in++;
+
+  // Side
+  const unsigned short side = *in++;
 
   // Boundary ID
   const BoundaryID bnd_id = *in++;
@@ -692,7 +701,8 @@ Packing<ViewFactorRayStudy::EndElem *>::unpack(std::vector<Real>::const_iterator
     weights[i] = *in++;
 
   // We store this with std::move, so this is safe if we do it right!
-  return new ViewFactorRayStudy::EndElem(elem_id, bnd_id, std::move(points), std::move(weights));
+  return new ViewFactorRayStudy::EndElem(
+      elem_id, side, bnd_id, std::move(points), std::move(weights));
 }
 
 template <>
@@ -706,6 +716,9 @@ Packing<ViewFactorRayStudy::EndElem *>::pack(const ViewFactorRayStudy::EndElem *
 
   // Elem id
   data_out = end_elem->_elem_id;
+
+  // Side
+  data_out = end_elem->_side;
 
   // Boundary id
   data_out = end_elem->_bnd_id;

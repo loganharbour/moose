@@ -71,12 +71,16 @@ public:
   {
     StartElem(const Elem * elem,
               const unsigned short int side,
+              const Elem * start_elem,
+              const unsigned short int start_side,
               const BoundaryID bnd_id,
               const Point & normal,
               const std::vector<Point> & points,
               const std::vector<Real> & weights)
       : _elem(elem),
         _side(side),
+        _start_elem(start_elem),
+        _start_side(start_side),
         _bnd_id(bnd_id),
         _normal(normal),
         _points(points),
@@ -86,6 +90,8 @@ public:
 
     const Elem * const _elem;
     const unsigned short int _side;
+    const Elem * const _start_elem;
+    const unsigned short int _start_side;
     const BoundaryID _bnd_id;
     const Point _normal;
     const std::vector<Point> _points;
@@ -98,14 +104,16 @@ public:
   struct EndElem
   {
     EndElem(const dof_id_type elem_id,
+            const unsigned short int side,
             const BoundaryID bnd_id,
             const std::vector<Point> & points,
             const std::vector<Real> & weights)
-      : _elem_id(elem_id), _bnd_id(bnd_id), _points(points), _weights(weights)
+      : _elem_id(elem_id), _side(side), _bnd_id(bnd_id), _points(points), _weights(weights)
     {
     }
 
     const dof_id_type _elem_id;
+    const unsigned short int _side;
     const BoundaryID _bnd_id;
     const std::vector<Point> _points;
     const std::vector<Real> _weights;
@@ -146,6 +154,8 @@ protected:
 
   /// The convention for spawning rays from internal sidesets
   const MooseEnum _internal_convention;
+  /// The ray direction * side normal tolerance for spawning rays
+  const Real _dot_tol;
 
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;
@@ -155,8 +165,10 @@ protected:
   const RayDataIndex _ray_index_end_bnd_id;
   /// Index in the Ray aux data for the ending weight
   const RayDataIndex _ray_index_end_weight;
-  /// Index in the Ray aux data for the distance from start to end
-  const RayDataIndex _ray_index_start_end_distance;
+  /// Index in the Ray aux data for the ending elem ID
+  const RayDataIndex _ray_index_end_elem_id;
+  /// Index in the Ray aux data for the ending side
+  const RayDataIndex _ray_index_end_side;
 
 private:
   void generatePoints();

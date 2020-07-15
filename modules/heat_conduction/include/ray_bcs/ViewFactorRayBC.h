@@ -44,5 +44,7 @@ protected:
   /// Index in the Ray aux data for the ending weight
   const RayDataIndex _ray_index_end_weight;
   /// Index in the Ray aux data for the distance from start to end
-  const RayDataIndex _ray_index_start_end_distance;
+  const RayDataIndex _ray_index_end_elem_id;
+  /// Index in the Ray aux data for the ending side
+  const RayDataIndex _ray_index_end_side;
 };
