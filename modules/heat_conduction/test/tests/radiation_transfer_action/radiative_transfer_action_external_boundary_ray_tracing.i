@@ -72,17 +72,16 @@
 
 [GrayDiffuseRadiation]
   [./cavity]
-    boundary = '4 5 6 7'
+    sidesets = '4 5 6 7'
     emissivity = '0.9 0.8 0.4 1'
     n_patches = '2 2 2 3'
     partitioners = 'centroid centroid centroid centroid'
     centroid_partitioner_directions = 'x y y x'
     final_mesh_generator = rename
     temperature = temperature
-    adiabatic_boundary = '7'
-    fixed_temperature_boundary = '6'
+    adiabatic_sidesets = '7'
+    fixed_temperature_sidesets = '6'
     fixed_boundary_temperatures = '800'
-    unobstructed_cavity = true
   [../]
 []
 
