@@ -50,4 +50,12 @@
     petsc_version = '>=3.9.4'
     mesh_mode = REPLICATED
   [../]
+
+  [./radiative_transfer_action_external_boundary_ray_tracing]
+    type = 'Exodiff'
+    input = 'radiative_transfer_action_external_boundary_ray_tracing.i'
+    exodiff = 'radiative_transfer_action_external_boundary_ray_tracing_out.e'
+    requirement = 'The system shall provide an action to set up radiative heat transfer problems using the net radiation method'
+    petsc_version = '>=3.9.4'
+  [../]
 []
