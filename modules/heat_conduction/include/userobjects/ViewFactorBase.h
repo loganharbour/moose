@@ -33,6 +33,9 @@ public:
 protected:
   virtual void threadJoin(const UserObject & y) override final;
 
+  /// helper for finding index of correction for i,j-th entry
+  unsigned int indexHelper(unsigned int i, unsigned int j) const;
+
   /// helper function to get the index from the boundary name
   unsigned int getSideNameIndex(std::string name) const;
 
@@ -56,6 +59,9 @@ protected:
 
   /// whether to normalize view factors so vf[from][:] sums to one
   const bool _normalize_view_factor;
+
+  // whether to print view factor information
+  const bool _print_view_factor_info;
 
   /// the view factor from side i to side j
   std::vector<std::vector<Real>> _view_factors;

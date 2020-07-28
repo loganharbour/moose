@@ -19,6 +19,8 @@ ViewFactorBase::validParams()
   params.addParam<Real>("view_factor_tol",
                         std::numeric_limits<Real>::max(),
                         "Tolerance for checking view factors. Default is to allow everything.");
+  params.addParam<bool>(
+      "print_view_factor_info", true, "Flag to print information about computed view factors.");
   params.addParam<bool>("normalize_view_factor",
                         true,
                         "Determines if view factors are normalized to sum to one (consistent with "
@@ -33,7 +35,8 @@ ViewFactorBase::ViewFactorBase(const InputParameters & parameters)
     _n_sides(boundaryIDs().size()),
     _areas(_n_sides),
     _view_factor_tol(getParam<Real>("view_factor_tol")),
-    _normalize_view_factor(getParam<bool>("normalize_view_factor"))
+    _normalize_view_factor(getParam<bool>("normalize_view_factor")),
+    _print_view_factor_info(getParam<bool>("print_view_factor_info"))
 {
   // sizing the view factor array
   _view_factors.resize(_n_sides);
@@ -112,18 +115,80 @@ ViewFactorBase::threadJoin(const UserObject & y)
 void
 ViewFactorBase::checkAndNormalizeViewFactor()
 {
+  // check view factors
   for (unsigned int from = 0; from < _n_sides; ++from)
   {
     Real s = 0;
     for (unsigned int to = 0; to < _n_sides; ++to)
       s += _view_factors[from][to];
 
+    if (_print_view_factor_info)
+      _console << "View factors from sideset " << boundaryNames()[from] << " sum to " << s
+               << std::endl;
+
     if (std::abs(1 - s) > _view_factor_tol)
       mooseError("View factor from boundary ", boundaryNames()[from], " add to ", s);
+  }
 
-    if (_normalize_view_factor)
+  // normalize view factors
+  if (_normalize_view_factor)
+  {
+    // compute number of entries
+    unsigned int ne = _n_sides * (_n_sides + 3) / 2;
+
+    // allocate space
+    DenseVector<Real> rhs(ne);
+    DenseVector<Real> corrections(ne);
+    DenseMatrix<Real> matrix(ne, ne);
+
+    // equations for the Lagrange multiplier
+    unsigned int row = 0;
+    for (unsigned int i = 0; i < _n_sides; ++i)
+    {
+      rhs(row) = 1;
+      for (unsigned int j = 0; j < _n_sides; ++j)
+        rhs(row) -= _view_factors[i][j];
+
+      matrix(row, indexHelper(i, i)) = 1;
+      for (unsigned int j = 0; j < i; ++j)
+        matrix(row, indexHelper(j, i)) = _areas[j] / _areas[i];
+
+      for (unsigned int j = i + 1; j < _n_sides; ++j)
+        matrix(row, indexHelper(i, j)) = 1;
+
+      ++row;
+    }
+
+    // equations for the delta_ii, i.e. corrections for diagonal elements
+    for (unsigned int i = 0; i < _n_sides; ++i)
+    {
+      matrix(row, i) = 1;
+      matrix(row, indexHelper(i, i)) = 2;
+      ++row;
+    }
+
+    // equations for the delta_ij, j > i, i.e. the corrections for the off-diagonal elements
+    for (unsigned int i = 0; i < _n_sides; ++i)
+      for (unsigned int j = i + 1; j < _n_sides; ++j)
+      {
+        Real ar = _areas[i] / _areas[j];
+        matrix(row, i) = 1 + ar;
+        matrix(row, indexHelper(i, j)) = 2 * (1 + ar * ar);
+        ++row;
+      }
+
+    // solve the linear system
+    matrix.lu_solve(rhs, corrections);
+
+    // apply the corrections
+    for (unsigned int from = 0; from < _n_sides; ++from)
       for (unsigned int to = 0; to < _n_sides; ++to)
-        _view_factors[from][to] /= s;
+      {
+        if (from <= to)
+          _view_factors[from][to] += corrections(indexHelper(from, to));
+        else
+          _view_factors[from][to] += corrections(indexHelper(to, from)) * _areas[to] / _areas[from];
+      }
   }
 
   for (unsigned int from = 0; from < _n_sides; ++from)
@@ -145,4 +210,23 @@ ViewFactorBase::checkAndNormalizeViewFactor()
                << ") = " << _view_factors[from][to] << std::endl;
     }
   }
+}
+
+unsigned int
+ViewFactorBase::indexHelper(unsigned int i, unsigned int j) const
+{
+  mooseAssert(i <= j, "indexHelper requires i <= j");
+  if (i == j)
+    return _n_sides + i;
+  unsigned int pos = 2 * _n_sides;
+  for (unsigned int l = 0; l < _n_sides; ++l)
+    for (unsigned int m = l + 1; m < _n_sides; ++m)
+    {
+      if (l == i && m == j)
+        return pos;
+      else
+        ++pos;
+    }
+  mooseError("Should never get here");
+  return 0;
 }
