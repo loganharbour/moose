@@ -279,6 +279,13 @@ IterationAdaptiveDT::computeFailedDT()
   else
     _console << "\nSolve failed, cutting timestep.\n";
 
+  if (_pps_value)
+  {
+    _console << "\nCutting timestep to pp value * cutback factor: " << *_pps_value * _cutback_factor
+             << std::endl;
+    return *_pps_value * _cutback_factor;
+  }
+
   return _dt * _cutback_factor;
 }
 
@@ -319,6 +326,9 @@ IterationAdaptiveDT::limitDTToPostprocessorValue(Real & limitedDT) const
 {
   if (_pps_value && _t_step > 1)
   {
+    if (_verbose)
+      _console << "dt postprocessor value = " << limitedDT << std::endl;
+
     if (limitedDT > *_pps_value)
     {
       limitedDT = std::max(_dt_min, *_pps_value);
