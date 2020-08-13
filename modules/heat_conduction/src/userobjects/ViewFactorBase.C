@@ -20,7 +20,7 @@ ViewFactorBase::validParams()
                         std::numeric_limits<Real>::max(),
                         "Tolerance for checking view factors. Default is to allow everything.");
   params.addParam<bool>(
-      "print_view_factor_info", true, "Flag to print information about computed view factors.");
+      "print_view_factor_info", false, "Flag to print information about computed view factors.");
   params.addParam<bool>("normalize_view_factor",
                         true,
                         "Determines if view factors are normalized to sum to one (consistent with "
@@ -115,6 +115,15 @@ ViewFactorBase::threadJoin(const UserObject & y)
 void
 ViewFactorBase::checkAndNormalizeViewFactor()
 {
+  // collect statistics
+  Real max_sum_deviation = 0;
+  Real max_correction = std::numeric_limits<Real>::lowest();
+  Real min_correction = std::numeric_limits<Real>::max();
+
+  if (_print_view_factor_info)
+    std::cout << "\nSum of all view factors from side i to all other faces before normalization.\n"
+              << std::endl;
+
   // check view factors
   for (unsigned int from = 0; from < _n_sides; ++from)
   {
@@ -128,87 +137,147 @@ ViewFactorBase::checkAndNormalizeViewFactor()
 
     if (std::abs(1 - s) > _view_factor_tol)
       mooseError("View factor from boundary ", boundaryNames()[from], " add to ", s);
+
+    if (std::abs(1 - s) > max_sum_deviation)
+      max_sum_deviation = std::abs(1 - s);
   }
 
   // normalize view factors
   if (_normalize_view_factor)
   {
-    // compute number of entries
-    unsigned int ne = _n_sides * (_n_sides + 3) / 2;
+    if (_print_view_factor_info)
+      std::cout << "\nNormalizing view factors.\n" << std::endl;
 
     // allocate space
-    DenseVector<Real> rhs(ne);
-    DenseVector<Real> corrections(ne);
-    DenseMatrix<Real> matrix(ne, ne);
+    DenseVector<Real> rhs(_n_sides);
+    DenseVector<Real> lmults(_n_sides);
+    DenseMatrix<Real> matrix(_n_sides, _n_sides);
 
     // equations for the Lagrange multiplier
-    unsigned int row = 0;
     for (unsigned int i = 0; i < _n_sides; ++i)
     {
-      rhs(row) = 1;
+      // set the right hand side
+      rhs(i) = 1;
       for (unsigned int j = 0; j < _n_sides; ++j)
-        rhs(row) -= _view_factors[i][j];
+        rhs(i) -= _view_factors[i][j];
 
-      matrix(row, indexHelper(i, i)) = 1;
-      for (unsigned int j = 0; j < i; ++j)
-        matrix(row, indexHelper(j, i)) = _areas[j] / _areas[i];
+      // contribution from the delta_ii element
+      matrix(i, i) = -0.5;
 
-      for (unsigned int j = i + 1; j < _n_sides; ++j)
-        matrix(row, indexHelper(i, j)) = 1;
-
-      ++row;
-    }
-
-    // equations for the delta_ii, i.e. corrections for diagonal elements
-    for (unsigned int i = 0; i < _n_sides; ++i)
-    {
-      matrix(row, i) = 1;
-      matrix(row, indexHelper(i, i)) = 2;
-      ++row;
-    }
-
-    // equations for the delta_ij, j > i, i.e. the corrections for the off-diagonal elements
-    for (unsigned int i = 0; i < _n_sides; ++i)
+      // contributions from the upper diagonal
       for (unsigned int j = i + 1; j < _n_sides; ++j)
       {
         Real ar = _areas[i] / _areas[j];
-        matrix(row, i) = 1 + ar;
-        matrix(row, indexHelper(i, j)) = 2 * (1 + ar * ar);
-        ++row;
+        Real f = 2 * (1 + ar * ar);
+        matrix(i, i) += -1 / f;
+        matrix(i, j) += -1 / f * ar;
       }
 
-    // solve the linear system
-    matrix.lu_solve(rhs, corrections);
-
-    // apply the corrections
-    for (unsigned int from = 0; from < _n_sides; ++from)
-      for (unsigned int to = 0; to < _n_sides; ++to)
+      // contributions from the lower diagonal
+      for (unsigned int j = 0; j < i; ++j)
       {
-        if (from <= to)
-          _view_factors[from][to] += corrections(indexHelper(from, to));
+        Real ar = _areas[j] / _areas[i];
+        Real f = 2 * (1 + ar * ar);
+        matrix(i, i) += -1 / f * ar * ar;
+        matrix(i, j) += -1 / f * ar;
+      }
+    }
+
+    // solve the linear system
+    matrix.lu_solve(rhs, lmults);
+
+    // perform corrections
+    for (unsigned int i = 0; i < _n_sides; ++i)
+      for (unsigned int j = 0; j < _n_sides; ++j)
+      {
+        Real correction;
+        if (i == j)
+          correction = -0.5 * lmults(i);
         else
-          _view_factors[from][to] += corrections(indexHelper(to, from)) * _areas[to] / _areas[from];
+        {
+          Real ar = _areas[i] / _areas[j];
+          Real f = 2 * (1 + ar * ar);
+          correction = -(lmults(i) + lmults(j) * ar) / f;
+        }
+
+        _view_factors[i][j] += correction;
+
+        if (correction < min_correction)
+          min_correction = correction;
+        if (correction > max_correction)
+          max_correction = correction;
       }
   }
 
+  if (_print_view_factor_info)
+  {
+    std::cout << "\nFinal view factors.\n" << std::endl;
+    for (unsigned int from = 0; from < _n_sides; ++from)
+    {
+      std::string from_name;
+      for (auto pair : _side_name_index)
+        if (pair.second == from)
+          from_name = pair.first;
+      auto from_id = _mesh.getBoundaryID(from_name);
+
+      for (unsigned int to = 0; to < _n_sides; ++to)
+      {
+        std::string to_name;
+        for (auto pair : _side_name_index)
+          if (pair.second == to)
+            to_name = pair.first;
+        auto to_id = _mesh.getBoundaryID(to_name);
+        _console << from_name << " (" << from_id << ") -> " << to_name << " (" << to_id
+                 << ") = " << _view_factors[from][to] << std::endl;
+      }
+    }
+  }
+
+  // check sum of view factors and maximum deviation on reciprocity
+  Real max_sum_deviation_after_normalization = 0;
+  Real max_deviation_from_reciprocity = 0;
   for (unsigned int from = 0; from < _n_sides; ++from)
   {
-    std::string from_name;
-    for (auto pair : _side_name_index)
-      if (pair.second == from)
-        from_name = pair.first;
-    auto from_id = _mesh.getBoundaryID(from_name);
-
+    Real s = 0;
     for (unsigned int to = 0; to < _n_sides; ++to)
     {
-      std::string to_name;
-      for (auto pair : _side_name_index)
-        if (pair.second == to)
-          to_name = pair.first;
-      auto to_id = _mesh.getBoundaryID(to_name);
-      _console << from_name << " (" << from_id << ") -> " << to_name << " (" << to_id
-               << ") = " << _view_factors[from][to] << std::endl;
+      s += _view_factors[from][to];
+
+      if (from > to)
+      {
+        Real rd =
+            std::abs(_view_factors[from][to] - _view_factors[to][from] * _areas[to] / _areas[from]);
+        if (rd > max_deviation_from_reciprocity)
+          max_deviation_from_reciprocity = rd;
+      }
     }
+
+    if (std::abs(1 - s) > max_sum_deviation)
+      max_sum_deviation_after_normalization = std::abs(1 - s);
+  }
+
+  // print symmary
+  _console << std::endl;
+  _console << COLOR_CYAN << "Summary of the view factor computation"
+           << "\n"
+           << COLOR_DEFAULT << std::endl;
+  if (_normalize_view_factor)
+    _console << "Normalization is performed." << std::endl;
+  else
+    _console << "Normalization is skipped." << std::endl;
+  _console << std::setw(60) << std::left << "Number of patches: " << _n_sides << std::endl;
+  _console << std::setw(60) << std::left
+           << "Max deviation sum = 1 before normalization: " << max_sum_deviation << std::endl;
+  if (_normalize_view_factor)
+  {
+    _console << std::setw(60) << std::left << "Maximum correction: " << max_correction << std::endl;
+    _console << std::setw(60) << std::left << "Minimum correction: " << min_correction << std::endl;
+    _console << std::setw(60)
+             << "Max deviation sum = 1 after normalization: " << max_sum_deviation_after_normalization
+             << std::endl;
+    _console << std::setw(60) << std::left << "Max deviation from reciprocity after normalization: "
+             << max_deviation_from_reciprocity << std::endl;
+    _console << std::endl;
   }
 }
 
