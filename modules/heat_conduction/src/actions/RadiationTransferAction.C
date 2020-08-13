@@ -77,6 +77,12 @@ validParams<RadiationTransferAction>()
   params.addParam<MooseEnum>(
       "ray_tracing_face_order", qorders, "The face quadrature rule order used for ray tracing.");
 
+  params.addParam<bool>(
+      "print_view_factor_info", false, "Flag to print information about computed view factors.");
+  params.addParam<bool>("normalize_view_factor",
+                        true,
+                        "Determines if view factors are normalized to sum to one (consistent with "
+                        "their definition).");
   MooseEnum qtypes("GAUSS GRID", "GRID");
   params.addParam<MooseEnum>("ray_tracing_face_type", qtypes, "The face quadrature type");
   return params;
@@ -161,7 +167,8 @@ RadiationTransferAction::addViewFactorObject() const
     params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
     params.set<ExecFlagEnum>("execute_on") = exec_enum;
     params.set<UserObjectName>("ray_study_name") = rayStudyName();
-
+    params.set<bool>("print_view_factor_info") = getParam<bool>("print_view_factor_info");
+    params.set<bool>("normalize_view_factor") = getParam<bool>("normalize_view_factor");
     _problem->addUserObject("RayTracingViewFactor", viewFactorObjectName(), params);
   }
 }
