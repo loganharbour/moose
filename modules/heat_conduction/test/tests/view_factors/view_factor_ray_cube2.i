@@ -17,9 +17,9 @@
     type = ViewFactorRayStudy2
     execute_on = initial
     boundary = 'left right front back bottom top'
-    face_order = CONSTANT #SECOND
-    polar_quad_order = 30
-    azimuthal_quad_order = 80
+    face_order = SECOND
+    polar_quad_order = 12
+    azimuthal_quad_order = 24
     #face_type = Gauss
     always_cache_traces = true
     aux_data_on_cache_traces = true
