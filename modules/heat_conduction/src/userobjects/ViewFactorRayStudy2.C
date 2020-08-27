@@ -622,14 +622,14 @@ ViewFactorRayStudy2::generateRays()
         _internal_bnd_ids.find(start_elem._start_side) == _internal_bnd_ids.end();
     auto normal = start_elem._normal;
 
+    // if the boundary is external, flip the normal;
+    // else copy it to the
+    if (start_is_external)
+      normal *= -1;
+
     for (std::size_t start_i = 0; start_i < start_elem._points.size(); ++start_i)
     {
       const auto & start_point = start_elem._points[start_i];
-
-      // if the boundary is external, flip the normal;
-      // else copy it to the
-      if (start_is_external)
-        normal *= -1;
 
       // Create rotation matrix and rotate vector omega
       _rotation_matrix = aqRoationMatrix(normal);
