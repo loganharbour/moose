@@ -14,19 +14,18 @@
 
 [UserObjects]
   [./view_factor_study]
-    type = ViewFactorRayStudy2
+    type = AQViewFactorRayStudy
     execute_on = initial
     boundary = 'left right front back bottom top'
-    face_order = SECOND
+    face_order = FIFTH
     polar_quad_order = 12
-    azimuthal_quad_order = 24
-    #face_type = Gauss
+    azimuthal_quad_order = 4
     always_cache_traces = true
     aux_data_on_cache_traces = true
   [../]
 
   [./view_factor]
-    type = RayTracingViewFactor2
+    type = AQRayTracingViewFactor
     boundary = 'left right front back bottom top'
     execute_on = INITIAL
     ray_study_name = view_factor_study
@@ -36,7 +35,7 @@
 []
 
 [RayBCs/viewfactor]
-  type = ViewFactorRayBC2
+  type = AQViewFactorRayBC
   boundary = 'left right front back bottom top'
 []
 
@@ -73,10 +72,4 @@
 
 [Outputs]
   csv = true
-  [rays]
-    type = RayTracingExodus
-    study = view_factor_study
-    output_aux_data = true
-    execute_on = final
-  []
 []

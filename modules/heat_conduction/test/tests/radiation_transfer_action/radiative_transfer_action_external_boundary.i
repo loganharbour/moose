@@ -82,7 +82,7 @@
     adiabatic_boundary = '7'
     fixed_temperature_boundary = '6'
     fixed_boundary_temperatures = '800'
-    unobstructed_cavity = true
+    view_factor_calculator = analytical
   [../]
 []
 

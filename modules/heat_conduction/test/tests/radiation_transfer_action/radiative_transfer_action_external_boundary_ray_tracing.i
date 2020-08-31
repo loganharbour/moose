@@ -82,6 +82,7 @@
     adiabatic_sidesets = '7'
     fixed_temperature_sidesets = '6'
     fixed_boundary_temperatures = '800'
+    view_factor_calculator = ray_tracing
   [../]
 []
 
