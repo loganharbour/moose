@@ -12,15 +12,15 @@
 #include "RayBC.h"
 
 // Forward declarations
-class ViewFactorRayStudy2;
+class AQViewFactorRayStudy;
 
 /**
  * RayBC used in the computation of view factors.
  */
-class ViewFactorRayBC2 : public RayBC
+class AQViewFactorRayBC : public RayBC
 {
 public:
-  ViewFactorRayBC2(const InputParameters & params);
+  AQViewFactorRayBC(const InputParameters & params);
 
   static InputParameters validParams();
 
@@ -33,7 +33,7 @@ public:
 
 protected:
   /// The ViewFactorRayStudy
-  ViewFactorRayStudy2 & _vf_study;
+  AQViewFactorRayStudy & _vf_study;
 
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;

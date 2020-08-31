@@ -7,30 +7,30 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "ViewFactorRayBC2.h"
+#include "AQViewFactorRayBC.h"
 
 // Local includes
-#include "ViewFactorRayStudy2.h"
+#include "AQViewFactorRayStudy.h"
 
-registerMooseObject("RayTracingApp", ViewFactorRayBC2);
+registerMooseObject("RayTracingApp", AQViewFactorRayBC);
 
 InputParameters
-ViewFactorRayBC2::validParams()
+AQViewFactorRayBC::validParams()
 {
   InputParameters params = RayBC::validParams();
   return params;
 }
 
-ViewFactorRayBC2::ViewFactorRayBC2(const InputParameters & params)
+AQViewFactorRayBC::AQViewFactorRayBC(const InputParameters & params)
   : RayBC(params),
-    _vf_study(ViewFactorRayStudy2::castFromStudy(params)),
+    _vf_study(AQViewFactorRayStudy::castFromStudy(params)),
     _ray_index_start_bnd_id(_study.getRayAuxDataIndex("start_bnd_id")),
     _ray_index_start_total_weight(_study.getRayAuxDataIndex("start_total_weight"))
 {
 }
 
 void
-ViewFactorRayBC2::apply(const Elem * elem,
+AQViewFactorRayBC::apply(const Elem * elem,
                        const unsigned short intersected_side,
                        const BoundaryID bnd_id,
                        const Point & /* intersection_point */,
@@ -39,7 +39,7 @@ ViewFactorRayBC2::apply(const Elem * elem,
 {
   // Hit the end boundary and are on the correct elem and side -> contribute to view factor info
   //if (applying_multiple)
-  //  mooseError("Should not contribute while applying multiple ViewFactorRayBC2\n\n",
+  //  mooseError("Should not contribute while applying multiple AQViewFactorRayBC\n\n",
   //             ray->getInfo(&_study));
 
   // The boundary ID this Ray started on
@@ -51,7 +51,7 @@ ViewFactorRayBC2::apply(const Elem * elem,
   _vf_study.addToViewFactorInfo(start_total_weight, start_bnd_id, bnd_id, _tid);
 
   if (std::isnan(start_total_weight))
-    mooseError("Encountered NaN in ViewFactorRayBC2\n", ray->getInfo(&_study));
+    mooseError("Encountered NaN in AQViewFactorRayBC\n", ray->getInfo(&_study));
 
   // Either hit an obstacle here or hit its end and contributed: done with this Ray
   ray->setShouldContinue(false);

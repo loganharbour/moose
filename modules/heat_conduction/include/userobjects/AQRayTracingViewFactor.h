@@ -12,21 +12,21 @@
 #include "ViewFactorBase.h"
 
 // Forward Declarations
-class RayTracingViewFactor2;
-class ViewFactorRayStudy2;
+class AQRayTracingViewFactor;
+class AQViewFactorRayStudy;
 
 template <>
-InputParameters validParams<RayTracingViewFactor2>();
+InputParameters validParams<AQRayTracingViewFactor>();
 
 /**
  * Computes the view factors for planar faces in unobstructed radiative heat transfer
  */
-class RayTracingViewFactor2 : public ViewFactorBase
+class AQRayTracingViewFactor : public ViewFactorBase
 {
 public:
   static InputParameters validParams();
 
-  RayTracingViewFactor2(const InputParameters & parameters);
+  AQRayTracingViewFactor(const InputParameters & parameters);
 
   virtual void execute() override;
   virtual void initialize() override;
@@ -35,6 +35,6 @@ protected:
   virtual void threadJoinViewFactor(const UserObject & y) override;
   virtual void finalizeViewFactor() override;
 
-  const ViewFactorRayStudy2 & _ray_study;
+  const AQViewFactorRayStudy & _ray_study;
   Real _divisor;
 };

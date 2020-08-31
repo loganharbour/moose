@@ -7,7 +7,7 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "ViewFactorRayStudy2.h"
+#include "AQViewFactorRayStudy.h"
 
 // MOOSE includes
 #include "Conversion.h"
@@ -15,7 +15,7 @@
 #include "MooseUtils.h"
 
 // Local includes
-#include "ViewFactorRayBC2.h"
+#include "AQViewFactorRayBC.h"
 
 // libMesh includes
 #include "libmesh/parallel_algebra.h"
@@ -24,10 +24,10 @@
 #include "libmesh/fe_base.h"
 #include "libmesh/quadrature.h"
 
-registerMooseObject("HeatConductionApp", ViewFactorRayStudy2);
+registerMooseObject("HeatConductionApp", AQViewFactorRayStudy);
 
 void
-ViewFactorRayStudy2::getLegHRQ(unsigned int order, std::vector<Real> & x, std::vector<Real> & w)
+AQViewFactorRayStudy::getLegHRQ(unsigned int order, std::vector<Real> & x, std::vector<Real> & w)
 {
   switch (order)
   {
@@ -119,6 +119,52 @@ ViewFactorRayStudy2::getLegHRQ(unsigned int order, std::vector<Real> & x, std::v
            0.05346966299765927,
            0.02358766819325585};
       break;
+    case 16:
+      x = {0.005299532504174975,
+           0.02771248846338353,
+           0.06718439880608396,
+           0.1222977958224984,
+           0.1910618777986781,
+           0.2709916111713863,
+           0.3591982246103707,
+           0.4524937450811815,
+           0.5475062549188188,
+           0.6408017753896296,
+           0.7290083888286136,
+           0.808938122201322,
+           0.8777022041775016,
+           0.9328156011939159,
+           0.9722875115366161,
+           0.994700467495825};
+      w = {0.01357622970587707,
+           0.03112676196932375,
+           0.04757925584124661,
+           0.06231448562776682,
+           0.07479799440828847,
+           0.08457825969750156,
+           0.09130170752246193,
+           0.09472530522753399,
+           0.09472530522753478,
+           0.09130170752246126,
+           0.08457825969750159,
+           0.0747979944082882,
+           0.06231448562776774,
+           0.04757925584124636,
+           0.03112676196932393,
+           0.01357622970587707};
+      break;
+    case 20:
+      x = {0.003435700407452502, 0.01801403636104321, 0.04388278587433714, 0.08044151408889055,
+           0.1268340467699246,   0.1819731596367425,  0.2445664990245865,  0.3131469556422902,
+           0.3861070744291775,   0.4617367394332513,  0.5382632605667487,  0.6138929255708228,
+           0.6868530443577098,   0.7554335009754136,  0.8180268403632576,  0.8731659532300755,
+           0.9195584859111094,   0.9561172141256626,  0.9819859636389568,  0.9965642995925473};
+      w = {0.008807003569576043, 0.0203007149001937,  0.03133602416705427, 0.04163837078835239,
+           0.0509650599086201,   0.05909726598075941, 0.06584431922458812, 0.0710480546591913,
+           0.07458649323630168,  0.0763766935653629,  0.07637669356536299, 0.07458649323630215,
+           0.07104805465919138,  0.06584431922458857, 0.05909726598075964, 0.05096505990861998,
+           0.04163837078835197,  0.03133602416705467, 0.02030071490019304, 0.008807003569576187};
+      break;
     case 30:
       x = {0.001553257962675192, 0.008165938360126357, 0.01998906751584634, 0.03689997628536273,
            0.05871973210397358,  0.08521711880861577,  0.1161112839475868,  0.1510747526033421,
@@ -137,13 +183,78 @@ ViewFactorRayStudy2::getLegHRQ(unsigned int order, std::vector<Real> & x, std::v
            0.02874657810880945,  0.02420133641529774,  0.01939959628481316, 0.01439235394166161,
            0.009233234155545658, 0.003984096248083273};
       break;
+    case 40:
+      x = {0.0008811451447204299, 0.004636880650271624, 0.01137002500811307, 0.02104159039310433,
+           0.03359359586066191,   0.04895059651556288,  0.06702024839387016, 0.08769388458334409,
+           0.1108471742867403,    0.1363408724050365,   0.1640216576929103,  0.1937230551660097,
+           0.2252664374524357,    0.2584620991569107,   0.2931103978141975,  0.3290029545871207,
+           0.3659239074963729,    0.4036512096493143,   0.4419579646623724,  0.4806137912469748,
+           0.5193862087530253,    0.5580420353376276,   0.5963487903506857,  0.6340760925036268,
+           0.6709970454128792,    0.7068896021858027,   0.7415379008430895,  0.774733562547564,
+           0.80627694483399,      0.8359783423070898,   0.8636591275949634,  0.8891528257132597,
+           0.9123061154166558,    0.9329797516061296,   0.9510494034844372,  0.9664064041393384,
+           0.978958409606896,     0.9886299749918872,   0.9953631193497287,  0.9991188548552798};
+      w = {0.002260638549266528, 0.005249142265576765, 0.008210529190954059, 0.01112292459708328,
+           0.01396850349001133,  0.01673009764127386,  0.01939108398723628,  0.02193545409283664,
+           0.02434790381753616,  0.02661392349196839,  0.02871988454969542,  0.03065312124646457,
+           0.03240200672830051,  0.03395602290761735,  0.03530582369564322,  0.03644329119790184,
+           0.03736158452898407,  0.03805518095031343,  0.03851990908212326,  0.03875297398921271,
+           0.03875297398921225,  0.03851990908212417,  0.0380551809503133,   0.03736158452898412,
+           0.03644329119790179,  0.03530582369564304,  0.03395602290761734,  0.0324020067283003,
+           0.0306531212464645,   0.02871988454969549,  0.02661392349196847,  0.02434790381753585,
+           0.02193545409283717,  0.01939108398723586,  0.01673009764127338,  0.01396850349001175,
+           0.01112292459708374,  0.008210529190954169, 0.005249142265576059, 0.002260638549266752};
+      break;
+    case 80:
+      x = {0.000223088674184635, 0.001175067800881335, 0.002886229517155892, 0.005354348750122362,
+           0.008575713630685655, 0.01254542970713612,  0.01725745547810054,  0.0227046168281827,
+           0.02887861934506397,  0.03577006141377725,  0.04336844871412099,  0.05166221028061474,
+           0.06063871616089328,  0.07028429666844438,  0.08058426320987233,  0.0915229306592682,
+           0.1030836412476974,   0.115248789932479,    0.1279998512082015,   0.1413174073189502,
+           0.1551811778289863,   0.16957005050694,     0.1844621134765639,   0.199834688585124,
+           0.2156643659386451,   0.2319270395514338,   0.2485979440556073,   0.2656516924147276,
+           0.2830623145841219,   0.3008032970590154,   0.3188476232502564,   0.3371678146261489,
+           0.3557359725577439,   0.374523820803864,    0.3935027485711671,   0.412643854083677,
+           0.431917988595428,    0.4512958007792078,   0.4707477814237899,   0.4902443083716032,
+           0.5097556916283972,   0.5292522185762104,   0.5487041992207923,   0.568082011404572,
+           0.5873561459163236,   0.6064972514288333,   0.6254761791961362,   0.644264027442256,
+           0.6628321853738509,   0.6811523767497436,   0.6991967029409848,   0.716937685415878,
+           0.7343483075852724,   0.7514020559443926,   0.7680729604485659,   0.7843356340613548,
+           0.8001653114148759,   0.815537886523436,    0.8304299494930596,   0.8448188221710137,
+           0.85868259268105,     0.8720001487917985,   0.8847512100675206,   0.8969163587523026,
+           0.9084770693407318,   0.9194157367901274,   0.9297157033315555,   0.9393612838391068,
+           0.9483377897193852,   0.9566315512858787,   0.9642299385862227,   0.9711213806549364,
+           0.9772953831718172,   0.9827425445218994,   0.9874545702928637,   0.9914242863693143,
+           0.9946456512498776,   0.9971137704828441,   0.9988249321991187,   0.9997769113258153};
+      w = {
+          0.0005724750015935829, 0.001331766794756083, 0.00209015656234747,  0.002845461225701455,
+          0.003596452384058864,  0.004341972634630063, 0.005080883020551938, 0.005812057060399283,
+          0.006534380796200345,  0.007246754020254332, 0.00794809179186279,  0.008637326028134728,
+          0.009313407104149343,  0.009975305439070716, 0.01062201305789127,  0.01125254512316596,
+          0.01186594143296515,   0.01246126788205799,  0.01303761788378269,  0.01359411375024307,
+          0.01412990802863836,   0.01464418479163394,  0.01513616087977912,  0.01560508709405745,
+          0.01605024933674352,   0.01647096969882277,  0.01686660749230598,  0.01723656022587697,
+          0.01758026452237389,   0.0178971969767078,   0.01818687495291785,  0.01844885731913827,
+          0.01868274511936515,   0.018888182181001,    0.01906485565723848,  0.01921249650347986,
+          0.01933087988703829,   0.01941982552952643,  0.01947919798138537,  0.01950890682815304,
+          0.01950890682815289,   0.01947919798138433,  0.01941982552952594,  0.01933087988703873,
+          0.01921249650347963,   0.01906485565723888,  0.01888818218100091,  0.01868274511936495,
+          0.0184488573191383,    0.01818687495291781,  0.01789719697670791,  0.01758026452237373,
+          0.01723656022587688,   0.01686660749230561,  0.01647096969882261,  0.01605024933674383,
+          0.01560508709405768,   0.01513616087977928,  0.01464418479163459,  0.01412990802863829,
+          0.0135941137502433,    0.01303761788378273,  0.01246126788205774,  0.0118659414329652,
+          0.01125254512316672,   0.01062201305789101,  0.009975305439071061, 0.009313407104150202,
+          0.008637326028134436,  0.007948091791862205, 0.007246754020254351, 0.006534380796200811,
+          0.005812057060399114,  0.0050808830205515,   0.004341972634630382, 0.003596452384058713,
+          0.00284546122570141,   0.002090156562346913, 0.001331766794756246, 0.0005724750015935458};
+      break;
     default:
       ::mooseError("Gauss-Legendre order ", order, " is not supported");
   }
 }
 
 DenseMatrix<Real>
-ViewFactorRayStudy2::aqRoationMatrix(const Point & normal) const
+AQViewFactorRayStudy::aqRoationMatrix(const Point & normal) const
 {
   DenseMatrix<Real> rot(3, 3);
   if (_mesh.dimension() == 2)
@@ -168,10 +279,10 @@ ViewFactorRayStudy2::aqRoationMatrix(const Point & normal) const
 }
 
 void
-ViewFactorRayStudy2::getLegChebHRQ(unsigned int cheb_order,
-                                   unsigned int leg_order,
-                                   std::vector<std::pair<Real, Real>> & x,
-                                   std::vector<Real> & w)
+AQViewFactorRayStudy::getLegChebHRQ(unsigned int cheb_order,
+                                    unsigned int leg_order,
+                                    std::vector<std::pair<Real, Real>> & x,
+                                    std::vector<Real> & w)
 {
   std::vector<Real> cheb_x(cheb_order);
   std::vector<Real> cheb_w(cheb_order);
@@ -206,7 +317,7 @@ ViewFactorRayStudy2::getLegChebHRQ(unsigned int cheb_order,
 }
 
 Point
-ViewFactorRayStudy2::getOrthonormalVector(const Point & v, unsigned int dim)
+AQViewFactorRayStudy::getOrthonormalVector(const Point & v, unsigned int dim)
 {
   if (MooseUtils::absoluteFuzzyLessEqual(v.norm(), 0))
     ::mooseError("Vector v has norm close to 0");
@@ -225,7 +336,7 @@ ViewFactorRayStudy2::getOrthonormalVector(const Point & v, unsigned int dim)
 }
 
 Point
-ViewFactorRayStudy2::getAngularDirection(unsigned int l) const
+AQViewFactorRayStudy::getAngularDirection(unsigned int l) const
 {
   Point direction;
   if (_mesh.dimension() == 2)
@@ -246,7 +357,7 @@ ViewFactorRayStudy2::getAngularDirection(unsigned int l) const
 }
 
 InputParameters
-ViewFactorRayStudy2::validParams()
+AQViewFactorRayStudy::validParams()
 {
   auto params = RayTracingStudy::validParams();
 
@@ -264,12 +375,13 @@ ViewFactorRayStudy2::validParams()
 
   params.addParam<unsigned int>(
       "polar_quad_order",
-      8,
+      16,
       "Order of the polar quadrature [polar angle is between ray and normal]. Must be even.");
-  params.addParam<unsigned int>("azimuthal_quad_order",
-                                8,
-                                "Order of the azimuthal quadrature [azimuthal angle is measured in "
-                                "a plan perpendicular to the normal].");
+  params.addParam<unsigned int>(
+      "azimuthal_quad_order",
+      8,
+      "Order of the azimuthal quadrature per quadrant [azimuthal angle is measured in "
+      "a plan perpendicular to the normal].");
 
   MooseEnum convention("positive=0 negative=1", "positive");
   params.addParam<MooseEnum>(
@@ -277,13 +389,6 @@ ViewFactorRayStudy2::validParams()
       convention,
       "The convention for spawning rays from internal sidesets; denotes the sign of the dot "
       "product between a ray and the internal sideset side normal");
-
-  params.addRangeCheckedParam<Real>(
-      "dot_tol",
-      1.0e-3,
-      "dot_tol > 0",
-      "Tolerance for the dot product of a ray and a side normal, i.e., if the dot "
-      "product is less than this, the ray will not be spawned");
 
   // Shouldn't ever need RayKernels for view factors
   params.set<bool>("ray_kernel_coverage_check") = false;
@@ -309,11 +414,10 @@ ViewFactorRayStudy2::validParams()
   return params;
 }
 
-ViewFactorRayStudy2::ViewFactorRayStudy2(const InputParameters & parameters)
+AQViewFactorRayStudy::AQViewFactorRayStudy(const InputParameters & parameters)
   : RayTracingStudy(parameters),
     _bnd_ids(_mesh.getBoundaryIDs(getParam<std::vector<BoundaryName>>("boundary"))),
     _internal_convention(getParam<MooseEnum>("internal_convention")),
-    _dot_tol(getParam<Real>("dot_tol")),
     _ray_index_start_bnd_id(registerRayAuxData("start_bnd_id")),
     _ray_index_start_total_weight(registerRayAuxData("start_total_weight")),
     _fe_face(FEBase::build(_mesh.dimension(), FEType(CONSTANT, MONOMIAL))),
@@ -331,7 +435,7 @@ ViewFactorRayStudy2::ViewFactorRayStudy2(const InputParameters & parameters)
   if (_mesh.dimension() == 2)
     mooseError("2D damnit");
   else if (_mesh.dimension() == 3)
-    getLegChebHRQ(getParam<unsigned int>("azimuthal_quad_order"),
+    getLegChebHRQ(4 * getParam<unsigned int>("azimuthal_quad_order"),
                   getParam<unsigned int>("polar_quad_order"),
                   _aq_angles,
                   _aq_weights);
@@ -339,7 +443,7 @@ ViewFactorRayStudy2::ViewFactorRayStudy2(const InputParameters & parameters)
 }
 
 void
-ViewFactorRayStudy2::initialSetup()
+AQViewFactorRayStudy::initialSetup()
 {
   RayTracingStudy::initialSetup();
 
@@ -347,24 +451,24 @@ ViewFactorRayStudy2::initialSetup()
   std::vector<RayKernelBase *> ray_kernels;
   RayTracingStudy::getRayKernels(ray_kernels, 0);
   if (!ray_kernels.empty())
-    mooseError("The ViewFactorRayStudy2 '", name(), "' is not compatible with RayKernels");
+    mooseError("The AQViewFactorRayStudy '", name(), "' is not compatible with RayKernels");
 
   // Make sure we have only one RayBC: a ViewFactorRayBC with the same boundaries
   std::vector<RayBC *> ray_bcs;
   RayTracingStudy::getRayBCs(ray_bcs, 0);
   if (ray_bcs.size() != 1)
-    mooseError("The ViewFactorRayStudy2 '",
+    mooseError("The AQViewFactorRayStudy '",
                name(),
                "' requires one and only one RayBC, a ViewFactorRayBC");
-  ViewFactorRayBC2 * vf_ray_bc = dynamic_cast<ViewFactorRayBC2 *>(ray_bcs[0]);
+  AQViewFactorRayBC * vf_ray_bc = dynamic_cast<AQViewFactorRayBC *>(ray_bcs[0]);
   if (!vf_ray_bc)
-    mooseError("The ViewFactorRayStudy2 '",
+    mooseError("The AQViewFactorRayStudy '",
                name(),
                "' requires one and only one RayBC, a ViewFactorRayBC");
   if (!vf_ray_bc->hasBoundary(_bnd_ids))
-    mooseError("The ViewFactorRayBC2 '",
+    mooseError("The AQViewFactorRayBC '",
                vf_ray_bc->name(),
-               "' must be applied to the same boundaries as the ViewFactorRayStudy2 '",
+               "' must be applied to the same boundaries as the AQViewFactorRayStudy '",
                name(),
                "'");
 
@@ -375,10 +479,19 @@ ViewFactorRayStudy2::initialSetup()
     RayTracingStudy::getRayBCs(ray_bcs, tid);
     _threaded_cached_ray_bcs[tid] = ray_bcs;
   }
+
+  // find domain length scale == length of diagonal across domain
+  _domain_length_scale = 0.0;
+  for (unsigned int j = 0; j < _mesh.dimension(); ++j)
+  {
+    Real d = _mesh.getMaxInDimension(j) - _mesh.getMinInDimension(j);
+    _domain_length_scale += d * d;
+  }
+  _domain_length_scale = std::sqrt(_domain_length_scale);
 }
 
 void
-ViewFactorRayStudy2::preExecuteStudy()
+AQViewFactorRayStudy::preExecuteStudy()
 {
   RayTracingStudy::preExecuteStudy();
 
@@ -397,7 +510,7 @@ ViewFactorRayStudy2::preExecuteStudy()
 }
 
 void
-ViewFactorRayStudy2::postExecuteStudy()
+AQViewFactorRayStudy::postExecuteStudy()
 {
   RayTracingStudy::postExecuteStudy();
 
@@ -423,10 +536,10 @@ ViewFactorRayStudy2::postExecuteStudy()
 }
 
 void
-ViewFactorRayStudy2::addToViewFactorInfo(Real value,
-                                         const BoundaryID from_id,
-                                         const BoundaryID to_id,
-                                         const THREAD_ID tid)
+AQViewFactorRayStudy::addToViewFactorInfo(Real value,
+                                          const BoundaryID from_id,
+                                          const BoundaryID to_id,
+                                          const THREAD_ID tid)
 {
   if (!currentlyPropagating() && !currentlyGenerating())
     mooseError("addToViewFactorInfo() can only be called during Ray generation and propagation");
@@ -439,7 +552,7 @@ ViewFactorRayStudy2::addToViewFactorInfo(Real value,
 }
 
 Real
-ViewFactorRayStudy2::viewFactorInfo(const BoundaryID from_id, const BoundaryID to_id) const
+AQViewFactorRayStudy::viewFactorInfo(const BoundaryID from_id, const BoundaryID to_id) const
 {
   auto it = _vf_info.find(from_id);
   if (it == _vf_info.end())
@@ -451,23 +564,23 @@ ViewFactorRayStudy2::viewFactorInfo(const BoundaryID from_id, const BoundaryID t
   return itt->second;
 }
 
-ViewFactorRayStudy2 &
-ViewFactorRayStudy2::castFromStudy(const InputParameters & params)
+AQViewFactorRayStudy &
+AQViewFactorRayStudy::castFromStudy(const InputParameters & params)
 {
   RayTracingStudy * study = params.getCheckedPointerParam<RayTracingStudy *>("_ray_tracing_study");
   if (!study)
     ::mooseError("Fails earlier");
-  ViewFactorRayStudy2 * vf_study = dynamic_cast<ViewFactorRayStudy2 *>(study);
+  AQViewFactorRayStudy * vf_study = dynamic_cast<AQViewFactorRayStudy *>(study);
   if (!vf_study)
     ::mooseError(params.get<std::string>("_type"),
                  " '",
                  params.get<std::string>("_object_name"),
-                 "' must be paired with a ViewFactorRayStudy2");
+                 "' must be paired with a AQViewFactorRayStudy");
   return *vf_study;
 }
 
 void
-ViewFactorRayStudy2::generatePoints()
+AQViewFactorRayStudy::generatePoints()
 {
   _internal_bnd_ids.clear();
 
@@ -498,7 +611,7 @@ ViewFactorRayStudy2::generatePoints()
     // Sanity check on QGRID not working on some types
     if (_q_face->type() == QGRID && elem->type() == TET4)
       mooseError(
-          "Cannot use GRID quadrature type with tetrahedral elements in ViewFactorRayStudy2 '",
+          "Cannot use GRID quadrature type with tetrahedral elements in AQViewFactorRayStudy '",
           _name,
           "'");
 
@@ -516,7 +629,7 @@ ViewFactorRayStudy2::generatePoints()
     if (neighbor)
     {
       if (!neighbor->active())
-        mooseError("ViewFactorRayStudy2 does not work with adaptivity");
+        mooseError("AQViewFactorRayStudy does not work with adaptivity");
 
       // Mark if this is an internal sideset for future use
       _internal_bnd_ids.insert(bnd_id);
@@ -566,12 +679,12 @@ ViewFactorRayStudy2::generatePoints()
 }
 
 void
-ViewFactorRayStudy2::generateRayIDs()
+AQViewFactorRayStudy::generateRayIDs()
 {
   std::size_t num_local_rays = 0;
   std::size_t num_local_start_points = 0;
   for (const auto & start_elem : _start_info)
-    for (const auto & start_point : start_elem._points)
+    for (unsigned int j = 0; j < start_elem._points.size(); ++j)
     {
       num_local_start_points += 1;
       num_local_rays += _naq;
@@ -606,33 +719,32 @@ ViewFactorRayStudy2::generateRayIDs()
   std::size_t num_total_rays = num_local_rays;
   _communicator.sum(num_total_points);
   _communicator.sum(num_total_rays);
-  _console << "View factor study generated " << num_total_points << " points requiring "
+  _console << "View factor study generated " << num_total_points
+           << " points with an angular quadrature of " << _naq << " directions per point requiring "
            << num_total_rays << " rays" << std::endl;
 }
 
 void
-ViewFactorRayStudy2::generateRays()
+AQViewFactorRayStudy::generateRays()
 {
   CONSOLE_TIMED_PRINT("View factor study generating rays");
 
   // loop through all starting points and spawn rays from each
   for (const auto & start_elem : _start_info)
   {
-    const bool start_is_external =
-        _internal_bnd_ids.find(start_elem._start_side) == _internal_bnd_ids.end();
+    const bool start_is_external = start_elem._elem->neighbor_ptr(start_elem._side) == nullptr;
     auto normal = start_elem._normal;
 
     // if the boundary is external, flip the normal;
-    // else copy it to the
-    if (start_is_external)
+    if (start_is_external && _internal_convention == 0)
       normal *= -1;
+
+    // Create rotation matrix and rotate vector omega
+    _rotation_matrix = aqRoationMatrix(normal);
 
     for (std::size_t start_i = 0; start_i < start_elem._points.size(); ++start_i)
     {
       const auto & start_point = start_elem._points[start_i];
-
-      // Create rotation matrix and rotate vector omega
-      _rotation_matrix = aqRoationMatrix(normal);
 
       // loop through all directions in quadrature set
       for (unsigned int l = 0; l < _naq; ++l)
@@ -640,7 +752,7 @@ ViewFactorRayStudy2::generateRays()
         const auto direction = getAngularDirection(l);
         const auto start_weight =
             start_elem._weights[start_i] * _aq_weights[l] * _aq_angles[l].second;
-        const Point mock_end_point = start_point + 10000 * direction;
+        const Point mock_end_point = start_point + _domain_length_scale * direction;
 
         // Create a Ray and add it to the buffer for future tracing
         std::shared_ptr<Ray> ray = _ray_pool.acquire(start_point,
@@ -650,7 +762,6 @@ ViewFactorRayStudy2::generateRays()
                                                      start_elem._start_elem,
                                                      start_elem._start_side);
         addToWorkingBuffer(ray);
-
         ray->setID(_current_starting_id++);
         ray->setAuxData(_ray_index_start_bnd_id, start_elem._bnd_id);
         ray->setAuxData(_ray_index_start_total_weight, start_weight);
@@ -669,7 +780,7 @@ namespace Parallel
 {
 
 unsigned int
-Packing<ViewFactorRayStudy2::StartElem *>::packed_size(
+Packing<AQViewFactorRayStudy::StartElem *>::packed_size(
     typename std::vector<Real>::const_iterator in)
 {
   unsigned int total_size = 0;
@@ -686,8 +797,8 @@ Packing<ViewFactorRayStudy2::StartElem *>::packed_size(
 }
 
 unsigned int
-Packing<ViewFactorRayStudy2::StartElem *>::packable_size(
-    const ViewFactorRayStudy2::StartElem * const start_elem, const void *)
+Packing<AQViewFactorRayStudy::StartElem *>::packable_size(
+    const AQViewFactorRayStudy::StartElem * const start_elem, const void *)
 {
   unsigned int total_size = 0;
 
@@ -700,9 +811,9 @@ Packing<ViewFactorRayStudy2::StartElem *>::packable_size(
 }
 
 template <>
-ViewFactorRayStudy2::StartElem *
-Packing<ViewFactorRayStudy2::StartElem *>::unpack(std::vector<Real>::const_iterator in,
-                                                  ViewFactorRayStudy2 * study)
+AQViewFactorRayStudy::StartElem *
+Packing<AQViewFactorRayStudy::StartElem *>::unpack(std::vector<Real>::const_iterator in,
+                                                   AQViewFactorRayStudy * study)
 {
   // Number of points
   const std::size_t num_points = *in++;
@@ -748,22 +859,22 @@ Packing<ViewFactorRayStudy2::StartElem *>::unpack(std::vector<Real>::const_itera
     weights[i] = *in++;
 
   // We store this with std::move, so this is safe if we do it right!
-  return new ViewFactorRayStudy2::StartElem(elem,
-                                            side,
-                                            start_elem,
-                                            start_side,
-                                            bnd_id,
-                                            std::move(normal),
-                                            std::move(points),
-                                            std::move(weights));
+  return new AQViewFactorRayStudy::StartElem(elem,
+                                             side,
+                                             start_elem,
+                                             start_side,
+                                             bnd_id,
+                                             std::move(normal),
+                                             std::move(points),
+                                             std::move(weights));
 }
 
 template <>
 void
-Packing<ViewFactorRayStudy2::StartElem *>::pack(
-    const ViewFactorRayStudy2::StartElem * const start_elem,
+Packing<AQViewFactorRayStudy::StartElem *>::pack(
+    const AQViewFactorRayStudy::StartElem * const start_elem,
     std::back_insert_iterator<std::vector<Real>> data_out,
-    const ViewFactorRayStudy2 *)
+    const AQViewFactorRayStudy *)
 {
   // Number of points
   data_out = start_elem->_points.size();
