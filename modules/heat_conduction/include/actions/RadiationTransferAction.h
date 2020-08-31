@@ -39,4 +39,7 @@ protected:
 
   /// the number of radiation patches per boundary
   std::vector<unsigned int> _n_patches;
+
+  /// the type of view factor calculation being performed
+  MooseEnum _view_factor_calculator;
 };

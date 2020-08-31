@@ -17,10 +17,10 @@
 // Forward declarations
 class Ray;
 
-class ViewFactorRayStudy2 : public RayTracingStudy
+class AQViewFactorRayStudy : public RayTracingStudy
 {
 public:
-  ViewFactorRayStudy2(const InputParameters & parameters);
+  AQViewFactorRayStudy(const InputParameters & parameters);
 
   static InputParameters validParams();
   static void getLegHRQ(unsigned int order, std::vector<Real> &x, std::vector<Real> &w);
@@ -155,10 +155,10 @@ public:
   const MeshBase & meshBase() const { return _mesh.getMesh(); }
 
   /**
-   * Casts the RayTracingStudy found in the given input parameters to a ViewFactorRayStudy2Base with
+   * Casts the RayTracingStudy found in the given input parameters to a AQViewFactorRayStudyBase with
    * a meaningful error message if it fails
    */
-  static ViewFactorRayStudy2 & castFromStudy(const InputParameters & params);
+  static AQViewFactorRayStudy & castFromStudy(const InputParameters & params);
 
 protected:
   void generateRays() override;
@@ -170,13 +170,14 @@ protected:
 
   /// The convention for spawning rays from internal sidesets
   const MooseEnum _internal_convention;
-  /// The ray direction * side normal tolerance for spawning rays
-  const Real _dot_tol;
 
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;
   /// Index in the Ray aux data for the starting total weight (dot * qp weight)
   const RayDataIndex _ray_index_start_total_weight;
+
+  /// the length scale of the spatial domain for setting ray end point
+  Real _domain_length_scale;
 
 private:
   void generatePoints();
@@ -220,22 +221,22 @@ namespace libMesh
 namespace Parallel
 {
 template <>
-class Packing<ViewFactorRayStudy2::StartElem *>
+class Packing<AQViewFactorRayStudy::StartElem *>
 {
 public:
   typedef Real buffer_type;
 
   static unsigned int packed_size(typename std::vector<Real>::const_iterator in);
 
-  static unsigned int packable_size(const ViewFactorRayStudy2::StartElem * const start_elem,
+  static unsigned int packable_size(const AQViewFactorRayStudy::StartElem * const start_elem,
                                     const void *);
 
   template <typename Iter, typename Context>
   static void
-  pack(const ViewFactorRayStudy2::StartElem * const object, Iter data_out, const Context *);
+  pack(const AQViewFactorRayStudy::StartElem * const object, Iter data_out, const Context *);
 
   template <typename BufferIter, typename Context>
-  static ViewFactorRayStudy2::StartElem * unpack(BufferIter in, Context *);
+  static AQViewFactorRayStudy::StartElem * unpack(BufferIter in, Context *);
 };
 
 } // namespace Parallel

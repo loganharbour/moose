@@ -7,8 +7,8 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "RayTracingViewFactor2.h"
-#include "ViewFactorRayStudy2.h"
+#include "AQRayTracingViewFactor.h"
+#include "AQViewFactorRayStudy.h"
 #include "MathUtils.h"
 
 #include "libmesh/quadrature.h"
@@ -20,22 +20,22 @@
 #include "libmesh/point_locator_base.h"
 #include "libmesh/elem.h"
 
-registerMooseObject("HeatConductionApp", RayTracingViewFactor2);
+registerMooseObject("HeatConductionApp", AQRayTracingViewFactor);
 
-defineLegacyParams(RayTracingViewFactor2);
+defineLegacyParams(AQRayTracingViewFactor);
 
 InputParameters
-RayTracingViewFactor2::validParams()
+AQRayTracingViewFactor::validParams()
 {
   InputParameters params = ViewFactorBase::validParams();
   params.addRequiredParam<UserObjectName>("ray_study_name",
-                                          "Name of the ViewFactorRayStudy2 userobject name.");
+                                          "Name of the AQViewFactorRayStudy userobject name.");
   params.addClassDescription("Computes view factors for arbitrary geometries using raytracing.");
   return params;
 }
 
-RayTracingViewFactor2::RayTracingViewFactor2(const InputParameters & parameters)
-  : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudy2>("ray_study_name"))
+AQRayTracingViewFactor::AQRayTracingViewFactor(const InputParameters & parameters)
+  : ViewFactorBase(parameters), _ray_study(getUserObject<AQViewFactorRayStudy>("ray_study_name"))
 {
   if (_mesh.dimension() == 1)
     mooseError("View factor calculations for 1D geometry makes no sense");
@@ -46,7 +46,7 @@ RayTracingViewFactor2::RayTracingViewFactor2(const InputParameters & parameters)
 }
 
 void
-RayTracingViewFactor2::execute()
+AQRayTracingViewFactor::execute()
 {
   // compute areas
   auto current_boundary_name = _mesh.getBoundaryName(_current_boundary_id);
@@ -62,7 +62,7 @@ RayTracingViewFactor2::execute()
 }
 
 void
-RayTracingViewFactor2::initialize()
+AQRayTracingViewFactor::initialize()
 {
   // set view_factors to zero
   for (unsigned int j = 0; j < _n_sides; ++j)
@@ -70,7 +70,7 @@ RayTracingViewFactor2::initialize()
 }
 
 void
-RayTracingViewFactor2::finalizeViewFactor()
+AQRayTracingViewFactor::finalizeViewFactor()
 {
   gatherSum(_areas);
 
@@ -92,9 +92,9 @@ RayTracingViewFactor2::finalizeViewFactor()
 }
 
 void
-RayTracingViewFactor2::threadJoinViewFactor(const UserObject & y)
+AQRayTracingViewFactor::threadJoinViewFactor(const UserObject & y)
 {
-  const RayTracingViewFactor2 & pps = static_cast<const RayTracingViewFactor2 &>(y);
+  const AQRayTracingViewFactor & pps = static_cast<const AQRayTracingViewFactor &>(y);
   for (unsigned int i = 0; i < _n_sides; ++i)
     _areas[i] += pps._areas[i];
 }
