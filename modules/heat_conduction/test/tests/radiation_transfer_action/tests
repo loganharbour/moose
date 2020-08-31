@@ -7,7 +7,7 @@
     exodiff = 'radiative_transfer_action_out.e'
     requirement = 'The system shall provide an action to set up radiative heat transfer problems using the net radiation method'
     petsc_version = '>=3.9.4'
-    cli_args = 'GrayDiffuseRadiation/cavity/unobstructed_cavity=true'
+    cli_args = 'GrayDiffuseRadiation/cavity/view_factor_calculator=analytical'
   [../]
 
   [./radiative_transfer_action_raytracing]
@@ -16,7 +16,7 @@
     exodiff = 'radiative_transfer_action_raytracing_out.e'
     requirement = 'The system shall provide an action to set up radiative heat transfer problems using the net radiation method and allow computing view factors using raytracing'
     petsc_version = '>=3.9.4'
-    cli_args = 'Outputs/file_base=radiative_transfer_action_raytracing_out'
+    cli_args = 'Outputs/file_base=radiative_transfer_action_raytracing_out GrayDiffuseRadiation/cavity/view_factor_calculator=ray_tracing'
   [../]
 
   [./radiative_transfer_action_bnd_names]

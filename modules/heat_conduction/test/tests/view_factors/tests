@@ -27,6 +27,14 @@
     requirement = 'The system shall compute view factors for general 3D cavities using ray tracing'
   [../]
 
+  [./view_factor_ray_cube_aq]
+    type = CSVDiff
+    input = 'view_factor_ray_cube_aq.i'
+    csvdiff = 'view_factor_ray_cube_aq_out.csv'
+    design = 'RayTracingViewFactor.md'
+    requirement = 'The system shall compute view factors for general 3D cavities using ray tracing with angular quadrature'
+  [../]
+
   [./view_factor_quad]
     type = CSVDiff
     input = 'view_factor_quad.i'
@@ -51,5 +59,13 @@
     csvdiff = 'analytical_with_obstruction_out.csv'
     design = 'RayTracingViewFactor.md'
     requirement = 'The system shall compute view factors for cavities with obstruction'
+  [../]
+
+  [./analytical_with_obstruction_aq]
+    type = CSVDiff
+    input = 'analytical_with_obstruction_aq.i'
+    csvdiff = 'analytical_with_obstruction_aq_out.csv'
+    design = 'RayTracingViewFactor.md'
+    requirement = 'The system shall compute view factors for cavities with obstruction using angular quadrature'
   [../]
 []
