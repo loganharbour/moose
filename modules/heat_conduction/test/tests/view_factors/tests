@@ -68,4 +68,12 @@
     design = 'RayTracingViewFactor.md'
     requirement = 'The system shall compute view factors for cavities with obstruction using angular quadrature'
   [../]
+
+  [./view_factor_rectangle_ray_aq]
+    type = CSVDiff
+    input = 'view_factor_rectangle_ray_aq.i '
+    csvdiff = 'view_factor_rectangle_ray_aq_out.csv'
+    design = 'RayTracingViewFactor.md'
+    requirement = 'The system shall compute view factors using angular quadrature in 2D geometries'
+  [../]
 []

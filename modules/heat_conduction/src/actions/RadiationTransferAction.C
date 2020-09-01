@@ -15,6 +15,7 @@
 #include "RayTracingStudy.h"
 #include "RayBC.h"
 #include "ViewFactorRayStudy.h"
+#include "AQViewFactorRayStudy.h"
 
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_mesh_generator");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "setup_mesh_complete");
@@ -280,7 +281,7 @@ RadiationTransferAction::addRayBCs() const
     InputParameters params = _factory.getValidParams("AQViewFactorRayBC");
     params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
     params.set<RayTracingStudy *>("_ray_tracing_study") =
-        &_problem->getUserObject<ViewFactorRayStudy>(rayStudyName());
+        &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
     _problem->addObject<RayBC>("AQViewFactorRayBC", rayBCName(), params);
   }
 }

@@ -35,7 +35,8 @@ AQRayTracingViewFactor::validParams()
 }
 
 AQRayTracingViewFactor::AQRayTracingViewFactor(const InputParameters & parameters)
-  : ViewFactorBase(parameters), _ray_study(getUserObject<AQViewFactorRayStudy>("ray_study_name"))
+  : ViewFactorBase(parameters),
+    _ray_study(getUserObject<AQViewFactorRayStudy>("ray_study_name"))
 {
   if (_mesh.dimension() == 1)
     mooseError("View factor calculations for 1D geometry makes no sense");

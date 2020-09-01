@@ -30,17 +30,18 @@ AQViewFactorRayBC::AQViewFactorRayBC(const InputParameters & params)
 }
 
 void
-AQViewFactorRayBC::apply(const Elem * elem,
-                       const unsigned short intersected_side,
+AQViewFactorRayBC::apply(const Elem * /*elem*/,
+                       const unsigned short /*intersected_side*/,
                        const BoundaryID bnd_id,
                        const Point & /* intersection_point */,
                        const std::shared_ptr<Ray> & ray,
-                       const bool applying_multiple)
+                       const bool /*applying_multiple*/)
 {
-  // Hit the end boundary and are on the correct elem and side -> contribute to view factor info
-  //if (applying_multiple)
-  //  mooseError("Should not contribute while applying multiple AQViewFactorRayBC\n\n",
-  //             ray->getInfo(&_study));
+  // TODO: handle edge & point intersections
+
+  // NOTE: when integrating over angular space neither the distance to destination
+  //       nor the angle at which the ray hits the target matter. Check out the math
+  //       in the theory doc to see why. Would be too lengthy here.
 
   // The boundary ID this Ray started on
   const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
