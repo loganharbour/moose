@@ -33,6 +33,18 @@ public:
 protected:
   virtual void threadJoin(const UserObject & y) override final;
 
+  /// this function computes the deviation from reciprocity defined as Fij - Aj/Ai * Fji
+  Real devReciprocity(unsigned int i, unsigned int j) const;
+
+  /// this function computes the maximum absolute value of the deviation from reciprocity
+  Real maxDevReciprocity() const;
+
+  /// sum of a row in the view factor matrix
+  Real viewFactorRowSum(unsigned int i) const;
+
+  /// maximum deviation of any view factor row sum from 1
+  Real maxDevRowSum() const;
+
   /// helper for finding index of correction for i,j-th entry
   unsigned int indexHelper(unsigned int i, unsigned int j) const;
 

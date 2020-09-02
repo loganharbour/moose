@@ -112,11 +112,54 @@ ViewFactorBase::threadJoin(const UserObject & y)
   threadJoinViewFactor(y);
 }
 
+Real
+ViewFactorBase::devReciprocity(unsigned int i, unsigned int j) const
+{
+  return _view_factors[i][j] - _areas[j] / _areas[i] * _view_factors[j][i];
+}
+
+Real
+ViewFactorBase::maxDevReciprocity() const
+{
+  Real v = 0;
+  for (unsigned int i = 0; i < _n_sides; ++i)
+    for (unsigned int j = i + 1; j < _n_sides; ++j)
+    {
+      Real s = std::abs(devReciprocity(i, j));
+      if (s > v)
+        v = s;
+    }
+  return v;
+}
+
+Real
+ViewFactorBase::viewFactorRowSum(unsigned int i) const
+{
+  Real s = 0;
+  for (unsigned int to = 0; to < _n_sides; ++to)
+    s += _view_factors[i][to];
+  return s;
+}
+
+Real
+ViewFactorBase::maxDevRowSum() const
+{
+  Real v = 0;
+  for (unsigned int i = 0; i < _n_sides; ++i)
+  {
+    Real s = std::abs(1 - viewFactorRowSum(i));
+    if (s > v)
+      v = s;
+  }
+  return v;
+}
+
 void
 ViewFactorBase::checkAndNormalizeViewFactor()
 {
   // collect statistics
-  Real max_sum_deviation = 0;
+  Real max_sum_deviation = maxDevRowSum();
+  Real max_reciprocity_deviation = maxDevReciprocity();
   Real max_correction = std::numeric_limits<Real>::lowest();
   Real min_correction = std::numeric_limits<Real>::max();
 
@@ -125,22 +168,16 @@ ViewFactorBase::checkAndNormalizeViewFactor()
               << std::endl;
 
   // check view factors
-  for (unsigned int from = 0; from < _n_sides; ++from)
-  {
-    Real s = 0;
-    for (unsigned int to = 0; to < _n_sides; ++to)
-      s += _view_factors[from][to];
+  if (_print_view_factor_info)
+    for (unsigned int from = 0; from < _n_sides; ++from)
+      _console << "View factors from sideset " << boundaryNames()[from] << " sum to "
+               << viewFactorRowSum(from) << std::endl;
 
-    if (_print_view_factor_info)
-      _console << "View factors from sideset " << boundaryNames()[from] << " sum to " << s
-               << std::endl;
-
-    if (std::abs(1 - s) > _view_factor_tol)
-      mooseError("View factor from boundary ", boundaryNames()[from], " add to ", s);
-
-    if (std::abs(1 - s) > max_sum_deviation)
-      max_sum_deviation = std::abs(1 - s);
-  }
+  if (max_sum_deviation > _view_factor_tol)
+    mooseError("Maximum deviation of view factor row sum is ",
+               max_sum_deviation,
+               " exceeding the limit of ",
+               _view_factor_tol);
 
   // normalize view factors
   if (_normalize_view_factor)
@@ -157,9 +194,7 @@ ViewFactorBase::checkAndNormalizeViewFactor()
     for (unsigned int i = 0; i < _n_sides; ++i)
     {
       // set the right hand side
-      rhs(i) = 1;
-      for (unsigned int j = 0; j < _n_sides; ++j)
-        rhs(i) -= _view_factors[i][j];
+      rhs(i) = 1 - viewFactorRowSum(i);
 
       // contribution from the delta_ii element
       matrix(i, i) = -0.5;
@@ -234,27 +269,8 @@ ViewFactorBase::checkAndNormalizeViewFactor()
   }
 
   // check sum of view factors and maximum deviation on reciprocity
-  Real max_sum_deviation_after_normalization = 0;
-  Real max_deviation_from_reciprocity = 0;
-  for (unsigned int from = 0; from < _n_sides; ++from)
-  {
-    Real s = 0;
-    for (unsigned int to = 0; to < _n_sides; ++to)
-    {
-      s += _view_factors[from][to];
-
-      if (from > to)
-      {
-        Real rd =
-            std::abs(_view_factors[from][to] - _view_factors[to][from] * _areas[to] / _areas[from]);
-        if (rd > max_deviation_from_reciprocity)
-          max_deviation_from_reciprocity = rd;
-      }
-    }
-
-    if (std::abs(1 - s) > max_sum_deviation)
-      max_sum_deviation_after_normalization = std::abs(1 - s);
-  }
+  Real max_sum_deviation_after_normalization = maxDevRowSum();
+  Real max_reciprocity_deviation_after_normalization = maxDevReciprocity();
 
   // print symmary
   _console << std::endl;
@@ -268,15 +284,17 @@ ViewFactorBase::checkAndNormalizeViewFactor()
   _console << std::setw(60) << std::left << "Number of patches: " << _n_sides << std::endl;
   _console << std::setw(60) << std::left
            << "Max deviation sum = 1 before normalization: " << max_sum_deviation << std::endl;
+  _console << std::setw(60) << std::left
+           << "Max deviation from reciprocity before normalization: " << max_reciprocity_deviation
+           << std::endl;
   if (_normalize_view_factor)
   {
     _console << std::setw(60) << std::left << "Maximum correction: " << max_correction << std::endl;
     _console << std::setw(60) << std::left << "Minimum correction: " << min_correction << std::endl;
-    _console << std::setw(60)
-             << "Max deviation sum = 1 after normalization: " << max_sum_deviation_after_normalization
-             << std::endl;
+    _console << std::setw(60) << "Max deviation sum = 1 after normalization: "
+             << max_sum_deviation_after_normalization << std::endl;
     _console << std::setw(60) << std::left << "Max deviation from reciprocity after normalization: "
-             << max_deviation_from_reciprocity << std::endl;
+             << max_reciprocity_deviation_after_normalization << std::endl;
     _console << std::endl;
   }
 }
