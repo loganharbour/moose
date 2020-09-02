@@ -206,6 +206,7 @@ ViewFactorBase::checkAndNormalizeViewFactor()
         Real f = 2 * (1 + ar * ar);
         matrix(i, i) += -1 / f;
         matrix(i, j) += -1 / f * ar;
+        rhs(i) += ar * ar / (1 + ar * ar) * devReciprocity(i, j);
       }
 
       // contributions from the lower diagonal
@@ -215,13 +216,16 @@ ViewFactorBase::checkAndNormalizeViewFactor()
         Real f = 2 * (1 + ar * ar);
         matrix(i, i) += -1 / f * ar * ar;
         matrix(i, j) += -1 / f * ar;
+        rhs(i) -= ar * devReciprocity(j, i) * (1 - ar * ar / (1 + ar * ar));
       }
     }
 
     // solve the linear system
     matrix.lu_solve(rhs, lmults);
 
-    // perform corrections
+    // perform corrections but store view factors to temporary array
+    // because we cannot modify _view_factors as it's used in this calc
+    std::vector<std::vector<Real>> vf_temp = _view_factors;
     for (unsigned int i = 0; i < _n_sides; ++i)
       for (unsigned int j = 0; j < _n_sides; ++j)
       {
@@ -232,16 +236,18 @@ ViewFactorBase::checkAndNormalizeViewFactor()
         {
           Real ar = _areas[i] / _areas[j];
           Real f = 2 * (1 + ar * ar);
-          correction = -(lmults(i) + lmults(j) * ar) / f;
+          correction = -(lmults(i) + lmults(j) * ar + 2 * ar * ar * devReciprocity(i, j)) / f;
         }
 
-        _view_factors[i][j] += correction;
+        // update the temporary view factor
+        vf_temp[i][j] += correction;
 
         if (correction < min_correction)
           min_correction = correction;
         if (correction > max_correction)
           max_correction = correction;
       }
+    _view_factors = vf_temp;
   }
 
   if (_print_view_factor_info)
