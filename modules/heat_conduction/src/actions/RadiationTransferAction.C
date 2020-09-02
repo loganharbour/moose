@@ -248,10 +248,11 @@ RadiationTransferAction::addRayStudyObject() const
     // set face order
     params.set<MooseEnum>("face_order") = getParam<MooseEnum>("ray_tracing_face_order");
     params.set<MooseEnum>("face_type") = getParam<MooseEnum>("ray_tracing_face_type");
-    params.set<unsigned int>("polar_quad_order") = params.get<unsigned int>("polar_quad_order");
-    params.set<unsigned int>("azimuthal_quad_order") =
-        params.get<unsigned int>("azimuthal_quad_order");
 
+    // set angular quadrature
+    params.set<unsigned int>("polar_quad_order") = getParam<unsigned int>("polar_quad_order");
+    params.set<unsigned int>("azimuthal_quad_order") =
+        getParam<unsigned int>("azimuthal_quad_order");
     _problem->addUserObject("AQViewFactorRayStudy", rayStudyName(), params);
   }
 }
