@@ -11,6 +11,7 @@
 
 // MOOSE includes
 #include "Conversion.h"
+#include "RayKernelBase.h"
 #include "TimedPrint.h"
 
 // Local includes
