@@ -39,14 +39,14 @@ ViewFactorRayBC::apply(const Elem * elem,
                        const BoundaryID bnd_id,
                        const Point & /* intersection_point */,
                        const std::shared_ptr<Ray> & ray,
-                       const bool applying_multiple)
+                       const unsigned int num_applying)
 {
   // Hit the end boundary and are on the correct elem and side -> contribute to view factor info
   if (ray->auxData(_ray_index_end_bnd_id) == bnd_id &&
       elem->id() == (dof_id_type)ray->auxData(_ray_index_end_elem_id) &&
       intersected_side == ray->auxData(_ray_index_end_side))
   {
-    if (applying_multiple)
+    if (num_applying > 1)
       mooseError("Should not contribute while applying multiple ViewFactorRayBC\n\n",
                  ray->getInfo(&_study));
 

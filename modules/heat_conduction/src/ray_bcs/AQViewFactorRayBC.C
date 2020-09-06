@@ -30,26 +30,21 @@ AQViewFactorRayBC::AQViewFactorRayBC(const InputParameters & params)
 }
 
 void
-AQViewFactorRayBC::apply(const Elem * /*elem*/,
-                       const unsigned short /*intersected_side*/,
-                       const BoundaryID bnd_id,
-                       const Point & /* intersection_point */,
-                       const std::shared_ptr<Ray> & ray,
-                       const bool /*applying_multiple*/)
+AQViewFactorRayBC::apply(const Elem * elem,
+                         const unsigned short intersected_side,
+                         const BoundaryID bnd_id,
+                         const Point & /* intersection_point */,
+                         const std::shared_ptr<Ray> & ray,
+                         const unsigned int num_applying)
 {
-  // TODO: handle edge & point intersections
-
-  // NOTE: when integrating over angular space neither the distance to destination
-  //       nor the angle at which the ray hits the target matter. Check out the math
-  //       in the theory doc to see why. Would be too lengthy here.
-
   // The boundary ID this Ray started on
   const BoundaryID start_bnd_id = ray->auxData(_ray_index_start_bnd_id);
   // Starting total weight
   const Real start_total_weight = ray->auxData(_ray_index_start_total_weight);
 
   // Accumulate into the view factor info
-  _vf_study.addToViewFactorInfo(start_total_weight, start_bnd_id, bnd_id, _tid);
+  _vf_study.addToViewFactorInfo(
+      start_total_weight / (Real)num_applying, start_bnd_id, bnd_id, _tid);
 
   if (std::isnan(start_total_weight))
     mooseError("Encountered NaN in AQViewFactorRayBC\n", ray->getInfo(&_study));

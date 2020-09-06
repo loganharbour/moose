@@ -29,7 +29,7 @@ public:
              const BoundaryID bnd_id,
              const Point & intersection_point,
              const std::shared_ptr<Ray> & ray,
-             const bool applying_multiple) override;
+             const unsigned int num_applying) override;
 
 protected:
   /// The ViewFactorRayStudy
