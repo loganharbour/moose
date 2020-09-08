@@ -30,8 +30,8 @@ AQViewFactorRayBC::AQViewFactorRayBC(const InputParameters & params)
 }
 
 void
-AQViewFactorRayBC::apply(const Elem * elem,
-                         const unsigned short intersected_side,
+AQViewFactorRayBC::apply(const Elem * /* elem */,
+                         const unsigned short /* intersected_side */,
                          const BoundaryID bnd_id,
                          const Point & /* intersection_point */,
                          const std::shared_ptr<Ray> & ray,

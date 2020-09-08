@@ -80,20 +80,6 @@ public:
   void reinitSegment(const Elem *, const Point &, const Point &, THREAD_ID) override {}
 
   /**
-   * This is called in RayStudyTraceRay to grab the RayBCs on a boundary.
-   *
-   * With view factor computation, we only have one RayBC. Therefore, cache it up front in
-   * initialSetup() and return the cached object here.
-   */
-  void getRayBCs(std::vector<RayBC *> & result,
-                 const std::vector<ConstBndElement> &,
-                 THREAD_ID tid,
-                 RayID) override
-  {
-    result = _threaded_cached_ray_bcs[tid];
-  }
-
-  /**
    * Data structure used for storing all of the information needed to spawn
    * Rays from a single element.
    */
@@ -225,9 +211,6 @@ private:
   std::vector<std::map<BoundaryID, std::map<BoundaryID, Real>>> _threaded_vf_info;
   /// Cumulative view factor information
   std::map<BoundaryID, std::map<BoundaryID, Real>> _vf_info;
-
-  /// Used for caching the single RayBC per thread for use in getRayBCs()
-  std::vector<std::vector<RayBC *>> _threaded_cached_ray_bcs;
 
   /// The next available ID to assign to a Ray for this rank
   RayID _current_starting_id;
