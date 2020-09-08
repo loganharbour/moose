@@ -13,6 +13,7 @@
 #include "Conversion.h"
 #include "TimedPrint.h"
 #include "MooseUtils.h"
+#include "ReflectRayBC.h"
 
 // Local includes
 #include "AQViewFactorRayBC.h"
@@ -581,8 +582,7 @@ AQViewFactorRayStudy::AQViewFactorRayStudy(const InputParameters & parameters)
     _q_face(QBase::build(Moose::stringToEnum<QuadratureType>(getParam<MooseEnum>("face_type")),
                          _mesh.dimension() - 1,
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
-    _threaded_vf_info(libMesh::n_threads()),
-    _threaded_cached_ray_bcs(libMesh::n_threads())
+    _threaded_vf_info(libMesh::n_threads())
 {
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_normals();
@@ -604,38 +604,40 @@ AQViewFactorRayStudy::initialSetup()
 {
   RayTracingStudy::initialSetup();
 
+  const std::string error_prefix = type() + " '" + name() + "'";
+
   // We optimized away RayKernels, so don't allow them
   std::vector<RayKernelBase *> ray_kernels;
   RayTracingStudy::getRayKernels(ray_kernels, 0);
   if (!ray_kernels.empty())
-    mooseError("The AQViewFactorRayStudy '", name(), "' is not compatible with RayKernels");
+    mooseError(error_prefix, " is not compatible with RayKernels.");
 
-  // Make sure we have only one RayBC: a ViewFactorRayBC with the same boundaries
+  // RayBC coverage checks (at least one AQViewFactorRayBC and optionally a ReflectRayBC)
   std::vector<RayBC *> ray_bcs;
   RayTracingStudy::getRayBCs(ray_bcs, 0);
-  if (ray_bcs.size() != 1)
-    mooseError("The AQViewFactorRayStudy '",
-               name(),
-               "' requires one and only one RayBC, a ViewFactorRayBC");
-  AQViewFactorRayBC * vf_ray_bc = dynamic_cast<AQViewFactorRayBC *>(ray_bcs[0]);
-  if (!vf_ray_bc)
-    mooseError("The AQViewFactorRayStudy '",
-               name(),
-               "' requires one and only one RayBC, a ViewFactorRayBC");
-  if (!vf_ray_bc->hasBoundary(_bnd_ids))
-    mooseError("The AQViewFactorRayBC '",
-               vf_ray_bc->name(),
-               "' must be applied to the same boundaries as the AQViewFactorRayStudy '",
-               name(),
-               "'");
-
-  // Cache our one RayBC per thread so that we don't spend unnecessary time querying for RayBCs on
-  // every boundary
-  for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
+  unsigned int vf_bc_count = 0;
+  for (RayBC * rbc : ray_bcs)
   {
-    RayTracingStudy::getRayBCs(ray_bcs, tid);
-    _threaded_cached_ray_bcs[tid] = ray_bcs;
+    auto view_factor_bc = dynamic_cast<AQViewFactorRayBC *>(rbc);
+    if (view_factor_bc)
+    {
+      ++vf_bc_count;
+      if (!view_factor_bc->hasBoundary(_bnd_ids))
+        mooseError("The boundary restriction of ",
+                   rbc->type(),
+                   " '",
+                   rbc->name(),
+                   "' does not match the boundary restriction of ",
+                   error_prefix);
+    }
+    else if (!dynamic_cast<ReflectRayBC *>(rbc))
+      mooseError(error_prefix,
+                 " does not support the ",
+                 rbc->type(),
+                 " ray boundary condition.\nSupported RayBCs: ReflectRayBC and AQViewFactorRayBC.");
   }
+  if (vf_bc_count != 1)
+    mooseError(error_prefix, " requires one and only one AQViewFactorRayBC.");
 
   // find domain length scale == length of diagonal across domain
   // this is needed to move the end point of the rays out of the domain
@@ -920,8 +922,7 @@ AQViewFactorRayStudy::generateRays()
         else
           awf = std::cos(_aq_angles[l].second);
 
-        const auto start_weight =
-            start_elem._weights[start_i] * _aq_weights[l] * awf;
+        const auto start_weight = start_elem._weights[start_i] * _aq_weights[l] * awf;
         const Point mock_end_point = start_point + _domain_length_scale * direction;
 
         // Create a Ray and add it to the buffer for future tracing
