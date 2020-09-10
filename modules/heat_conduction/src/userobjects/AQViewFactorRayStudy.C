@@ -564,6 +564,9 @@ AQViewFactorRayStudy::validParams()
   params.set<bool>("external_ray_bc_coverage_check") = false;
   params.suppressParameter<bool>("external_ray_bc_coverage_check");
 
+  // We need to allow non-rectangular domains
+  params.set<bool>("rectangular_domain_check") = false;
+
   // No need to use Ray registration
   params.set<bool>("_use_ray_registration") = false;
   // Do not need to bank Rays on completion
@@ -923,11 +926,11 @@ AQViewFactorRayStudy::generateRays()
           awf = std::cos(_aq_angles[l].second);
 
         const auto start_weight = start_elem._weights[start_i] * _aq_weights[l] * awf;
-        const Point mock_end_point = start_point + _domain_length_scale * direction;
+        const auto end_point = rayDomainIntersection(start_point, direction);
 
         // Create a Ray and add it to the buffer for future tracing
         std::shared_ptr<Ray> ray = _ray_pool.acquire(start_point,
-                                                     mock_end_point,
+                                                     end_point,
                                                      rayDataSize(),
                                                      rayAuxDataSize(),
                                                      start_elem._start_elem,
