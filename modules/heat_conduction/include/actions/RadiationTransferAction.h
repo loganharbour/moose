@@ -33,9 +33,13 @@ protected:
   UserObjectName rayStudyName() const;
   UserObjectName radiationObjectName() const;
   std::string rayBCName() const;
+  std::string symmetryRayBCName() const;
 
   /// the boundary ids participating in the radiative heat transfer
   std::vector<BoundaryName> _boundary_names;
+
+  /// symmetry sidesets
+  std::vector<boundary_id_type> _symmetry_boundary_ids;
 
   /// the number of radiation patches per boundary
   std::vector<unsigned int> _n_patches;

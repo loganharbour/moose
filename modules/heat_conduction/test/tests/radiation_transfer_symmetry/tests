@@ -1,0 +1,20 @@
+[Tests]
+  #
+  # TODO QA and documentation
+  #
+  [./cavity_with_pillars]
+    type = 'Exodiff'
+    input = 'cavity_with_pillars.i'
+    exodiff = 'cavity_with_pillars_out.e'
+    requirement = 'The system shall support symmetry boundary conditions in radiation transfer calculations'
+    petsc_version = '>=3.9.4'
+  [../]
+
+  [./cavity_with_pillars_symmetry_bc]
+    type = 'Exodiff'
+    input = 'cavity_with_pillars_symmetry_bc.i'
+    exodiff = 'cavity_with_pillars_symmetry_bc_out.e'
+    requirement = 'The system shall support symmetry boundary conditions in radiation transfer calculations'
+    petsc_version = '>=3.9.4'
+  [../]
+[]

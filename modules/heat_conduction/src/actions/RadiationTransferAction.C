@@ -41,6 +41,14 @@ validParams<RadiationTransferAction>()
       "fixed_temperature_boundary",
       "The fixed temperature boundaries that participate in the radiative exchange.");
 
+  std::vector<boundary_id_type> empty = {};
+  params.addParam<std::vector<boundary_id_type>>(
+      "symmetry_sidesets",
+      empty,
+      "The sidesets that represent symmetry lines/planes for the problem. These sidesets do not "
+      "participate in the radiative exchange"
+      "so they should not be listed in the sidesets parameter.");
+
   params.addParam<std::vector<FunctionName>>("fixed_boundary_temperatures",
                                              "The temperatures of the fixed boundary.");
 
@@ -102,6 +110,7 @@ validParams<RadiationTransferAction>()
 RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
   : Action(params),
     _boundary_ids(getParam<std::vector<boundary_id_type>>("sidesets")),
+    _symmetry_boundary_ids(getParam<std::vector<boundary_id_type>>("symmetry_sidesets")),
     _n_patches(getParam<std::vector<unsigned int>>("n_patches")),
     _view_factor_calculator(getParam<MooseEnum>("view_factor_calculator"))
 {
@@ -115,6 +124,16 @@ RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
       mooseWarning("Parameter azimuthal_quad_order is only used for view_factor_calculator = "
                    "angular_quadrature. It is ignored for this calculation.");
   }
+
+  // check that there is no overlap between sidesets and symmetry sidesets
+  for (auto & id : _boundary_ids)
+    if (std::find(_symmetry_boundary_ids.begin(), _symmetry_boundary_ids.end(), id) !=
+        _symmetry_boundary_ids.end())
+      mooseError("Boundary id ", id, " is present in parameter sidesets and symmetry_sidesets.");
+
+  // currently symmetry boundaries only work with view_factor_calculator == angular_quadrature
+  if (_symmetry_boundary_ids.size() > 0 && _view_factor_calculator != "angular_quadrature")
+    mooseError("Symmetry boundaries are only supported by view_factor_calculator = angular_quadrature.");
 }
 
 void
@@ -279,11 +298,27 @@ RadiationTransferAction::addRayBCs() const
   }
   else
   {
+    {
     InputParameters params = _factory.getValidParams("AQViewFactorRayBC");
     params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
     params.set<RayTracingStudy *>("_ray_tracing_study") =
         &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
     _problem->addObject<RayBC>("AQViewFactorRayBC", rayBCName(), params);
+    }
+
+    // add symmetry BCs if applicable
+    if (_symmetry_boundary_ids.size() > 0)
+    {
+      // get boundary names
+      std::vector<BoundaryName> symmetry_boundary_names;
+      for (auto & bid : _symmetry_boundary_ids)
+        symmetry_boundary_names.push_back(_mesh->getBoundaryName(bid));
+      InputParameters params = _factory.getValidParams("ReflectRayBC");
+      params.set<std::vector<BoundaryName>>("boundary") = symmetry_boundary_names;
+      params.set<RayTracingStudy *>("_ray_tracing_study") =
+          &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
+      _problem->addObject<RayBC>("ReflectRayBC", symmetryRayBCName(), params);
+    }
   }
 }
 
@@ -309,6 +344,12 @@ std::string
 RadiationTransferAction::rayBCName() const
 {
   return "ray_bc_" + _name;
+}
+
+std::string
+RadiationTransferAction::symmetryRayBCName() const
+{
+  return "symmetry_ray_bc_" + _name;
 }
 
 void
