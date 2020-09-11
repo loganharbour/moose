@@ -1,0 +1,18 @@
+[Tests]
+#
+# TODO: documentation and QA stuff
+#
+  [./cavity_with_pillars]
+    type = CSVDiff
+    input = 'cavity_with_pillars.i'
+    csvdiff = 'cavity_with_pillars_out.csv'
+    requirement = 'The system shall support symmetry boundary conditions for view factor calculations'
+  [../]
+
+  [./cavity_with_pillars_symmetry_bc]
+    type = CSVDiff
+    input = 'cavity_with_pillars_symmetry_bc.i'
+    csvdiff = 'cavity_with_pillars_symmetry_bc_out.csv'
+    requirement = 'The system shall support symmetry boundary conditions for view factor calculations'
+  [../]
+[]
