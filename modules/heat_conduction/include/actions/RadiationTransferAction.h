@@ -35,11 +35,11 @@ protected:
   std::string rayBCName() const;
   std::string symmetryRayBCName() const;
 
-  /// the boundary ids participating in the radiative heat transfer
+  /// the boundary names participating in the radiative heat transfer
   std::vector<BoundaryName> _boundary_names;
 
   /// symmetry sidesets
-  std::vector<boundary_id_type> _symmetry_boundary_ids;
+  std::vector<BoundaryName> _symmetry_boundary_names;
 
   /// the number of radiation patches per boundary
   std::vector<unsigned int> _n_patches;

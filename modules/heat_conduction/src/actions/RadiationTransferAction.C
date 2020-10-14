@@ -41,9 +41,9 @@ validParams<RadiationTransferAction>()
       "fixed_temperature_boundary",
       "The fixed temperature boundaries that participate in the radiative exchange.");
 
-  std::vector<boundary_id_type> empty = {};
-  params.addParam<std::vector<boundary_id_type>>(
-      "symmetry_sidesets",
+  std::vector<BoundaryName> empty = {};
+  params.addParam<std::vector<BoundaryName>>(
+      "symmetry_boundary",
       empty,
       "The sidesets that represent symmetry lines/planes for the problem. These sidesets do not "
       "participate in the radiative exchange"
@@ -109,8 +109,8 @@ validParams<RadiationTransferAction>()
 
 RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
   : Action(params),
-    _boundary_ids(getParam<std::vector<boundary_id_type>>("sidesets")),
-    _symmetry_boundary_ids(getParam<std::vector<boundary_id_type>>("symmetry_sidesets")),
+    _boundary_names(getParam<std::vector<BoundaryName>>("boundary")),
+    _symmetry_boundary_names(getParam<std::vector<BoundaryName>>("symmetry_boundary")),
     _n_patches(getParam<std::vector<unsigned int>>("n_patches")),
     _view_factor_calculator(getParam<MooseEnum>("view_factor_calculator"))
 {
@@ -126,14 +126,19 @@ RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
   }
 
   // check that there is no overlap between sidesets and symmetry sidesets
-  for (auto & id : _boundary_ids)
-    if (std::find(_symmetry_boundary_ids.begin(), _symmetry_boundary_ids.end(), id) !=
-        _symmetry_boundary_ids.end())
-      mooseError("Boundary id ", id, " is present in parameter sidesets and symmetry_sidesets.");
+  for (const auto & name : _boundary_names)
+    if (std::find(_symmetry_boundary_names.begin(), _symmetry_boundary_names.end(), name) !=
+        _symmetry_boundary_names.end())
+      paramError("boundary",
+                 "Boundary ",
+                 name,
+                 " is present in parameter boundary and symmetry_boundary.");
 
   // currently symmetry boundaries only work with view_factor_calculator == angular_quadrature
-  if (_symmetry_boundary_ids.size() > 0 && _view_factor_calculator != "angular_quadrature")
-    mooseError("Symmetry boundaries are only supported by view_factor_calculator = angular_quadrature.");
+  if (!_symmetry_boundary_names.empty() && _view_factor_calculator != "angular_quadrature")
+    paramError(
+        "symmetry_boundary",
+        "Symmetry boundaries are only supported by view_factor_calculator = angular_quadrature.");
 }
 
 void
@@ -299,22 +304,18 @@ RadiationTransferAction::addRayBCs() const
   else
   {
     {
-    InputParameters params = _factory.getValidParams("AQViewFactorRayBC");
-    params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
-    params.set<RayTracingStudy *>("_ray_tracing_study") =
-        &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
-    _problem->addObject<RayBC>("AQViewFactorRayBC", rayBCName(), params);
+      InputParameters params = _factory.getValidParams("AQViewFactorRayBC");
+      params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
+      params.set<RayTracingStudy *>("_ray_tracing_study") =
+          &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
+      _problem->addObject<RayBC>("AQViewFactorRayBC", rayBCName(), params);
     }
 
     // add symmetry BCs if applicable
-    if (_symmetry_boundary_ids.size() > 0)
+    if (_symmetry_boundary_names.size() > 0)
     {
-      // get boundary names
-      std::vector<BoundaryName> symmetry_boundary_names;
-      for (auto & bid : _symmetry_boundary_ids)
-        symmetry_boundary_names.push_back(_mesh->getBoundaryName(bid));
       InputParameters params = _factory.getValidParams("ReflectRayBC");
-      params.set<std::vector<BoundaryName>>("boundary") = symmetry_boundary_names;
+      params.set<std::vector<BoundaryName>>("boundary") = _symmetry_boundary_names;
       params.set<RayTracingStudy *>("_ray_tracing_study") =
           &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
       _problem->addObject<RayBC>("ReflectRayBC", symmetryRayBCName(), params);
@@ -395,7 +396,7 @@ RadiationTransferAction::addRadiationObject() const
 
       // check if entry was found: it must be found or an error would occur later
       if (it == _boundary_names.end())
-        mooseError("Adiabatic sideset ", bnd_name, " not present in boundary.");
+        mooseError("Adiabatic boundary ", bnd_name, " not present in boundary.");
 
       // this is the position in the _boundary_names vector; this is what
       // we are really after
