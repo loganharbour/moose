@@ -10,13 +10,13 @@
     cli_args = 'GrayDiffuseRadiation/cavity/view_factor_calculator=analytical'
   [../]
 
-  [./radiative_transfer_action_raytracing]
+  [./radiative_transfer_action_raytracing_ptp]
     type = 'Exodiff'
     input = 'radiative_transfer_action.i'
     exodiff = 'radiative_transfer_action_raytracing_out.e'
     requirement = 'The system shall provide an action to set up radiative heat transfer problems using the net radiation method and allow computing view factors using raytracing'
     petsc_version = '>=3.9.4'
-    cli_args = 'Outputs/file_base=radiative_transfer_action_raytracing_out GrayDiffuseRadiation/cavity/view_factor_calculator=ray_tracing'
+    cli_args = 'Outputs/file_base=radiative_transfer_action_raytracing_out GrayDiffuseRadiation/cavity/view_factor_calculator=ray_tracing_point_to_point'
   [../]
 
   [./radiative_transfer_action_bnd_names]
@@ -48,11 +48,11 @@
     petsc_version = '>=3.9.4'
   [../]
 
-  [./radiative_transfer_action_external_boundary_ray_tracing]
+  [./radiative_transfer_action_external_boundary_ray_tracing_ptp]
     type = 'Exodiff'
     input = 'radiative_transfer_action_external_boundary_ray_tracing.i'
     exodiff = 'radiative_transfer_action_external_boundary_ray_tracing_out.e'
-    cli_args = 'GrayDiffuseRadiation/cavity/view_factor_calculator=ray_tracing'
+    cli_args = 'GrayDiffuseRadiation/cavity/view_factor_calculator=ray_tracing_point_to_point'
     requirement = 'The system shall provide an action to set up radiative heat transfer problems using the net radiation method'
     petsc_version = '>=3.9.4'
   [../]
@@ -61,7 +61,7 @@
     type = 'Exodiff'
     input = 'radiative_transfer_action_external_boundary_ray_tracing.i'
     exodiff = 'radiative_transfer_action_external_boundary_ray_tracing_aq.e'
-    cli_args = 'GrayDiffuseRadiation/cavity/view_factor_calculator=angular_quadrature Outputs/file_base=radiative_transfer_action_external_boundary_ray_tracing_aq'
+    cli_args = 'GrayDiffuseRadiation/cavity/view_factor_calculator=ray_tracing_angular_quadrature Outputs/file_base=radiative_transfer_action_external_boundary_ray_tracing_aq'
     requirement = 'The system shall provide an action to set up radiative heat transfer problems using the net radiation method'
     petsc_version = '>=3.9.4'
   [../]

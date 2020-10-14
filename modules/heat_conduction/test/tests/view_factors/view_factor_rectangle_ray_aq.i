@@ -22,7 +22,7 @@
   [../]
 
   [./view_factor]
-    type = AQRayTracingViewFactor
+    type = RayTracingViewFactor
     boundary = 'left right bottom top'
     execute_on = INITIAL
     normalize_view_factor = false

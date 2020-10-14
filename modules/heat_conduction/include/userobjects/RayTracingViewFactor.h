@@ -13,7 +13,7 @@
 
 // Forward Declarations
 class RayTracingViewFactor;
-class ViewFactorRayStudy;
+class ViewFactorRayStudyBase;
 
 template <>
 InputParameters validParams<RayTracingViewFactor>();
@@ -35,6 +35,6 @@ protected:
   virtual void threadJoinViewFactor(const UserObject & y) override;
   virtual void finalizeViewFactor() override;
 
-  const ViewFactorRayStudy & _ray_study;
+  const ViewFactorRayStudyBase & _ray_study;
   Real _divisor;
 };

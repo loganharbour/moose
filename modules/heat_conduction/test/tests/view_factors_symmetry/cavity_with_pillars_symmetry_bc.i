@@ -43,7 +43,7 @@
   [../]
 
   [./view_factor]
-    type = AQRayTracingViewFactor
+    type = RayTracingViewFactor
     boundary = 'left top bottom front back_2 obstruction'
     execute_on = INITIAL
     normalize_view_factor = false

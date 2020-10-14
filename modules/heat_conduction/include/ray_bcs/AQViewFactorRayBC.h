@@ -15,7 +15,8 @@
 class AQViewFactorRayStudy;
 
 /**
- * RayBC used in the computation of view factors.
+ * RayBC used in the computation of view factors using the angular quadrature
+ * ray tracing method.
  */
 class AQViewFactorRayBC : public RayBC
 {
