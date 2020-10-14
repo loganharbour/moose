@@ -132,10 +132,10 @@
 
 [GrayDiffuseRadiation]
   [cavity]
-    sidesets = '6 7 8 9 10 11 12'
+    boundary = '6 7 8 9 10 11 12'
     emissivity = '1 1 1 1 1 1 1'
     n_patches = '1 1 1 1 1 1 1'
-    adiabatic_sidesets = '7 10 11 12'
+    adiabatic_boundary = '7 10 11 12'
     partitioners = 'metis metis metis metis metis metis metis'
     final_mesh_generator = add_inner_top
     temperature = temperature
