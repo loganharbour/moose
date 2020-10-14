@@ -66,6 +66,9 @@ ViewFactorRayBC::apply(const Elem * elem,
       denom *= ray->distance();
     const Real value = start_total_weight * end_total_weight / denom;
     _vf_study.addToViewFactorInfo(value, start_bnd_id, bnd_id, _tid);
+
+    if (std::isnan(value))
+      mooseError("Encountered NaN in ViewFactorRayBC\n", ray->getInfo(&_study));
   }
 
   // Either hit an obstacle here or hit its end and contributed: done with this Ray
