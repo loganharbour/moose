@@ -3,15 +3,15 @@
 The `GrayDiffuseRadiation` syntax invokes the
 [RadiationTransferAction](/RadiationTransferAction.md) action. It simplifies setting up
 gray, diffuse radiative exchange problems. It requires the user to provide boundaries,
-emissivities on these boundaries, and the type of sideset: `ADIABATIC`, `FIXED_TEMPERATURE`, `VARIABLE_TEMPERATURE`; `VARIABLE_TEMPERATURE` are all boundaries that are not listed in the union of `adiabatic_sidesets` and `fixed_temperature_sidesets`.  
+emissivities on these boundaries, and the type of boundary: `ADIABATIC`, `FIXED_TEMPERATURE`, `VARIABLE_TEMPERATURE`; `VARIABLE_TEMPERATURE` are all boundaries that are not listed in the union of `adiabatic_boundary` and `fixed_temperature_boundary`.  
 
-The `GrayDiffuseRadiation` syntax allows to split the sidesets
+The `GrayDiffuseRadiation` syntax allows to split the boundaries
 into radiation patches using the `n_patches` parameter. This allows the computation of more accurate
 view factors between participating boundaries.
 
 ## Assumed geometry
 
-The `GrayDiffuseRadiation` syntax assumes that radiation is exchanged in cavity that is filled by a vacuum or a medium that is transparent to thermal radiation. The cavity must be enclosed by the boundaries specified in parameter `sidesets`. If the cavity is not enclosed, the result of the computation may be incorrect without MOOSE issuing a warning or error.
+The `GrayDiffuseRadiation` syntax assumes that radiation is exchanged in cavity that is filled by a vacuum or a medium that is transparent to thermal radiation. The cavity must be enclosed by the boundaries specified in parameter `boundary`. If the cavity is not enclosed, the result of the computation may be incorrect without MOOSE issuing a warning or error.
 
 By default, MOOSE's raytracing module is used for calculating view factors. The method is discussed in detail in
 [RayTracingViewFactor](RayTracingViewFactor.md). The parameter `unobstructed_cavity` can be set to *true* to force
