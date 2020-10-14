@@ -25,7 +25,7 @@
   [../]
 
   [./view_factor]
-    type = AQRayTracingViewFactor
+    type = RayTracingViewFactor
     boundary = 'left right front back bottom top'
     execute_on = INITIAL
     ray_study_name = view_factor_study

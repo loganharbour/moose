@@ -8,17 +8,8 @@
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
 #include "RayTracingViewFactor.h"
-#include "ViewFactorRayStudy.h"
-#include "MathUtils.h"
 
-#include "libmesh/quadrature.h"
-#include "libmesh/fe_base.h"
-#include "libmesh/mesh_generation.h"
-#include "libmesh/mesh.h"
-#include "libmesh/string_to_enum.h"
-#include "libmesh/quadrature_gauss.h"
-#include "libmesh/point_locator_base.h"
-#include "libmesh/elem.h"
+#include "ViewFactorRayStudyBase.h"
 
 registerMooseObject("HeatConductionApp", RayTracingViewFactor);
 
@@ -29,13 +20,13 @@ RayTracingViewFactor::validParams()
 {
   InputParameters params = ViewFactorBase::validParams();
   params.addRequiredParam<UserObjectName>("ray_study_name",
-                                          "Name of the ViewFactorRayStudy userobject name.");
+                                          "Name of the view factor ray study UO.");
   params.addClassDescription("Computes view factors for arbitrary geometries using raytracing.");
   return params;
 }
 
 RayTracingViewFactor::RayTracingViewFactor(const InputParameters & parameters)
-  : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudy>("ray_study_name"))
+  : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudyBase>("ray_study_name"))
 {
   if (_mesh.dimension() == 1)
     mooseError("View factor calculations for 1D geometry makes no sense");

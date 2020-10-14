@@ -12,15 +12,16 @@
 #include "RayBC.h"
 
 // Forward declarations
-class ViewFactorRayStudy;
+class PointToPointViewFactorRayStudy;
 
 /**
- * RayBC used in the computation of view factors.
+ * RayBC used in the computation of view factors using the point-to-point
+ * ray tracing method.
  */
-class ViewFactorRayBC : public RayBC
+class PointToPointViewFactorRayBC : public RayBC
 {
 public:
-  ViewFactorRayBC(const InputParameters & params);
+  PointToPointViewFactorRayBC(const InputParameters & params);
 
   static InputParameters validParams();
 
@@ -32,8 +33,8 @@ public:
              const unsigned int num_applying) override;
 
 protected:
-  /// The ViewFactorRayStudy
-  ViewFactorRayStudy & _vf_study;
+  /// The PointToPointViewFactorRayStudy
+  PointToPointViewFactorRayStudy & _vf_study;
 
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;

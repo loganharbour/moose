@@ -11,7 +11,7 @@
 
 [UserObjects]
   [./view_factor_study]
-    type = ViewFactorRayStudy
+    type = PointToPointViewFactorRayStudy
     execute_on = INITIAL
     boundary = 'top left right bottom'
     face_order = TENTH
@@ -26,7 +26,7 @@
 []
 
 [RayBCs/viewfactor]
-  type = ViewFactorRayBC
+  type = PointToPointViewFactorRayBC
   boundary = 'top left right bottom'
 []
 

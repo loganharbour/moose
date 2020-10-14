@@ -25,7 +25,7 @@
 
 [UserObjects]
   [./view_factor_study]
-    type = ViewFactorRayStudy
+    type = PointToPointViewFactorRayStudy
     execute_on = initial
     boundary = 'left right top bottom front back obstacle'
     face_order = FOURTH
@@ -40,7 +40,7 @@
 []
 
 [RayBCs/viewfactor]
-  type = ViewFactorRayBC
+  type = PointToPointViewFactorRayBC
   boundary = 'left right top bottom front back obstacle'
 []
 

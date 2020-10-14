@@ -38,7 +38,7 @@
   [../]
 
   [./view_factor]
-    type = AQRayTracingViewFactor
+    type = RayTracingViewFactor
     boundary = 'left right top bottom front back obstacle'
     execute_on = INITIAL
     ray_study_name = view_factor_study
