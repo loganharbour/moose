@@ -84,6 +84,7 @@
     adiabatic_boundary = '7'
     fixed_temperature_boundary = '4'
     fixed_boundary_temperatures = '1200'
+    view_factor_calculator = analytical
   [../]
 []
 
