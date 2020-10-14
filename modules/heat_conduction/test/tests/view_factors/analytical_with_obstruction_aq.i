@@ -34,6 +34,7 @@
     face_order = FOURTH
     polar_quad_order = 12
     azimuthal_quad_order = 4
+    warn_subdomain_hmax = false
   [../]
 
   [./view_factor]
