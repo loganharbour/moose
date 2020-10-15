@@ -9,6 +9,9 @@
 
 #include "ViewFactorRayStudyBase.h"
 
+// MOOSE includes
+#include "RayTracingPackingUtils.h"
+
 // libMesh includes
 #include "libmesh/parallel_algebra.h"
 #include "libmesh/parallel_sync.h"
@@ -323,20 +326,11 @@ Packing<ViewFactorRayStudyBase::StartElem>::unpack(std::vector<Real>::const_iter
   // Number of points
   const std::size_t num_points = static_cast<std::size_t>(*in++);
 
-  // Temprorary for std::memcpy for Real -> dof_id_type
-  dof_id_type Real_as_id;
-
   // Elem id
-  // Because the buffer type is a Real, we make sure to preserve this value by copying bytes
-  std::memcpy(&Real_as_id, &(*in++), sizeof(dof_id_type));
-  start_elem._elem = study->meshBase().query_elem_ptr(Real_as_id);
-  mooseAssert(start_elem._elem, "Elem not in mesh");
+  RayTracingPackingUtils::unpack(start_elem._elem, *in++, &study->meshBase());
 
   // Start elem id
-  // Because the buffer type is a Real, we make sure to preserve this value by copying bytes
-  std::memcpy(&Real_as_id, &(*in++), sizeof(dof_id_type));
-  start_elem._start_elem = study->meshBase().query_elem_ptr(Real_as_id);
-  mooseAssert(start_elem._start_elem, "Start elem not in mesh");
+  RayTracingPackingUtils::unpack(start_elem._start_elem, *in++, &study->meshBase());
 
   // Incoming side
   start_elem._incoming_side = static_cast<unsigned short>(*in++);
@@ -366,36 +360,16 @@ void
 Packing<ViewFactorRayStudyBase::StartElem>::pack(
     const ViewFactorRayStudyBase::StartElem & start_elem,
     std::back_insert_iterator<std::vector<Real>> data_out,
-    const ViewFactorRayStudyBase *
-#ifndef NDEBUG
-        study
-#endif
-)
+    const ViewFactorRayStudyBase * study)
 {
   // Number of points
   data_out = static_cast<buffer_type>(start_elem._points.size());
 
-  // Temproraries for std::memcpy for dof_id_type -> Real
-  static_assert(sizeof(dof_id_type) <= sizeof(buffer_type), "Elem id won't fit into buffer type");
-  Real id_as_Real;
-  dof_id_type id;
-
   // Elem id
-  // Because the buffer type is a Real, we make sure to preserve this value by copying bytes
-  mooseAssert(start_elem._elem, "Null elem");
-  mooseAssert(study->meshBase().query_elem_ptr(start_elem._elem->id()), "Elem not in mesh");
-  id = start_elem._elem->id();
-  std::memcpy(&id_as_Real, &id, sizeof(dof_id_type));
-  data_out = id_as_Real;
+  data_out = RayTracingPackingUtils::pack<buffer_type>(start_elem._elem, &study->meshBase());
 
   // Start elem id
-  // Because the buffer type is a Real, we make sure to preserve this value by copying bytes
-  mooseAssert(start_elem._start_elem, "Null elem");
-  mooseAssert(study->meshBase().query_elem_ptr(start_elem._start_elem->id()),
-              "Start elem not in mesh");
-  id = start_elem._start_elem->id();
-  std::memcpy(&id_as_Real, &id, sizeof(dof_id_type));
-  data_out = id_as_Real;
+  data_out = RayTracingPackingUtils::pack<buffer_type>(start_elem._start_elem, &study->meshBase());
 
   // Incoming side
   data_out = static_cast<buffer_type>(start_elem._incoming_side);
