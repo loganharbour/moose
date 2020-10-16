@@ -16,6 +16,7 @@
 #include "RayBC.h"
 #include "PointToPointViewFactorRayStudy.h"
 #include "AQViewFactorRayStudy.h"
+#include "PatchSidesetGenerator.h"
 
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_mesh_generator");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "setup_mesh_complete");
@@ -56,6 +57,7 @@ validParams<RadiationTransferAction>()
                                                      "Number of radiation patches per sideset.");
   MultiMooseEnum partitioning(
       "default=-3 metis=-2 parmetis=-1 linear=0 centroid hilbert_sfc morton_sfc", "default");
+  partitioning += "grid";
   params.addParam<MultiMooseEnum>(
       "partitioners",
       partitioning,
@@ -112,7 +114,6 @@ RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
   : Action(params),
     _boundary_names(getParam<std::vector<BoundaryName>>("boundary")),
     _symmetry_boundary_names(getParam<std::vector<BoundaryName>>("symmetry_boundary")),
-    _n_patches(getParam<std::vector<unsigned int>>("n_patches")),
     _view_factor_calculator(getParam<MooseEnum>("view_factor_calculator"))
 {
   if (_view_factor_calculator != "ray_tracing_angular_quadrature")
@@ -363,7 +364,7 @@ RadiationTransferAction::addRadiationObject() const
 
   std::vector<Real> extended_emissivity;
   for (unsigned int j = 0; j < _boundary_names.size(); ++j)
-    for (unsigned int i = 0; i < _n_patches[j]; ++i)
+    for (unsigned int i = 0; i < nPatch(j); ++i)
       extended_emissivity.push_back(emissivity[j]);
   params.set<std::vector<Real>>("emissivity") = extended_emissivity;
 
@@ -470,7 +471,7 @@ RadiationTransferAction::radiationPatchNames() const
     boundary_id_type bid = boundary_ids[j];
     std::string base_name = _mesh->getBoundaryName(bid);
     std::vector<std::string> bnames;
-    for (unsigned int i = 0; i < _n_patches[j]; ++i)
+    for (unsigned int i = 0; i < nPatch(j); ++i)
     {
       std::stringstream ss;
       ss << base_name << "_" << i;
@@ -501,7 +502,7 @@ RadiationTransferAction::bcRadiationPatchNames() const
 
     std::string base_name = _mesh->getBoundaryName(bid);
     std::vector<std::string> bnames;
-    for (unsigned int i = 0; i < _n_patches[j]; ++i)
+    for (unsigned int i = 0; i < nPatch(j); ++i)
     {
       std::stringstream ss;
       ss << base_name << "_" << i;
@@ -513,8 +514,9 @@ RadiationTransferAction::bcRadiationPatchNames() const
 }
 
 void
-RadiationTransferAction::addMeshGenerator() const
+RadiationTransferAction::addMeshGenerator()
 {
+  std::vector<unsigned int> n_patches = getParam<std::vector<unsigned int>>("n_patches");
   MultiMooseEnum partitioners = getParam<MultiMooseEnum>("partitioners");
   if (!_pars.isParamSetByUser("partitioners"))
   {
@@ -526,7 +528,7 @@ RadiationTransferAction::addMeshGenerator() const
   MultiMooseEnum direction = getParam<MultiMooseEnum>("centroid_partitioner_directions");
 
   // check input parameters
-  if (_boundary_names.size() != _n_patches.size())
+  if (_boundary_names.size() != n_patches.size())
     mooseError("n_patches parameter must have same length as boundary parameter.");
 
   if (_boundary_names.size() != partitioners.size())
@@ -548,23 +550,36 @@ RadiationTransferAction::addMeshGenerator() const
 
   for (unsigned int j = 0; j < _boundary_names.size(); ++j)
   {
-    BoundaryName bnd_name = _boundary_names[j];
-    std::stringstream ss;
-    ss << "patch_side_set_generator_" << bnd_name;
-    MeshGeneratorName mg_name = ss.str();
-
     InputParameters params = _factory.getValidParams("PatchSidesetGenerator");
     params.set<MeshGeneratorName>("input") = input;
-    params.set<BoundaryName>("boundary") = bnd_name;
-    params.set<unsigned int>("n_patches") = _n_patches[j];
+    params.set<BoundaryName>("boundary") = _boundary_names[j];
+    params.set<unsigned int>("n_patches") = n_patches[j];
     params.set<MooseEnum>("partitioner") = partitioners[j];
 
     if (partitioners[j] == "centroid")
       params.set<MooseEnum>("centroid_partitioner_direction") = direction[j];
 
-    _app.addMeshGenerator("PatchSidesetGenerator", mg_name, params);
+    _app.addMeshGenerator("PatchSidesetGenerator", meshGeneratorName(j), params);
 
     // reset input parameter to last one added
-    input = mg_name;
+    input = meshGeneratorName(j);
   }
+}
+
+unsigned int
+RadiationTransferAction::nPatch(unsigned int j) const
+{
+  const MeshGenerator * mg = &_app.getMeshGenerator(meshGeneratorName(j));
+  const PatchSidesetGenerator * psg = dynamic_cast<const PatchSidesetGenerator *>(mg);
+  if (!psg)
+    mooseError("Failed to convert mesh generator ", mg->name(), " to PatchSidesetGenerator.");
+  return psg->nPatches();
+}
+
+MeshGeneratorName
+RadiationTransferAction::meshGeneratorName(unsigned int j) const
+{
+  std::stringstream ss;
+  ss << "patch_side_set_generator_" << _boundary_names[j];
+  return ss.str();
 }
