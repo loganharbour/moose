@@ -13,6 +13,8 @@
 
 #include "MooseEnum.h"
 
+class PatchSidesetGenerator;
+
 class RadiationTransferAction : public Action
 {
 public:
@@ -20,7 +22,7 @@ public:
   virtual void act() override;
 
 protected:
-  void addMeshGenerator() const;
+  void addMeshGenerator();
   void addRadiationObject() const;
   void addViewFactorObject() const;
   void addRadiationBCs() const;
@@ -34,15 +36,16 @@ protected:
   UserObjectName radiationObjectName() const;
   std::string rayBCName() const;
   std::string symmetryRayBCName() const;
+  MeshGeneratorName meshGeneratorName(unsigned int j) const;
+
+  /// provides the updated number of patches for this boundary
+  unsigned int nPatch(unsigned int j) const;
 
   /// the boundary names participating in the radiative heat transfer
   std::vector<BoundaryName> _boundary_names;
 
   /// symmetry sidesets
   std::vector<BoundaryName> _symmetry_boundary_names;
-
-  /// the number of radiation patches per boundary
-  std::vector<unsigned int> _n_patches;
 
   /// the type of view factor calculation being performed
   MooseEnum _view_factor_calculator;
