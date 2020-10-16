@@ -39,7 +39,7 @@ PointToPointViewFactorRayBC::apply(const Elem * elem,
                                    const BoundaryID bnd_id,
                                    const Point & /* intersection_point */,
                                    const std::shared_ptr<Ray> & ray,
-                                   const unsigned int num_applying)
+                                   const unsigned int /*num_applying*/)
 {
   // Hit the end boundary and are on the correct elem and side -> contribute to view factor info
   if (ray->auxData(_ray_index_end_bnd_id) == bnd_id &&
