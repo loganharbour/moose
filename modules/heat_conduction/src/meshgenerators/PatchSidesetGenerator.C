@@ -289,7 +289,7 @@ PatchSidesetGenerator::partition(MeshBase & mesh)
       unsigned int id1 = 1, id2 = 2;
       if (smallest_id == 1)
         id1 = 0;
-      else
+      else if (smallest_id == 2)
         id2 = 0;
 
       // set number of elements
