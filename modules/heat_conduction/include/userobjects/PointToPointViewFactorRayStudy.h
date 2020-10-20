@@ -30,8 +30,8 @@ public:
    * With view factor computation, we only have one RayBC. Therefore, cache it up front in
    * initialSetup() and return the cached object here.
    */
-  void getRayBCs(std::vector<RayBC *> & result,
-                 const std::vector<ConstBndElement> &,
+  void getRayBCs(std::vector<RayBoundaryConditionBase *> & result,
+                 const std::vector<TraceRayBndElement> &,
                  THREAD_ID tid,
                  RayID) override
   {
@@ -118,7 +118,7 @@ private:
   bool shouldGenerate(const StartElem & start_elem, const EndElem & end_elem) const;
 
   /// Used for caching the single RayBC per thread for use in getRayBCs()
-  std::vector<std::vector<RayBC *>> _threaded_cached_ray_bcs;
+  std::vector<std::vector<RayBoundaryConditionBase *>> _threaded_cached_ray_bcs;
 
   /// Stores the EndElem information for the elements we need to trace to
   std::vector<EndElem> _end_elems;

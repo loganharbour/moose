@@ -53,7 +53,7 @@ PointToPointViewFactorRayStudy::initialSetup()
 {
   RayTracingStudy::initialSetup();
 
-  std::vector<RayBC *> ray_bcs;
+  std::vector<RayBoundaryConditionBase *> ray_bcs;
 
   // Make sure we have only one RayBC: a PointToPointViewFactorRayBC with the same boundaries
   RayTracingStudy::getRayBCs(ray_bcs, 0);

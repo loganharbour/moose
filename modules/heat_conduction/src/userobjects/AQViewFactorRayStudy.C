@@ -59,10 +59,10 @@ AQViewFactorRayStudy::initialSetup()
   ViewFactorRayStudyBase::initialSetup();
 
   // RayBC coverage checks (at least one AQViewFactorRayBC and optionally a ReflectRayBC)
-  std::vector<RayBC *> ray_bcs;
+  std::vector<RayBoundaryConditionBase *> ray_bcs;
   RayTracingStudy::getRayBCs(ray_bcs, 0);
   unsigned int vf_bc_count = 0;
-  for (RayBC * rbc : ray_bcs)
+  for (RayBoundaryConditionBase * rbc : ray_bcs)
   {
     auto view_factor_bc = dynamic_cast<AQViewFactorRayBC *>(rbc);
     if (view_factor_bc)

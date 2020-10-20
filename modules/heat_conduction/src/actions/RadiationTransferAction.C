@@ -13,7 +13,7 @@
 #include "MeshGeneratorMesh.h"
 #include "FEProblemBase.h"
 #include "RayTracingStudy.h"
-#include "RayBC.h"
+#include "RayBoundaryConditionBase.h"
 #include "PointToPointViewFactorRayStudy.h"
 #include "AQViewFactorRayStudy.h"
 #include "PatchSidesetGenerator.h"
@@ -293,7 +293,8 @@ RadiationTransferAction::addRayBCs() const
     params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
     params.set<RayTracingStudy *>("_ray_tracing_study") =
         &_problem->getUserObject<PointToPointViewFactorRayStudy>(rayStudyName());
-    _problem->addObject<RayBC>("PointToPointViewFactorRayBC", rayBCName(), params);
+    _problem->addObject<RayBoundaryConditionBase>(
+        "PointToPointViewFactorRayBC", rayBCName(), params);
   }
   else
   {
@@ -302,7 +303,7 @@ RadiationTransferAction::addRayBCs() const
       params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
       params.set<RayTracingStudy *>("_ray_tracing_study") =
           &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
-      _problem->addObject<RayBC>("AQViewFactorRayBC", rayBCName(), params);
+      _problem->addObject<RayBoundaryConditionBase>("AQViewFactorRayBC", rayBCName(), params);
     }
 
     // add symmetry BCs if applicable
@@ -312,7 +313,7 @@ RadiationTransferAction::addRayBCs() const
       params.set<std::vector<BoundaryName>>("boundary") = _symmetry_boundary_names;
       params.set<RayTracingStudy *>("_ray_tracing_study") =
           &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
-      _problem->addObject<RayBC>("ReflectRayBC", symmetryRayBCName(), params);
+      _problem->addObject<RayBoundaryConditionBase>("ReflectRayBC", symmetryRayBCName(), params);
     }
   }
 }
