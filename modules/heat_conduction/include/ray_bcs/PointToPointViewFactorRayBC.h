@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "RayBC.h"
+#include "GeneralRayBC.h"
 
 // Forward declarations
 class PointToPointViewFactorRayStudy;
@@ -18,19 +18,14 @@ class PointToPointViewFactorRayStudy;
  * RayBC used in the computation of view factors using the point-to-point
  * ray tracing method.
  */
-class PointToPointViewFactorRayBC : public RayBC
+class PointToPointViewFactorRayBC : public GeneralRayBC
 {
 public:
   PointToPointViewFactorRayBC(const InputParameters & params);
 
   static InputParameters validParams();
 
-  void apply(const Elem * elem,
-             const unsigned short intersected_side,
-             const BoundaryID bnd_id,
-             const Point & intersection_point,
-             const std::shared_ptr<Ray> & ray,
-             const unsigned int num_applying) override;
+  void onBoundary(const unsigned int num_applying) override;
 
 protected:
   /// The PointToPointViewFactorRayStudy

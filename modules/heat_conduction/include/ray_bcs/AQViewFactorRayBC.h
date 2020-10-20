@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "RayBC.h"
+#include "GeneralRayBC.h"
 
 // Forward declarations
 class AQViewFactorRayStudy;
@@ -18,19 +18,14 @@ class AQViewFactorRayStudy;
  * RayBC used in the computation of view factors using the angular quadrature
  * ray tracing method.
  */
-class AQViewFactorRayBC : public RayBC
+class AQViewFactorRayBC : public GeneralRayBC
 {
 public:
   AQViewFactorRayBC(const InputParameters & params);
 
   static InputParameters validParams();
 
-  void apply(const Elem * elem,
-             const unsigned short intersected_side,
-             const BoundaryID bnd_id,
-             const Point & intersection_point,
-             const std::shared_ptr<Ray> & ray,
-             const unsigned int num_applying) override;
+  void onBoundary(const unsigned int num_applying) override;
 
 protected:
   /// The ViewFactorRayStudy

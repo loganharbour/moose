@@ -49,9 +49,6 @@ associateSyntaxInner(Syntax & syntax, ActionFactory & /*action_factory*/)
   addTaskDependency("add_secondary_flux_vector", "ready_to_init");
   addTaskDependency("init_problem", "add_secondary_flux_vector");
 
-  registerMooseObjectTask("add_ray_boundary_condition", RayBC, false);
-  addTaskDependency("add_ray_boundary_condition", "add_kernel");
-
   registerSyntaxTask("ThermalContactAction", "ThermalContact/*", "add_aux_kernel");
   registerSyntaxTask("ThermalContactAction", "ThermalContact/*", "add_aux_variable");
   registerSyntaxTask("ThermalContactAction", "ThermalContact/*", "add_bc");

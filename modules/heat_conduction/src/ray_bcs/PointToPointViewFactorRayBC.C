@@ -17,12 +17,12 @@ registerMooseObject("RayTracingApp", PointToPointViewFactorRayBC);
 InputParameters
 PointToPointViewFactorRayBC::validParams()
 {
-  InputParameters params = RayBC::validParams();
+  InputParameters params = GeneralRayBC::validParams();
   return params;
 }
 
 PointToPointViewFactorRayBC::PointToPointViewFactorRayBC(const InputParameters & params)
-  : RayBC(params),
+  : GeneralRayBC(params),
     _vf_study(RayTracingStudy::castFromStudy<PointToPointViewFactorRayStudy>(params)),
     _ray_index_start_bnd_id(_vf_study.rayIndexStartBndID()),
     _ray_index_start_total_weight(_vf_study.rayIndexStartTotalWeight()),
@@ -34,17 +34,14 @@ PointToPointViewFactorRayBC::PointToPointViewFactorRayBC(const InputParameters &
 }
 
 void
-PointToPointViewFactorRayBC::apply(const Elem * elem,
-                                   const unsigned short intersected_side,
-                                   const BoundaryID bnd_id,
-                                   const Point & /* intersection_point */,
-                                   const std::shared_ptr<Ray> & ray,
-                                   const unsigned int /*num_applying*/)
+PointToPointViewFactorRayBC::onBoundary(const unsigned int libmesh_dbg_var(num_applying))
 {
+  const auto & ray = currentRay();
+
   // Hit the end boundary and are on the correct elem and side -> contribute to view factor info
-  if (ray->auxData(_ray_index_end_bnd_id) == bnd_id &&
-      elem->id() == (dof_id_type)ray->auxData(_ray_index_end_elem_id) &&
-      intersected_side == ray->auxData(_ray_index_end_side))
+  if (ray->auxData(_ray_index_end_bnd_id) == _current_bnd_id &&
+      _current_elem->id() == (dof_id_type)ray->auxData(_ray_index_end_elem_id) &&
+      _current_intersected_side == ray->auxData(_ray_index_end_side))
   {
     mooseAssert(num_applying == 1, "Should not contribute to multiple");
 
@@ -56,7 +53,7 @@ PointToPointViewFactorRayBC::apply(const Elem * elem,
     // Ending total weight
     // NOTE: This should really be _normals[_qp] but because ray-tracing only works
     // with first order elements, we simply use the centroid normal from the study
-    const auto & normal = _study.getSideNormal(elem, intersected_side, _tid);
+    const auto & normal = _study.getSideNormal(_current_elem, _current_intersected_side, _tid);
     const Real end_total_weight =
         std::abs(ray->direction() * normal) * ray->auxData(_ray_index_end_weight);
 
@@ -66,7 +63,7 @@ PointToPointViewFactorRayBC::apply(const Elem * elem,
       denom *= ray->distance();
     const Real value = start_total_weight * end_total_weight / denom;
     mooseAssert(!std::isnan(value), "Encountered NaN");
-    _vf_study.addToViewFactorInfo(value, start_bnd_id, bnd_id, _tid);
+    _vf_study.addToViewFactorInfo(value, start_bnd_id, _current_bnd_id, _tid);
   }
 
   // Either hit an obstacle here or hit its end and contributed: done with this Ray
