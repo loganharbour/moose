@@ -84,18 +84,12 @@
 
 [Variables]
   [temperature]
-    block = '1 2 3'
+    block = '2 3'
     initial_condition = 300
   []
 []
 
 [Kernels]
-  [dummy]
-    type = NullKernel
-    variable = temperature
-    block = 1
-  []
-
   [conduction]
     type = HeatConduction
     variable = temperature
