@@ -55,10 +55,6 @@ ViewFactorRayStudyBase::validParams()
   params.set<bool>("use_internal_sidesets") = true;
   params.suppressParameter<bool>("use_internal_sidesets");
 
-  // May have duplicate external boundaries on one boundary so ignore
-  params.set<bool>("external_ray_bc_coverage_check") = false;
-  params.suppressParameter<bool>("external_ray_bc_coverage_check");
-
   // Don't verify Rays in opt mode by default - it's expensive
   params.set<bool>("verify_rays") = false;
 
