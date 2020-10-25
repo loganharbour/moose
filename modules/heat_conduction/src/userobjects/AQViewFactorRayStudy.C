@@ -167,7 +167,7 @@ AQViewFactorRayStudy::generateRays()
         std::shared_ptr<Ray> ray = acquireRay(/* tid = */ 0, rayDataSize(), rayAuxDataSize());
         ray->setStartDirection(start_elem._points[start_i], direction);
         ray->setStartingElem(start_elem._start_elem);
-        ray->setIncomingSide(start_elem._incoming_side);
+        ray->setStartingIncomingSide(start_elem._incoming_side);
         ray->setID(generateUniqueRayID());
         ray->setAuxData(_ray_index_start_bnd_id, start_elem._bnd_id);
         ray->setAuxData(_ray_index_start_total_weight, start_weight);

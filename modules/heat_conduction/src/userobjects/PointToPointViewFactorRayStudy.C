@@ -203,7 +203,7 @@ PointToPointViewFactorRayStudy::generateRays()
             // Acquire a Ray and fill with the starting information
             std::shared_ptr<Ray> ray = acquireRay(/* tid = */ 0, rayDataSize(), rayAuxDataSize());
             ray->setStartingElem(start_elem._start_elem);
-            ray->setIncomingSide(start_elem._incoming_side);
+            ray->setStartingIncomingSide(start_elem._incoming_side);
             ray->setStartDirection(start_elem._points[start_i], direction);
             ray->setID(generateUniqueRayID());
             ray->setAuxData(_ray_index_start_bnd_id, start_elem._bnd_id);
