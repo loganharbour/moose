@@ -58,7 +58,8 @@ AQViewFactorRayStudy::initialSetup()
 {
   ViewFactorRayStudyBase::initialSetup();
 
-  // RayBC coverage checks (at least one AQViewFactorRayBC and optionally a ReflectRayBC)
+  // RayBC coverage checks (at least one AQViewFactorRayBC and optionally a ReflectRayBC
+  // on ONLY external boundaries).
   std::vector<RayBoundaryConditionBase *> ray_bcs;
   RayTracingStudy::getRayBCs(ray_bcs, 0);
   unsigned int vf_bc_count = 0;
@@ -88,6 +89,16 @@ AQViewFactorRayStudy::initialSetup()
                      rbc->name(),
                      "' cannot include any of the boundaries in ",
                      type());
+
+        for (const BoundaryID internal_bnd_id : getInternalSidesets())
+          if (reflect_bc->hasBoundary(internal_bnd_id))
+            mooseError(_error_prefix,
+                       "\nThe ReflectRayBC '",
+                       rbc->name(),
+                       "' is defined on an internal boundary (",
+                       internal_bnd_id,
+                       ").\n\n",
+                       "This is not allowed for view factor computation.");
       }
       else
         mooseError(
