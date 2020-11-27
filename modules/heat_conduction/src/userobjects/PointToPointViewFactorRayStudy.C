@@ -201,18 +201,17 @@ PointToPointViewFactorRayStudy::generateRays()
               continue;
 
             // Acquire a Ray and fill with the starting information
-            std::shared_ptr<Ray> ray = acquireRay(/* tid = */ 0, rayDataSize(), rayAuxDataSize());
-            ray->setStartingElem(start_elem._start_elem);
-            ray->setStartingIncomingSide(start_elem._incoming_side);
-            ray->setStartDirection(start_elem._points[start_i], direction);
-            ray->setID(generateUniqueRayID());
-            ray->setAuxData(_ray_index_start_bnd_id, start_elem._bnd_id);
-            ray->setAuxData(_ray_index_start_total_weight,
-                            start_elem._weights[start_i] * std::abs(dot));
-            ray->setAuxData(_ray_index_end_bnd_id, end_elem._bnd_id);
-            ray->setAuxData(_ray_index_end_weight, end_elem._weights[end_i]);
-            ray->setAuxData(_ray_index_end_elem_id, end_elem._elem_id);
-            ray->setAuxData(_ray_index_end_side, end_elem._side);
+            std::shared_ptr<Ray> ray = acquireRay();
+            ray->setStart(
+                start_elem._points[start_i], start_elem._start_elem, start_elem._incoming_side);
+            ray->setStartingDirection(direction);
+            ray->auxData(_ray_index_start_bnd_id) = start_elem._bnd_id;
+            ray->auxData(_ray_index_start_total_weight) =
+                start_elem._weights[start_i] * std::abs(dot);
+            ray->auxData(_ray_index_end_bnd_id) = end_elem._bnd_id;
+            ray->auxData(_ray_index_end_weight) = end_elem._weights[end_i];
+            ray->auxData(_ray_index_end_elem_id) = end_elem._elem_id;
+            ray->auxData(_ray_index_end_side) = end_elem._side;
 
             // Move the Ray to the buffer to be traced
             moveRayToBuffer(ray);

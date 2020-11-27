@@ -100,8 +100,6 @@ ViewFactorRayStudyBase::initialSetup()
 void
 ViewFactorRayStudyBase::preExecuteStudy()
 {
-  RayTracingStudy::preExecuteStudy();
-
   // Clear and zero the view factor maps we're about to accumulate into for each thread
   for (THREAD_ID tid = 0; tid < libMesh::n_threads(); ++tid)
   {
