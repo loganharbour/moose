@@ -32,11 +32,11 @@ LINEAR_ELASTICITY         := no
 MISC                      := no
 NAVIER_STOKES             := no
 # phase_field is required by Step 10.
-PHASE_FIELD               := yes
+PHASE_FIELD               := no
 POROUS_FLOW               := no
 RICHARDS                  := no
 # tensor_mechanics is required by Steps 9-10.
-TENSOR_MECHANICS          := yes
+TENSOR_MECHANICS          := no
 XFEM                      := no
 include $(MOOSE_DIR)/modules/modules.mk
 ###############################################################################
