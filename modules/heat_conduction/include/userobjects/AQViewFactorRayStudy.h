@@ -11,6 +11,8 @@
 
 #include "ViewFactorRayStudyBase.h"
 
+class RayTracingAngularQuadrature;
+
 /**
  * RayTracingStudy used to generate Rays for view factor computation
  * using the angular quadrature method.
@@ -28,8 +30,17 @@ protected:
   void generateRays() override;
 
 private:
+  /// if problem has 3 dimensions
+  bool _is3D;
+
+  /// angular quadrature object
+  std::unique_ptr<RayTracingAngularQuadrature> _aq;
+
   ///@{ angular quadrature info
-  std::vector<std::pair<Real, Real>> _aq_angles;
+  std::vector<Real> _aq_angles;
   std::vector<Real> _aq_weights;
   ///@}
+
+  /// the number of angular directions
+  unsigned int _ndir;
 };

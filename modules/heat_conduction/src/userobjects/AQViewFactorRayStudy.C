@@ -15,7 +15,7 @@
 
 // Local includes
 #include "AQViewFactorRayBC.h"
-#include "HCAngularQuadrature.h"
+#include "RayTracingAngularQuadrature.h"
 
 registerMooseObject("HeatConductionApp", AQViewFactorRayStudy);
 
@@ -40,17 +40,47 @@ AQViewFactorRayStudy::validParams()
 }
 
 AQViewFactorRayStudy::AQViewFactorRayStudy(const InputParameters & parameters)
-  : ViewFactorRayStudyBase(parameters)
+  : ViewFactorRayStudyBase(parameters), _is3D(_mesh.dimension() == 3)
 {
   // create angular quadrature
-  if (_mesh.dimension() == 2)
-    HCAngularQuadrature::getHalfRangeAQ2D(
-        getParam<unsigned int>("polar_quad_order"), _aq_angles, _aq_weights);
-  else if (_mesh.dimension() == 3)
-    HCAngularQuadrature::getHalfRangeAQ3D(4 * getParam<unsigned int>("azimuthal_quad_order"),
-                                          getParam<unsigned int>("polar_quad_order"),
-                                          _aq_angles,
-                                          _aq_weights);
+  if (!_is3D)
+  {
+    // In 2D, we integrate over angle theta instead of mu = cos(theta)
+    // The integral over theta is approximated using a Gauss Legendre
+    // quadrature. The integral we need to approximate is given by:
+    //
+    // int_{-pi/2}^{pi/2} cos(theta) d theta
+    //
+    // We get abscissae x and weight w for range of integration
+    // from 0 to 1 and then rescale it separately to the range
+    // -pi/2 to 0 and 0 to pi / 2.
+    //
+    std::vector<Real> x;
+    std::vector<Real> w;
+    RayTracingAngularQuadrature::gaussLegendre(getParam<unsigned int>("polar_quad_order"), x, w);
+
+    _aq_angles.resize(x.size() * 2);
+    _aq_weights.resize(x.size() * 2);
+    for (unsigned int j = 0; j < x.size(); ++j)
+    {
+      _aq_angles[2 * j] = x[j] * M_PI / 2;
+      _aq_angles[2 * j + 1] = -x[j] * M_PI / 2;
+      _aq_weights[2 * j] = w[j] * M_PI / 2;
+      _aq_weights[2 * j + 1] = w[j] * M_PI / 2;
+    }
+    _ndir = _aq_angles.size();
+  }
+  else
+  {
+    _aq = libmesh_make_unique<RayTracingAngularQuadrature>(
+        _mesh.dimension(),
+        getParam<unsigned int>("polar_quad_order"),
+        4 * getParam<unsigned int>("azimuthal_quad_order"),
+        0,
+        1);
+
+    _ndir = _aq->numDirections();
+  }
 }
 
 void
@@ -123,7 +153,7 @@ AQViewFactorRayStudy::generateRays()
   for (const auto & start_elem : _start_elems)
   {
     num_local_start_points += start_elem._points.size();
-    num_local_rays += start_elem._points.size() * _aq_angles.size();
+    num_local_rays += start_elem._points.size() * _ndir;
   }
 
   // Print out totals while we're here
@@ -132,7 +162,7 @@ AQViewFactorRayStudy::generateRays()
   _communicator.sum(num_total_points);
   _communicator.sum(num_total_rays);
   _console << "AQViewFactorRayStudy generated " << num_total_points
-           << " points with an angular quadrature of " << _aq_angles.size()
+           << " points with an angular quadrature of " << _ndir
            << " directions per point requiring " << num_total_rays << " rays" << std::endl;
 
   // Reserve space in the buffer ahead of time before we fill it
@@ -154,25 +184,36 @@ AQViewFactorRayStudy::generateRays()
         !start_elem._start_elem->neighbor_ptr(start_elem._incoming_side))
       inward_normal *= -1;
 
-    // Create rotation matrix and rotate vector omega (the normal)
-    const auto rotation_matrix =
-        HCAngularQuadrature::aqRoationMatrix(inward_normal, _mesh.dimension());
+    // rotate the quadrature to align with the normal
+    if (_is3D)
+      _aq->rotate(inward_normal);
 
     // Loop through all points and then all directions
     for (std::size_t start_i = 0; start_i < start_elem._points.size(); ++start_i)
-      for (std::size_t l = 0; l < _aq_angles.size(); ++l)
+      for (std::size_t l = 0; l < _ndir; ++l)
       {
-        const auto direction = HCAngularQuadrature::getAngularDirection(
-            l, rotation_matrix, _aq_angles, _mesh.dimension());
+        // get the direction of this ray; in 3D we simply use _aq object
+        // in 2D the direction is given by the
+        Point direction;
+        if (_is3D)
+          direction = _aq->getDirection(l);
+        else
+        {
+          Real sin_theta = std::sin(_aq_angles[l]);
+          Real cos_theta = std::cos(_aq_angles[l]);
+          direction(0) = cos_theta * inward_normal(0) - sin_theta * inward_normal(1);
+          direction(1) = sin_theta * inward_normal(0) + cos_theta * inward_normal(1);
+          direction(2) = 0;
+        }
 
-        // angular weight function differs in 2D/3D
+        // the integrand in 2D/3D differs (see documentation)
         // 2D: the quadrature abscissae are the angles between direction & normal.
-        //     The weight is the cosine of that angle
+        //     The integrand is the cosine of that angle
         // 3D: the quadrature abscissae are the azimuthal angle phi and the cosine of the angle
         //     between normal and direction (== mu). The weight is mu in that case.
-        const auto awf =
-            _mesh.dimension() == 3 ? _aq_angles[l].second : std::cos(_aq_angles[l].second);
-        const auto start_weight = start_elem._weights[start_i] * _aq_weights[l] * awf;
+        const auto awf = _is3D ? inward_normal * direction * _aq->getTotalWeight(l)
+                               : std::cos(_aq_angles[l]) * _aq_weights[l];
+        const auto start_weight = start_elem._weights[start_i] * awf;
 
         // Acquire a Ray and fill with the starting information
         std::shared_ptr<Ray> ray = acquireRay();
