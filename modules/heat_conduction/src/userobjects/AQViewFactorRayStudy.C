@@ -52,21 +52,18 @@ AQViewFactorRayStudy::AQViewFactorRayStudy(const InputParameters & parameters)
     // int_{-pi/2}^{pi/2} cos(theta) d theta
     //
     // We get abscissae x and weight w for range of integration
-    // from 0 to 1 and then rescale it separately to the range
-    // -pi/2 to 0 and 0 to pi / 2.
+    // from 0 to 1 and then rescale it to the integration range
     //
     std::vector<Real> x;
     std::vector<Real> w;
-    RayTracingAngularQuadrature::gaussLegendre(getParam<unsigned int>("polar_quad_order"), x, w);
+    RayTracingAngularQuadrature::gaussLegendre(2 * getParam<unsigned int>("polar_quad_order"), x, w);
 
-    _aq_angles.resize(x.size() * 2);
-    _aq_weights.resize(x.size() * 2);
+    _aq_angles.resize(x.size());
+    _aq_weights.resize(x.size());
     for (unsigned int j = 0; j < x.size(); ++j)
     {
-      _aq_angles[2 * j] = x[j] * M_PI / 2;
-      _aq_angles[2 * j + 1] = -x[j] * M_PI / 2;
-      _aq_weights[2 * j] = w[j] * M_PI / 2;
-      _aq_weights[2 * j + 1] = w[j] * M_PI / 2;
+      _aq_angles[j] = (2 * x[j] - 1) * M_PI / 2;
+      _aq_weights[j] = w[j] * M_PI;
     }
     _ndir = _aq_angles.size();
   }
