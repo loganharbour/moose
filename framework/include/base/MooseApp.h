@@ -708,6 +708,14 @@ public:
    */
   bool addRelationshipManager(std::shared_ptr<RelationshipManager> relationship_manager);
 
+  /**
+   * Sets whether or not to show mesh generator info upon execution
+   */
+  void setShowMeshGeneratorInfo(const bool show_mesh_generator_info)
+  {
+    _show_mesh_generator_info = show_mesh_generator_info;
+  }
+
 private:
   /**
    * Purge this relationship manager from meshes and DofMaps and finally from us. This method is
@@ -1108,6 +1116,9 @@ private:
 
   /// Memory profiling
   bool _heap_profiling = false;
+
+  /// Whether or not to show debug information upon MeshGenerator execution
+  bool _show_mesh_generator_info = false;
 
   // Allow FEProblemBase to set the recover/restart state, so make it a friend
   friend class FEProblemBase;

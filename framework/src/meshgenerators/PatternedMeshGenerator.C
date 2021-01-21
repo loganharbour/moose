@@ -32,8 +32,6 @@ PatternedMeshGenerator::validParams()
       "x_width", 0, "x_width>=0", "The tile width in the x direction");
   params.addRangeCheckedParam<Real>(
       "y_width", 0, "y_width>=0", "The tile width in the y direction");
-  params.addRangeCheckedParam<Real>(
-      "z_width", 0, "z_width>=0", "The tile width in the z direction");
 
   // Boundaries : user has to provide id or name for each boundary
 
@@ -59,8 +57,7 @@ PatternedMeshGenerator::PatternedMeshGenerator(const InputParameters & parameter
     _input_names(getParam<std::vector<MeshGeneratorName>>("inputs")),
     _pattern(getParam<std::vector<std::vector<unsigned int>>>("pattern")),
     _x_width(getParam<Real>("x_width")),
-    _y_width(getParam<Real>("y_width")),
-    _z_width(getParam<Real>("z_width"))
+    _y_width(getParam<Real>("y_width"))
 {
   for (MooseIndex(_pattern) i = 0; i < _pattern.size(); ++i)
     for (MooseIndex(_pattern[i]) j = 0; j < _pattern[i].size(); ++j)
@@ -121,8 +118,6 @@ PatternedMeshGenerator::generate()
     _x_width = bbox.max()(0) - bbox.min()(0);
   if (_y_width == 0)
     _y_width = bbox.max()(1) - bbox.min()(1);
-  if (_z_width == 0)
-    _z_width = bbox.max()(2) - bbox.min()(2);
 
   // Build each row mesh
   for (MooseIndex(_pattern) i = 0; i < _pattern.size(); ++i)
@@ -147,11 +142,25 @@ PatternedMeshGenerator::generate()
       // Move the mesh into the right spot.  -i because we are starting at the top
       MeshTools::Modification::translate(cell_mesh, deltax, -deltay, 0);
 
-      _row_meshes[i]->stitch_meshes(cell_mesh,
-                                    right,
-                                    left,
-                                    TOLERANCE,
-                                    /*clear_stitched_boundary_ids=*/true);
+      try
+      {
+        _row_meshes[i]->stitch_meshes(cell_mesh,
+                                      right,
+                                      left,
+                                      TOLERANCE,
+                                      /*clear_stitched_boundary_ids=*/true);
+      }
+      catch (...)
+      {
+        std::ostringstream oss;
+        oss << "Stiching failed in " << type() << " \"" << name() << "\" while stitching row " << i
+            << " between column " << j - 1 << " and " << j << ".\n\n";
+        oss << "  Left input mesh at position (" << i << ", " << j - 1
+            << "): " << _input_names[_pattern[i][j - 1]] << " (" << _pattern[i][j - 1] << ")\n ";
+        oss << "  Right input mesh at position (" << i << ", " << j
+            << "): " << _input_names[_pattern[i][j]] << " (" << _pattern[i][j] << ")\n ";
+        mooseError(oss.str());
+      }
 
       // Undo the translation
       MeshTools::Modification::translate(cell_mesh, -deltax, deltay, 0);
@@ -160,8 +169,68 @@ PatternedMeshGenerator::generate()
   // Now stitch together the rows
   // We're going to stitch them all to row 0 (which is the real mesh)
   for (MooseIndex(_pattern) i = 1; i < _pattern.size(); i++)
-    _row_meshes[0]->stitch_meshes(
-        *_row_meshes[i], bottom, top, TOLERANCE, /*clear_stitched_boundary_ids=*/true);
+  {
+    try
+    {
+      _row_meshes[0]->stitch_meshes(
+          *_row_meshes[i], bottom, top, TOLERANCE, /*clear_stitched_boundary_ids=*/true);
+    }
+    catch (...)
+    {
+      std::stringstream oss;
+      oss << "Stiching failed in " << type() << " \"" << name() << "\" while stitching row "
+          << i - 1 << " with row " << i << ".\n\n";
+      oss << "In " << type() << ", we first stitch all meshes together in a single row\n";
+      oss << "from left to right, and then stitch the stitched rows together from top to bottom.\n";
+      oss << "The failure occurred while stitching the stitched rows from top to bottom.\n\n";
+      oss << "The individual meshes are translated before stitching, it is possible that the\n";
+      oss << "choice of \"x_width\" or \"y_width\" has led to a bad translation.\n\n";
+
+      oss << "Attempting to stitch the individual meshes together to find a failure...\n\n";
+
+      bool found_one = false;
+
+      for (MooseIndex(_pattern[i]) j = 0; j < _pattern[i].size(); ++j)
+      {
+        auto top_mesh = _meshes[_pattern[i - 1][j]]->clone();
+        auto bottom_mesh = _meshes[_pattern[i][j]]->clone();
+
+        MeshTools::Modification::translate(
+            *top_mesh, (Real)j * _x_width, -((Real)i - 1) * _y_width, 0);
+        MeshTools::Modification::translate(
+            *bottom_mesh, (Real)j * _x_width, -(Real)i * _y_width, 0);
+
+        const auto top_bbox = MeshTools::create_bounding_box(*top_mesh);
+        const auto bottom_bbox = MeshTools::create_bounding_box(*bottom_mesh);
+        const auto top_centroid = 0.5 * (top_bbox.max() + top_bbox.min());
+        const auto bottom_centroid = 0.5 * (bottom_bbox.max() + bottom_bbox.min());
+
+        try
+        {
+          dynamic_pointer_cast<ReplicatedMesh>(top_mesh)->stitch_meshes(
+              *dynamic_pointer_cast<ReplicatedMesh>(bottom_mesh), bottom, top, TOLERANCE);
+        }
+        catch (...)
+        {
+          found_one = true;
+          oss << "Failed stitching mesh " << _input_names[_pattern[i - 1][j]] << " at position ("
+              << i - 1 << ", " << j << ") with mesh " << _input_names[_pattern[i][j]]
+              << " at position (" << i << ", " << j << ")!\n";
+          oss << "  Top mesh translation: (" << (Real)j * _x_width << ", "
+              << -((Real)i - 1) * _y_width << ")\n";
+          oss << "  Top mesh translated centroid: " << top_centroid << "\n";
+          oss << "  Bottom mesh translation: (" << (Real)j * _x_width << ", " << -(Real)i * _y_width
+              << ")\n";
+          oss << "  Bottom mesh translated centroid: " << bottom_centroid << "\n\n";
+        }
+      }
+
+      if (!found_one)
+        oss << "Sorry! Could not find a failing combination.\n";
+
+      mooseError(oss.str());
+    }
+  }
 
   return dynamic_pointer_cast<MeshBase>(_row_meshes[0]);
 }

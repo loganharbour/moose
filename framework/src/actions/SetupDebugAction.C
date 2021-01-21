@@ -38,6 +38,10 @@ SetupDebugAction::validParams()
       false,
       "Print out the material properties supplied for each block, face, neighbor, and/or sideset");
   params.addParam<bool>("show_mesh_meta_data", false, "Print out the available mesh meta data");
+  params.addParam<bool>("show_mesh_generator_info",
+                        false,
+                        "If true, show MeshGenerator execution order and print MeshGenerator "
+                        "name/type upon execution");
 
   params.addClassDescription(
       "Adds various debugging type Output objects to the simulation system.");
@@ -88,4 +92,7 @@ SetupDebugAction::act()
         for (auto & pair : it->second.first)
           _console << " " << pair.first << std::endl;
   }
+
+  // Set mesh generator info debug bool
+  _app.setShowMeshGeneratorInfo(getParam<bool>("show_mesh_generator_info"));
 }

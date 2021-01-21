@@ -88,6 +88,10 @@ SetupMeshAction::validParams()
                         "have a simulation containing uniform refinement, adaptivity and stateful "
                         "material properties");
 
+  params.addParam<bool>("print_mesh_generator_info",
+                        false,
+                        "If true, print out each MeshGenerator's name and type upon execution");
+
   // groups
   params.addParamNamesToGroup("displacements ghosted_boundaries ghosted_boundaries_inflation",
                               "Advanced");

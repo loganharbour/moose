@@ -54,6 +54,4 @@ protected:
 
   Real _x_width;
   Real _y_width;
-  Real _z_width;
 };
-
