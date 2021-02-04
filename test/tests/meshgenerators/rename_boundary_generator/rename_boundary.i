@@ -10,7 +10,6 @@
   [rename]
     type = RenameBoundaryGenerator
     input = gmg
-    show_info = true
   []
 
   # We compare by element numbers, which are not consistent in parallel

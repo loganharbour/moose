@@ -9,6 +9,7 @@
 
 #include "RenameBoundaryGenerator.h"
 #include "CastUniquePointer.h"
+#include "MooseMeshUtils.h"
 
 #include "libmesh/mesh_modification.h"
 

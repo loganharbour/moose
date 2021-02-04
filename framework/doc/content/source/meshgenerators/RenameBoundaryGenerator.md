@@ -4,7 +4,7 @@
 
 ## Overview
 
-`RenameBoundaryGenerator` is usually used to provide meaningful names to boundaries.
+`RenameBoundaryGenerator` is often used to provide meaningful names to boundaries.
 For instance
 
 ```text
