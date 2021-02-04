@@ -164,5 +164,4 @@ getBoundaryID(const BoundaryName & boundary_name, const MeshBase & mesh)
 
   return id;
 }
-
 }
