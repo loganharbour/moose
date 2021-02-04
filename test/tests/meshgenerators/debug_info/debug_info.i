@@ -4,8 +4,7 @@
     dim = 2
     nx = 4
     ny = 4
-    elem_type = QUAD4
-    show_info = true
+    debug_info = true
   []
   [gmg_quad_block1]
     type = ParsedSubdomainMeshGenerator
@@ -13,7 +12,7 @@
     combinatorial_geometry = 'x > 0.5'
     block_name = 'dummy'
     block_id = 1
-    show_info = true
+    debug_info = true
   []
 
   [gmg_tri]
@@ -22,7 +21,7 @@
     nx = 4
     ny = 4
     elem_type = TRI3
-    show_info = true
+    debug_info = true
   []
   [gmg_tri_block2]
     type = ParsedSubdomainMeshGenerator
@@ -30,7 +29,7 @@
     combinatorial_geometry = 'y > 0.5'
     block_id = 2
     block_name = 'dummy2'
-    show_info = true
+    debug_info = true
   []
   [gmg_tri_block3]
     type = ParsedSubdomainMeshGenerator
@@ -38,7 +37,7 @@
     combinatorial_geometry = 'y < 0.5'
     block_id = 3
     block_name = 'dummy3'
-    show_info = true
+    debug_info = true
   []
 
   [pmg]
@@ -46,7 +45,7 @@
     inputs = 'gmg_quad_block1 gmg_tri_block3'
     pattern = '0 1 0;
                1 1 0'
-    show_info = true
+    debug_info = true
   []
 
   [interior]
@@ -55,6 +54,6 @@
     combinatorial_geometry = 'x > 0.99 & x < 1.01'
     normal = '1 0 0'
     new_sideset_name = interior
-    show_info = true
+    debug_info = true
   []
 []
