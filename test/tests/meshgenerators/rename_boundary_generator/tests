@@ -64,8 +64,8 @@
   [merge]
     type = JSONDiff
     input = 'rename_boundary.i'
-    cli_args = 'Mesh/rename/old_boundary="1 2 3"
-                Mesh/rename/new_boundary="0 bottom 0"
+    cli_args = 'Mesh/rename/old_boundary="bottom 1 2 left"
+                Mesh/rename/new_boundary="top_and_bottom top_and_bottom 2 2"
                 Outputs/file_base=merge_out'
     jsondiff = 'merge_out.json'
 

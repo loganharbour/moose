@@ -193,7 +193,7 @@ RenameBoundaryGenerator::generate()
 
   // Get the boundary IDs that we're moving to
   std::vector<BoundaryID> new_boundary_ids(num_boundaries, Moose::INVALID_BOUNDARY_ID);
-  std::set<std::pair<BoundaryID, std::string>> new_names;
+  std::map<BoundaryID, std::string> new_names;
   for (std::size_t i = 0; i < num_boundaries; ++i)
   {
     const BoundaryName & name = _new_boundary[i];
@@ -210,7 +210,7 @@ RenameBoundaryGenerator::generate()
 
       // Preserve the old boundary name if there was one
       if (old_boundary_names[i].size())
-        new_names.emplace(id, old_boundary_names[i]);
+        new_names[id] = old_boundary_names[i];
     }
     // If the user input a name, we will use the ID that it is coming from for the
     // "new" name if the new name does not name a current boundary. If the name does
@@ -220,21 +220,23 @@ RenameBoundaryGenerator::generate()
       bool name_already_exists = false;
 
       // If the target boundary already exists, merge into that one
-      for (const auto map :
-           {&boundary_info.get_sideset_name_map(), &boundary_info.get_nodeset_name_map()})
+      // Check both the old maps and the new map
+      for (const auto map : {&boundary_info.set_sideset_name_map(),
+                             &boundary_info.set_nodeset_name_map(),
+                             &new_names})
         for (const auto & id_name_pair : *map)
           if (!name_already_exists && id_name_pair.second == name)
           {
             new_boundary_ids[i] = id_name_pair.first;
-            new_names.insert(id_name_pair);
+            new_names[id_name_pair.first] = name;
             name_already_exists = true;
           }
 
-      // Target name doesn't exist, so use the previous
+      // Target name doesn't exist, so use the source id/name
       if (!name_already_exists)
       {
         new_boundary_ids[i] = old_boundary_ids[i];
-        new_names.emplace(new_boundary_ids[i], name);
+        new_names[new_boundary_ids[i]] = name;
       }
     }
   }
