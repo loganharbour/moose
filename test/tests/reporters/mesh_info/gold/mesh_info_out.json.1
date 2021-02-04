@@ -6,6 +6,18 @@
             "reporters": [
                 {
                     "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": null,
+                    "value_name": "local_sideset_elems"
+                },
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": null,
+                    "value_name": "local_sidesets"
+                },
+                {
+                    "object_name": "mesh_info",
                     "type": "unsigned int",
                     "value": 0,
                     "value_name": "num_dofs"
@@ -63,6 +75,18 @@
                     "type": "unsigned int",
                     "value": 0,
                     "value_name": "num_nodes"
+                },
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": null,
+                    "value_name": "sideset_elems"
+                },
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": null,
+                    "value_name": "sidesets"
                 }
             ],
             "time": 0.0,
@@ -70,6 +94,130 @@
         },
         {
             "reporters": [
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": [
+                        {
+                            "id": 0,
+                            "name": "bottom",
+                            "sides": [
+                                {
+                                    "elem_id": 50,
+                                    "side": 0
+                                },
+                                {
+                                    "elem_id": 51,
+                                    "side": 0
+                                },
+                                {
+                                    "elem_id": 52,
+                                    "side": 0
+                                },
+                                {
+                                    "elem_id": 53,
+                                    "side": 0
+                                },
+                                {
+                                    "elem_id": 54,
+                                    "side": 0
+                                }
+                            ]
+                        },
+                        {
+                            "id": 1,
+                            "name": "right",
+                            "sides": [
+                                {
+                                    "elem_id": 54,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 59,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 64,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 69,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 74,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 79,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 84,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 89,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 94,
+                                    "side": 1
+                                },
+                                {
+                                    "elem_id": 99,
+                                    "side": 1
+                                }
+                            ]
+                        },
+                        {
+                            "id": 2,
+                            "name": "top",
+                            "sides": [
+                                {
+                                    "elem_id": 95,
+                                    "side": 2
+                                },
+                                {
+                                    "elem_id": 96,
+                                    "side": 2
+                                },
+                                {
+                                    "elem_id": 97,
+                                    "side": 2
+                                },
+                                {
+                                    "elem_id": 98,
+                                    "side": 2
+                                },
+                                {
+                                    "elem_id": 99,
+                                    "side": 2
+                                }
+                            ]
+                        }
+                    ],
+                    "value_name": "local_sideset_elems"
+                },
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": [
+                        {
+                            "id": 0,
+                            "name": "bottom"
+                        },
+                        {
+                            "id": 1,
+                            "name": "right"
+                        },
+                        {
+                            "id": 2,
+                            "name": "top"
+                        }
+                    ],
+                    "value_name": "local_sidesets"
+                },
                 {
                     "object_name": "mesh_info",
                     "type": "unsigned int",
@@ -129,6 +277,18 @@
                     "type": "unsigned int",
                     "value": 121,
                     "value_name": "num_nodes"
+                },
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": null,
+                    "value_name": "sideset_elems"
+                },
+                {
+                    "object_name": "mesh_info",
+                    "type": "std::map<short, MeshInfo::SidesetInfo, std::less<short>, std::allocator<std::pair<short const, MeshInfo::SidesetInfo> > >",
+                    "value": null,
+                    "value_name": "sidesets"
                 }
             ],
             "time": 1.0,
