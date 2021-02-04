@@ -9,9 +9,15 @@
 
 #pragma once
 
+// Moose includes
 #include "OutputInterface.h"
 #include "ReporterData.h"
 #include "InputParameters.h"
+
+// System includes
+#include <type_traits>
+
+// Forward declarations
 class FEProblemBase;
 
 /**
@@ -95,7 +101,43 @@ protected:
   T & declareValueByName(const ReporterValueName & value_name, ReporterMode mode, Args &&... args0);
   ///@}
 
+  /**
+   * Declare a dummy value with type T.
+   *
+   * This is useful when you have a reporter that has optional values. In this case,
+   * you want to create references to all reporter values. However, because some values
+   * are optional, you need _something_ to fill into the reference. This helper will
+   * create a dummy value. It also allows for the passing of arguments in the case
+   * that your value is not trivially default constructable (constructable by default
+   * without arguments).
+   */
+  template <typename T, typename... Args>
+  T & declareDummyValue(Args &&... args);
+
 private:
+  /**
+   * Internal base struct for use in storing dummy values.
+   *
+   * In order to store a vector of arbitrary dummy values for declareDummyValue(),
+   * we need some base object that is constructable without template arguments.
+   */
+  struct DummyWrapperBase
+  {
+    /// Needed for polymorphism
+    virtual ~DummyWrapperBase() {}
+  };
+
+  /**
+   * Internal struct for storing a dummy value. This allows for the storage
+   * of arbitrarily typed objects in a single vector for use in
+   * declareDummyValue().
+   */
+  template <typename T>
+  struct DummyWrapper : DummyWrapperBase
+  {
+    T val;
+  };
+
   /// Ref. to MooseObject params
   const InputParameters & _reporter_params;
 
@@ -107,6 +149,9 @@ private:
 
   /// Data storage
   ReporterData & _reporter_data;
+
+  /// Storage for dummy values declared with declareDummyValue().
+  std::vector<std::unique_ptr<DummyWrapperBase>> _dummy_values;
 };
 
 template <typename T, template <typename> class S, typename... Args>
@@ -141,4 +186,13 @@ Reporter::declareValueByName(const ReporterValueName & value_name,
   ReporterName state_name(_reporter_name, value_name);
   buildOutputHideVariableList({state_name.getCombinedName()});
   return _reporter_data.declareReporterValue<T, S>(state_name, mode, args...);
+}
+
+template <typename T, typename... Args>
+T &
+Reporter::declareDummyValue(Args &&... args)
+{
+  _dummy_values.emplace_back(libmesh_make_unique<DummyWrapper<T>>(std::forward(args)...));
+  DummyWrapper<T> * wrapper = dynamic_cast<DummyWrapper<T> *>(_dummy_values.back().get());
+  return wrapper->val;
 }
