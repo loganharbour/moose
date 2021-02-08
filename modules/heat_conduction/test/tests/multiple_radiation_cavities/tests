@@ -1,0 +1,10 @@
+[Tests]
+  [multiple_radiation_cavities]
+    type = 'Exodiff'
+    #issues = ''
+    design = 'RadiationTransferAction.md'
+    requirement = 'The system shall support modeling two radiation cavities.'
+    input = 'multiple_radiation_cavities.i'
+    exodiff = 'multiple_radiation_cavities_out.e'
+  []
+[]

@@ -131,7 +131,6 @@
     n_patches = '1 1 1 1 1 1 1'
     adiabatic_boundary = '7 10 11 12'
     partitioners = 'metis metis metis metis metis metis metis'
-    final_mesh_generator = add_inner_top
     temperature = temperature
     ray_tracing_face_order = SECOND
     normalize_view_factor = false
