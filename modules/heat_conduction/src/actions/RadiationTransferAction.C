@@ -18,7 +18,7 @@
 #include "AQViewFactorRayStudy.h"
 #include "PatchSidesetGenerator.h"
 
-registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_mesh_generator");
+registerMooseAction("HeatConductionApp", RadiationTransferAction, "append_mesh_generator");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "setup_mesh_complete");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_user_object");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_bc");
@@ -62,9 +62,6 @@ validParams<RadiationTransferAction>()
       "partitioners",
       partitioning,
       "Specifies a mesh partitioner to use when preparing the radiation patches.");
-
-  params.addRequiredParam<MeshGeneratorName>("final_mesh_generator",
-                                             "Name of the final mesh generator.");
 
   MultiMooseEnum direction("x y z radial");
   params.addParam<MultiMooseEnum>("centroid_partitioner_directions",
@@ -148,7 +145,7 @@ RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
 void
 RadiationTransferAction::act()
 {
-  if (_current_task == "add_mesh_generator")
+  if (_current_task == "append_mesh_generator")
     addMeshGenerator();
   else if (_current_task == "setup_mesh_complete")
     radiationPatchNames();
@@ -547,12 +544,9 @@ RadiationTransferAction::addMeshGenerator()
     mooseError("This action adds MeshGenerator objects and therefore only works with a "
                "MeshGeneratorMesh.");
 
-  MeshGeneratorName input = getParam<MeshGeneratorName>("final_mesh_generator");
-
   for (unsigned int j = 0; j < _boundary_names.size(); ++j)
   {
     InputParameters params = _factory.getValidParams("PatchSidesetGenerator");
-    params.set<MeshGeneratorName>("input") = input;
     params.set<BoundaryName>("boundary") = _boundary_names[j];
     params.set<unsigned int>("n_patches") = n_patches[j];
     params.set<MooseEnum>("partitioner") = partitioners[j];
@@ -560,10 +554,7 @@ RadiationTransferAction::addMeshGenerator()
     if (partitioners[j] == "centroid")
       params.set<MooseEnum>("centroid_partitioner_direction") = direction[j];
 
-    _app.addMeshGenerator("PatchSidesetGenerator", meshGeneratorName(j), params);
-
-    // reset input parameter to last one added
-    input = meshGeneratorName(j);
+    _app.appendMeshGenerator("PatchSidesetGenerator", meshGeneratorName(j), params);
   }
 }
 

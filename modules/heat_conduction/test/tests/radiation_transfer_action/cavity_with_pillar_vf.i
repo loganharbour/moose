@@ -154,7 +154,6 @@
     #n_patches = '10 10 10 10 10 10 10 10 10 10 10'
     #partitioners = 'centroid centroid centroid centroid centroid centroid centroid centroid centroid centroid centroid'
     #centroid_partitioner_directions = 'x x x x x x x x x x x'
-    final_mesh_generator = rename_block
     temperature = temperature
     ray_tracing_face_order = SECOND
     #unobstructed_cavity = true
