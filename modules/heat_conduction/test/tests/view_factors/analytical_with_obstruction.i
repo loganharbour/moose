@@ -18,7 +18,7 @@
    [./side_set_around_obstruction]
      type = SideSetsBetweenSubdomainsGenerator
      input = cartesian
-     master_block = 1
+     primary_block = 1
      paired_block = 0
      new_boundary = 'obstacle'
    [../]

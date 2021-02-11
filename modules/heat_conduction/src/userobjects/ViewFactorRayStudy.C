@@ -16,7 +16,6 @@
 
 // Local includes
 #include "ViewFactorRayBC.h"
-#include "HCAngularQuadrature.h"
 
 // libMesh includes
 #include "libmesh/parallel_algebra.h"
@@ -95,20 +94,49 @@ ViewFactorRayStudy::ViewFactorRayStudy(const InputParameters & parameters)
     _q_face(QBase::build(Moose::stringToEnum<QuadratureType>(getParam<MooseEnum>("face_type")),
                          _mesh.dimension() - 1,
                          Moose::stringToEnum<Order>(getParam<MooseEnum>("face_order")))),
+    _is_3d(_mesh.dimension() == 3),
     _threaded_vf_info(libMesh::n_threads())
 {
   _fe_face->attach_quadrature_rule(_q_face.get());
   _fe_face->get_xyz();
 
   // create angular quadrature
-  if (_mesh.dimension() == 2)
-    HCAngularQuadrature::getHalfRangeAQ2D(
-        getParam<unsigned int>("polar_quad_order"), _aq_angles, _aq_weights);
-  else if (_mesh.dimension() == 3)
-    HCAngularQuadrature::getHalfRangeAQ3D(4 * getParam<unsigned int>("azimuthal_quad_order"),
-                                          getParam<unsigned int>("polar_quad_order"),
-                                          _aq_angles,
-                                          _aq_weights);
+  if (!_is_3d)
+  {
+    // In 2D, we integrate over angle theta instead of mu = cos(theta)
+    // The integral over theta is approximated using a Gauss Legendre
+    // quadrature. The integral we need to approximate is given by:
+    //
+    // int_{-pi/2}^{pi/2} cos(theta) d theta
+    //
+    // We get abscissae x and weight w for range of integration
+    // from 0 to 1 and then rescale it to the integration range
+    //
+    std::vector<Real> x;
+    std::vector<Real> w;
+    RayTracingAngularQuadrature::gaussLegendre(
+        2 * getParam<unsigned int>("polar_quad_order"), x, w);
+
+    _2d_aq_angles.resize(x.size());
+    _2d_aq_weights.resize(x.size());
+    for (unsigned int j = 0; j < x.size(); ++j)
+    {
+      _2d_aq_angles[j] = (2 * x[j] - 1) * M_PI / 2;
+      _2d_aq_weights[j] = w[j] * M_PI;
+    }
+    _num_dir = _2d_aq_angles.size();
+  }
+  else
+  {
+    _3d_aq = libmesh_make_unique<RayTracingAngularQuadrature>(
+        _mesh.dimension(),
+        getParam<unsigned int>("polar_quad_order"),
+        4 * getParam<unsigned int>("azimuthal_quad_order"),
+        /* mu_min = */ 0,
+        /* mu_max = */ 1);
+
+    _num_dir = _3d_aq->numDirections();
+  }
 }
 
 void
@@ -161,8 +189,8 @@ ViewFactorRayStudy::initialSetup()
       }
       else
         mooseError("Does not support the ",
-            rbc->type(),
-            " ray boundary condition.\nSupported RayBCs: ReflectRayBC and ViewFactorRayBC.");
+                   rbc->type(),
+                   " ray boundary condition.\nSupported RayBCs: ReflectRayBC and ViewFactorRayBC.");
     }
     if (vf_bc_count != 1)
       mooseError("Requires one and only one ViewFactorRayBC.");
@@ -217,7 +245,7 @@ ViewFactorRayStudy::generateRays()
   for (const auto & start_elem : _start_elems)
   {
     num_local_start_points += start_elem._points.size();
-    num_local_rays += start_elem._points.size() * _aq_angles.size();
+    num_local_rays += start_elem._points.size() * _num_dir;
   }
 
   // Print out totals while we're here
@@ -226,11 +254,13 @@ ViewFactorRayStudy::generateRays()
   _communicator.sum(num_total_points);
   _communicator.sum(num_total_rays);
   _console << "ViewFactorRayStudy generated " << num_total_points
-           << " points with an angular quadrature of " << _aq_angles.size()
+           << " points with an angular quadrature of " << _num_dir
            << " directions per point requiring " << num_total_rays << " rays" << std::endl;
 
   // Reserve space in the buffer ahead of time before we fill it
   reserveRayBuffer(num_local_rays);
+
+  Point direction;
 
   // loop through all starting points and spawn rays from each for each point and angle
   for (const auto & start_elem : _start_elems)
@@ -248,25 +278,35 @@ ViewFactorRayStudy::generateRays()
         !start_elem._start_elem->neighbor_ptr(start_elem._incoming_side))
       inward_normal *= -1;
 
-    // Create rotation matrix and rotate vector omega (the normal)
-    const auto rotation_matrix =
-        HCAngularQuadrature::aqRoationMatrix(inward_normal, _mesh.dimension());
+    // Rotation for the quadrature to align with the normal; in 3D we can do all of this
+    // once up front using the 3D aq object. For 2D, we will do it within the direction loop
+    if (_is_3d)
+      _3d_aq->rotate(inward_normal);
 
     // Loop through all points and then all directions
     for (std::size_t start_i = 0; start_i < start_elem._points.size(); ++start_i)
-      for (std::size_t l = 0; l < _aq_angles.size(); ++l)
+      for (std::size_t l = 0; l < _num_dir; ++l)
       {
-        const auto direction = HCAngularQuadrature::getAngularDirection(
-            l, rotation_matrix, _aq_angles, _mesh.dimension());
+        // Get direction of the ray; in 3D we already rotated, in 2D we rotate here
+        if (_is_3d)
+          direction = _3d_aq->getDirection(l);
+        else
+        {
+          const Real sin_theta = std::sin(_2d_aq_angles[l]);
+          const Real cos_theta = std::cos(_2d_aq_angles[l]);
+          direction(0) = cos_theta * inward_normal(0) - sin_theta * inward_normal(1);
+          direction(1) = sin_theta * inward_normal(0) + cos_theta * inward_normal(1);
+          direction(2) = 0;
+        }
 
-        // angular weight function differs in 2D/3D
+        // Angular weight function differs in 2D/3D
         // 2D: the quadrature abscissae are the angles between direction & normal.
-        //     The weight is the cosine of that angle
+        //     The integrand is the cosine of that angle
         // 3D: the quadrature abscissae are the azimuthal angle phi and the cosine of the angle
         //     between normal and direction (== mu). The weight is mu in that case.
-        const auto awf =
-            _mesh.dimension() == 3 ? _aq_angles[l].second : std::cos(_aq_angles[l].second);
-        const auto start_weight = start_elem._weights[start_i] * _aq_weights[l] * awf;
+        const auto awf = _is_3d ? inward_normal * direction * _3d_aq->getTotalWeight(l)
+                                : std::cos(_2d_aq_angles[l]) * _2d_aq_weights[l];
+        const auto start_weight = start_elem._weights[start_i] * awf;
 
         // Acquire a Ray and fill with the starting information
         std::shared_ptr<Ray> ray = acquireRay();
@@ -284,9 +324,9 @@ ViewFactorRayStudy::generateRays()
 
 void
 ViewFactorRayStudy::addToViewFactorInfo(Real value,
-                                          const BoundaryID from_id,
-                                          const BoundaryID to_id,
-                                          const THREAD_ID tid)
+                                        const BoundaryID from_id,
+                                        const BoundaryID to_id,
+                                        const THREAD_ID tid)
 {
   mooseAssert(currentlyPropagating(), "Can only be called during Ray tracing");
   mooseAssert(_threaded_vf_info[tid].count(from_id),
@@ -415,8 +455,7 @@ Packing<ViewFactorRayStudy::StartElem>::packing_size(const std::size_t num_point
 }
 
 unsigned int
-Packing<ViewFactorRayStudy::StartElem>::packed_size(
-    typename std::vector<Real>::const_iterator in)
+Packing<ViewFactorRayStudy::StartElem>::packed_size(typename std::vector<Real>::const_iterator in)
 {
   const std::size_t num_points = *in++;
   return packing_size(num_points);
@@ -433,7 +472,7 @@ Packing<ViewFactorRayStudy::StartElem>::packable_size(
 template <>
 ViewFactorRayStudy::StartElem
 Packing<ViewFactorRayStudy::StartElem>::unpack(std::vector<Real>::const_iterator in,
-                                                   ViewFactorRayStudy * study)
+                                               ViewFactorRayStudy * study)
 {
   // StartElem to fill into
   ViewFactorRayStudy::StartElem start_elem;
@@ -472,10 +511,9 @@ Packing<ViewFactorRayStudy::StartElem>::unpack(std::vector<Real>::const_iterator
 
 template <>
 void
-Packing<ViewFactorRayStudy::StartElem>::pack(
-    const ViewFactorRayStudy::StartElem & start_elem,
-    std::back_insert_iterator<std::vector<Real>> data_out,
-    const ViewFactorRayStudy * study)
+Packing<ViewFactorRayStudy::StartElem>::pack(const ViewFactorRayStudy::StartElem & start_elem,
+                                             std::back_insert_iterator<std::vector<Real>> data_out,
+                                             const ViewFactorRayStudy * study)
 {
   // Number of points
   data_out = static_cast<buffer_type>(start_elem._points.size());

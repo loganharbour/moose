@@ -11,6 +11,8 @@
 
 #include "RayTracingStudy.h"
 
+#include "RayTracingAngularQuadrature.h"
+
 /**
  * RayTracingStudy used to generate Rays for view factor computation
  * using the angular quadrature method.
@@ -115,7 +117,10 @@ protected:
   /// Face quadrature used for _fe_face
   const std::unique_ptr<QBase> _q_face;
 
+  // Whether or not the mesh is 3D
+  const bool _is_3d;
 private:
+
   /// View factor information by tid and then from/to pair
   std::vector<std::unordered_map<BoundaryID, std::unordered_map<BoundaryID, Real>>>
       _threaded_vf_info;
@@ -126,8 +131,10 @@ private:
   std::vector<StartElem> _start_elems;
 
   ///@{ angular quadrature info
-  std::vector<std::pair<Real, Real>> _aq_angles;
-  std::vector<Real> _aq_weights;
+  std::vector<Real> _2d_aq_angles;
+  std::vector<Real> _2d_aq_weights;
+  std::unique_ptr<RayTracingAngularQuadrature> _3d_aq;
+  std::size_t _num_dir;
   ///@}
 };
 
@@ -145,12 +152,10 @@ public:
 
   static unsigned int packed_size(typename std::vector<Real>::const_iterator in);
 
-  static unsigned int packable_size(const ViewFactorRayStudy::StartElem & start_elem,
-                                    const void *);
+  static unsigned int packable_size(const ViewFactorRayStudy::StartElem & start_elem, const void *);
 
   template <typename Iter, typename Context>
-  static void
-  pack(const ViewFactorRayStudy::StartElem & object, Iter data_out, const Context *);
+  static void pack(const ViewFactorRayStudy::StartElem & object, Iter data_out, const Context *);
 
   template <typename BufferIter, typename Context>
   static ViewFactorRayStudy::StartElem unpack(BufferIter in, Context *);

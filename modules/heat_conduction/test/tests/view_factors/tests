@@ -20,10 +20,10 @@
     requirement = 'The system shall compute view factors for unobstructed, planar surfaces in radiative exchange and normalize view factors from each surface to sum to one'
   [../]
 
-  [./view_factor_ray_cube_aq]
+  [./view_factor_ray_cube]
     type = CSVDiff
-    input = 'view_factor_ray_cube_aq.i'
-    csvdiff = 'view_factor_ray_cube_aq_out.csv'
+    input = 'view_factor_ray_cube.i'
+    csvdiff = 'view_factor_ray_cube_out.csv'
     design = 'RayTracingViewFactor.md'
     requirement = 'The system shall compute view factors for general 3D cavities using ray tracing with angular quadrature'
   [../]
