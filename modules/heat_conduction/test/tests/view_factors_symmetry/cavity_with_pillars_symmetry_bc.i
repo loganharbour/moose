@@ -36,7 +36,7 @@
 
 [UserObjects]
   [./view_factor_study]
-    type = AQViewFactorRayStudy
+    type = ViewFactorRayStudy
     execute_on = initial
     boundary = 'left top bottom front back_2 obstruction'
     face_order = FOURTH
@@ -53,7 +53,7 @@
 
 [RayBCs]
   [vf_bc]
-    type = AQViewFactorRayBC
+    type = ViewFactorRayBC
     boundary = 'left top bottom front back_2 obstruction'
   []
 

@@ -12,7 +12,7 @@
 
 [UserObjects]
   [./view_factor_study]
-    type = AQViewFactorRayStudy
+    type = ViewFactorRayStudy
     execute_on = initial
     boundary = 'left right bottom top'
     face_order = TENTH
@@ -31,7 +31,7 @@
 []
 
 [RayBCs/viewfactor]
-  type = AQViewFactorRayBC
+  type = ViewFactorRayBC
   boundary = 'left right bottom top'
 []
 

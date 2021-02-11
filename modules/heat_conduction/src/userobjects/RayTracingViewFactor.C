@@ -9,11 +9,9 @@
 
 #include "RayTracingViewFactor.h"
 
-#include "ViewFactorRayStudyBase.h"
+#include "ViewFactorRayStudy.h"
 
 registerMooseObject("HeatConductionApp", RayTracingViewFactor);
-
-defineLegacyParams(RayTracingViewFactor);
 
 InputParameters
 RayTracingViewFactor::validParams()
@@ -26,7 +24,7 @@ RayTracingViewFactor::validParams()
 }
 
 RayTracingViewFactor::RayTracingViewFactor(const InputParameters & parameters)
-  : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudyBase>("ray_study_name"))
+  : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudy>("ray_study_name"))
 {
   if (_mesh.dimension() == 1)
     mooseError("View factor calculations for 1D geometry makes no sense");

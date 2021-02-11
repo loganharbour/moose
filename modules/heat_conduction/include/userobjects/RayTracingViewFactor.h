@@ -12,11 +12,7 @@
 #include "ViewFactorBase.h"
 
 // Forward Declarations
-class RayTracingViewFactor;
-class ViewFactorRayStudyBase;
-
-template <>
-InputParameters validParams<RayTracingViewFactor>();
+class ViewFactorRayStudy;
 
 /**
  * Computes the view factors for planar faces in unobstructed radiative heat transfer
@@ -35,6 +31,6 @@ protected:
   virtual void threadJoinViewFactor(const UserObject & y) override;
   virtual void finalizeViewFactor() override;
 
-  const ViewFactorRayStudyBase & _ray_study;
+  const ViewFactorRayStudy & _ray_study;
   Real _divisor;
 };

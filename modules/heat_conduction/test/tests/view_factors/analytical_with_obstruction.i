@@ -4,19 +4,22 @@
      dim = 3
      dx = '0.55 0.9 0.55'
      dy = '0.55 0.9 0.55'
-     dz = '0.75 0.25'
+     dz = '0.75 0.0001 0.25'
      subdomain_id = '0 0 0
                      0 0 0
                      0 0 0
-                     3 3 3
-                     3 2 3
-                     3 3 3 '
+                     0 0 0
+                     0 1 0
+                     0 0 0
+                     0 0 0
+                     0 0 0
+                     0 0 0'
    [../]
    [./side_set_around_obstruction]
      type = SideSetsBetweenSubdomainsGenerator
      input = cartesian
-     master_block = 0
-     paired_block = 2
+     master_block = 1
+     paired_block = 0
      new_boundary = 'obstacle'
    [../]
    uniform_refine = 0
@@ -25,10 +28,13 @@
 
 [UserObjects]
   [./view_factor_study]
-    type = PointToPointViewFactorRayStudy
+    type = ViewFactorRayStudy
     execute_on = initial
     boundary = 'left right top bottom front back obstacle'
     face_order = FOURTH
+    polar_quad_order = 12
+    azimuthal_quad_order = 4
+    warn_subdomain_hmax = false
   [../]
 
   [./view_factor]
@@ -40,7 +46,7 @@
 []
 
 [RayBCs/viewfactor]
-  type = PointToPointViewFactorRayBC
+  type = ViewFactorRayBC
   boundary = 'left right top bottom front back obstacle'
 []
 

@@ -14,8 +14,7 @@
 #include "FEProblemBase.h"
 #include "RayTracingStudy.h"
 #include "RayBoundaryConditionBase.h"
-#include "PointToPointViewFactorRayStudy.h"
-#include "AQViewFactorRayStudy.h"
+#include "ViewFactorRayStudy.h"
 #include "PatchSidesetGenerator.h"
 
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "add_mesh_generator");
@@ -75,9 +74,7 @@ validParams<RadiationTransferAction>()
   params.addRequiredParam<VariableName>("temperature", "The coupled temperature variable.");
   params.addRequiredParam<std::vector<Real>>("emissivity", "Emissivities for each boundary.");
 
-  MooseEnum view_factor_calculator(
-      "analytical ray_tracing_angular_quadrature ray_tracing_point_to_point",
-      "ray_tracing_angular_quadrature");
+  MooseEnum view_factor_calculator("analytical ray_tracing", "ray_tracing");
   params.addParam<MooseEnum>(
       "view_factor_calculator", view_factor_calculator, "The view factor calculator being used.");
 
@@ -98,13 +95,13 @@ validParams<RadiationTransferAction>()
       "polar_quad_order",
       16,
       "Order of the polar quadrature [polar angle is between ray and normal]. Must be even. Only "
-      "used if view_factor_calculator = ray_tracing_angular_quadrature.");
+      "used if view_factor_calculator = ray_tracing.");
   params.addParam<unsigned int>(
       "azimuthal_quad_order",
       8,
       "Order of the azimuthal quadrature per quadrant [azimuthal angle is measured in "
       "a plan perpendicular to the normal]. Only used if view_factor_calculator = "
-      "ray_tracing_angular_quadrature.");
+      "ray_tracing.");
   MooseEnum qtypes("GAUSS GRID", "GRID");
   params.addParam<MooseEnum>("ray_tracing_face_type", qtypes, "The face quadrature type");
   return params;
@@ -116,15 +113,17 @@ RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
     _symmetry_boundary_names(getParam<std::vector<BoundaryName>>("symmetry_boundary")),
     _view_factor_calculator(getParam<MooseEnum>("view_factor_calculator"))
 {
-  if (_view_factor_calculator != "ray_tracing_angular_quadrature")
+  if (_view_factor_calculator != "ray_tracing")
   {
     if (params.isParamSetByUser("polar_quad_order"))
-      mooseWarning("Parameter polar_quad_order is only used for view_factor_calculator = "
-                   "ray_tracing_angular_quadrature. It is ignored for this calculation.");
+      paramWarning("polar_quad_order",
+                   " only used for view_factor_calculator = ray_tracing. It is ignored for this "
+                   "calculation.");
 
     if (params.isParamSetByUser("azimuthal_quad_order"))
-      mooseWarning("Parameter azimuthal_quad_order is only used for view_factor_calculator = "
-                   "ray_tracing_angular_quadrature. It is ignored for this calculation.");
+      paramWarning("azimuthal_quad_order",
+                   "Only used for view_factor_calculator = ray_tracing. It is ignored for this "
+                   "calculation.");
   }
 
   // check that there is no overlap between sidesets and symmetry sidesets
@@ -137,12 +136,12 @@ RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
                  " is present in parameter boundary and symmetry_boundary.");
 
   // currently symmetry boundaries only work with view_factor_calculator ==
-  // ray_tracing_angular_quadrature
+  // ray_tracing
   if (!_symmetry_boundary_names.empty() &&
-      _view_factor_calculator != "ray_tracing_angular_quadrature")
+      _view_factor_calculator != "ray_tracing")
     paramError("symmetry_boundary",
                "Symmetry boundaries are only supported by view_factor_calculator = "
-               "ray_tracing_angular_quadrature.");
+               "ray_tracing.");
 }
 
 void
@@ -209,8 +208,7 @@ RadiationTransferAction::addViewFactorObject() const
 
     _problem->addUserObject("UnobstructedPlanarViewFactor", viewFactorObjectName(), params);
   }
-  else if (_view_factor_calculator == "ray_tracing_angular_quadrature" ||
-           _view_factor_calculator == "ray_tracing_point_to_point")
+  else if (_view_factor_calculator == "ray_tracing")
   {
     // this branch adds the ray tracing UO
     InputParameters params = _factory.getValidParams("RayTracingViewFactor");
@@ -235,44 +233,23 @@ RadiationTransferAction::addRayStudyObject() const
     for (auto & e2 : e1)
       boundary_names.push_back(e2);
 
-  if (_view_factor_calculator == "ray_tracing_point_to_point")
-  {
-    InputParameters params = _factory.getValidParams("PointToPointViewFactorRayStudy");
+  InputParameters params = _factory.getValidParams("ViewFactorRayStudy");
 
-    params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
+  params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
 
-    // set this object to be execute on initial only
-    ExecFlagEnum exec_enum = MooseUtils::getDefaultExecFlagEnum();
-    exec_enum = {EXEC_INITIAL};
-    params.set<ExecFlagEnum>("execute_on") = exec_enum;
+  // set this object to be execute on initial only
+  ExecFlagEnum exec_enum = MooseUtils::getDefaultExecFlagEnum();
+  exec_enum = {EXEC_INITIAL};
+  params.set<ExecFlagEnum>("execute_on") = exec_enum;
 
-    // set face order
-    params.set<MooseEnum>("face_order") = getParam<MooseEnum>("ray_tracing_face_order");
-    params.set<MooseEnum>("face_type") = getParam<MooseEnum>("ray_tracing_face_type");
+  // set face order
+  params.set<MooseEnum>("face_order") = getParam<MooseEnum>("ray_tracing_face_order");
+  params.set<MooseEnum>("face_type") = getParam<MooseEnum>("ray_tracing_face_type");
 
-    _problem->addUserObject("PointToPointViewFactorRayStudy", rayStudyName(), params);
-  }
-  else
-  {
-    InputParameters params = _factory.getValidParams("AQViewFactorRayStudy");
-
-    params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
-
-    // set this object to be execute on initial only
-    ExecFlagEnum exec_enum = MooseUtils::getDefaultExecFlagEnum();
-    exec_enum = {EXEC_INITIAL};
-    params.set<ExecFlagEnum>("execute_on") = exec_enum;
-
-    // set face order
-    params.set<MooseEnum>("face_order") = getParam<MooseEnum>("ray_tracing_face_order");
-    params.set<MooseEnum>("face_type") = getParam<MooseEnum>("ray_tracing_face_type");
-
-    // set angular quadrature
-    params.set<unsigned int>("polar_quad_order") = getParam<unsigned int>("polar_quad_order");
-    params.set<unsigned int>("azimuthal_quad_order") =
-        getParam<unsigned int>("azimuthal_quad_order");
-    _problem->addUserObject("AQViewFactorRayStudy", rayStudyName(), params);
-  }
+  // set angular quadrature
+  params.set<unsigned int>("polar_quad_order") = getParam<unsigned int>("polar_quad_order");
+  params.set<unsigned int>("azimuthal_quad_order") = getParam<unsigned int>("azimuthal_quad_order");
+  _problem->addUserObject("ViewFactorRayStudy", rayStudyName(), params);
 }
 
 void
@@ -287,34 +264,22 @@ RadiationTransferAction::addRayBCs() const
     for (auto & e2 : e1)
       boundary_names.push_back(e2);
 
-  if (_view_factor_calculator == "ray_tracing_point_to_point")
   {
-    InputParameters params = _factory.getValidParams("PointToPointViewFactorRayBC");
+    InputParameters params = _factory.getValidParams("ViewFactorRayBC");
     params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
     params.set<RayTracingStudy *>("_ray_tracing_study") =
-        &_problem->getUserObject<PointToPointViewFactorRayStudy>(rayStudyName());
-    _problem->addObject<RayBoundaryConditionBase>(
-        "PointToPointViewFactorRayBC", rayBCName(), params);
+        &_problem->getUserObject<ViewFactorRayStudy>(rayStudyName());
+    _problem->addObject<RayBoundaryConditionBase>("ViewFactorRayBC", rayBCName(), params);
   }
-  else
-  {
-    {
-      InputParameters params = _factory.getValidParams("AQViewFactorRayBC");
-      params.set<std::vector<BoundaryName>>("boundary") = boundary_names;
-      params.set<RayTracingStudy *>("_ray_tracing_study") =
-          &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
-      _problem->addObject<RayBoundaryConditionBase>("AQViewFactorRayBC", rayBCName(), params);
-    }
 
-    // add symmetry BCs if applicable
-    if (_symmetry_boundary_names.size() > 0)
-    {
-      InputParameters params = _factory.getValidParams("ReflectRayBC");
-      params.set<std::vector<BoundaryName>>("boundary") = _symmetry_boundary_names;
-      params.set<RayTracingStudy *>("_ray_tracing_study") =
-          &_problem->getUserObject<AQViewFactorRayStudy>(rayStudyName());
-      _problem->addObject<RayBoundaryConditionBase>("ReflectRayBC", symmetryRayBCName(), params);
-    }
+  // add symmetry BCs if applicable
+  if (_symmetry_boundary_names.size() > 0)
+  {
+    InputParameters params = _factory.getValidParams("ReflectRayBC");
+    params.set<std::vector<BoundaryName>>("boundary") = _symmetry_boundary_names;
+    params.set<RayTracingStudy *>("_ray_tracing_study") =
+        &_problem->getUserObject<ViewFactorRayStudy>(rayStudyName());
+    _problem->addObject<RayBoundaryConditionBase>("ReflectRayBC", symmetryRayBCName(), params);
   }
 }
 

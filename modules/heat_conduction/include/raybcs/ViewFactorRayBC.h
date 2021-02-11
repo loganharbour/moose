@@ -12,35 +12,27 @@
 #include "GeneralRayBC.h"
 
 // Forward declarations
-class PointToPointViewFactorRayStudy;
+class ViewFactorRayStudy;
 
 /**
- * RayBC used in the computation of view factors using the point-to-point
+ * RayBC used in the computation of view factors using the angular quadrature
  * ray tracing method.
  */
-class PointToPointViewFactorRayBC : public GeneralRayBC
+class ViewFactorRayBC : public GeneralRayBC
 {
 public:
-  PointToPointViewFactorRayBC(const InputParameters & params);
+  ViewFactorRayBC(const InputParameters & params);
 
   static InputParameters validParams();
 
   void onBoundary(const unsigned int num_applying) override;
 
 protected:
-  /// The PointToPointViewFactorRayStudy
-  PointToPointViewFactorRayStudy & _vf_study;
+  /// The ViewFactorRayStudy
+  ViewFactorRayStudy & _vf_study;
 
   /// Index in the Ray aux data for the starting boundary ID
   const RayDataIndex _ray_index_start_bnd_id;
   /// Index in the Ray aux data for the starting total weight (dot * qp weight)
   const RayDataIndex _ray_index_start_total_weight;
-  /// Index in the Ray aux data for the ending boundary ID
-  const RayDataIndex _ray_index_end_bnd_id;
-  /// Index in the Ray aux data for the ending weight
-  const RayDataIndex _ray_index_end_weight;
-  /// Index in the Ray aux data for the distance from start to end
-  const RayDataIndex _ray_index_end_elem_id;
-  /// Index in the Ray aux data for the ending side
-  const RayDataIndex _ray_index_end_side;
 };

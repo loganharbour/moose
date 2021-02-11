@@ -7,30 +7,30 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "AQViewFactorRayBC.h"
+#include "ViewFactorRayBC.h"
 
 // Local includes
-#include "AQViewFactorRayStudy.h"
+#include "ViewFactorRayStudy.h"
 
-registerMooseObject("RayTracingApp", AQViewFactorRayBC);
+registerMooseObject("RayTracingApp", ViewFactorRayBC);
 
 InputParameters
-AQViewFactorRayBC::validParams()
+ViewFactorRayBC::validParams()
 {
   InputParameters params = GeneralRayBC::validParams();
   return params;
 }
 
-AQViewFactorRayBC::AQViewFactorRayBC(const InputParameters & params)
+ViewFactorRayBC::ViewFactorRayBC(const InputParameters & params)
   : GeneralRayBC(params),
-    _vf_study(RayTracingStudy::castFromStudy<AQViewFactorRayStudy>(params)),
+    _vf_study(RayTracingStudy::castFromStudy<ViewFactorRayStudy>(params)),
     _ray_index_start_bnd_id(_vf_study.rayIndexStartBndID()),
     _ray_index_start_total_weight(_vf_study.rayIndexStartTotalWeight())
 {
 }
 
 void
-AQViewFactorRayBC::onBoundary(const unsigned int num_applying)
+ViewFactorRayBC::onBoundary(const unsigned int num_applying)
 {
   // The boundary ID this Ray started on
   const BoundaryID start_bnd_id = currentRay()->auxData(_ray_index_start_bnd_id);
