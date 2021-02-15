@@ -31,6 +31,7 @@ protected:
   virtual void threadJoinViewFactor(const UserObject & y) override;
   virtual void finalizeViewFactor() override;
 
+  const Real _divisor;
+
   const ViewFactorRayStudy & _ray_study;
-  Real _divisor;
 };

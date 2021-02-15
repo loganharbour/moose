@@ -32,8 +32,8 @@ protected:
   std::vector<std::vector<std::string>> radiationPatchNames() const;
   std::vector<std::vector<std::string>> bcRadiationPatchNames() const;
   UserObjectName viewFactorObjectName() const;
-  UserObjectName rayStudyName() const;
   UserObjectName radiationObjectName() const;
+  UserObjectName rayStudyName() const;
   std::string rayBCName() const;
   std::string symmetryRayBCName() const;
   MeshGeneratorName meshGeneratorName(unsigned int j) const;
@@ -42,11 +42,8 @@ protected:
   unsigned int nPatch(unsigned int j) const;
 
   /// the boundary names participating in the radiative heat transfer
-  std::vector<BoundaryName> _boundary_names;
-
-  /// symmetry sidesets
-  std::vector<BoundaryName> _symmetry_boundary_names;
+  const std::vector<BoundaryName> _boundary_names;
 
   /// the type of view factor calculation being performed
-  MooseEnum _view_factor_calculator;
+  const MooseEnum _view_factor_calculator;
 };

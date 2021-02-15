@@ -12,10 +12,9 @@
 #include "MooseMesh.h"
 #include "MeshGeneratorMesh.h"
 #include "FEProblemBase.h"
-#include "RayTracingStudy.h"
-#include "RayBoundaryConditionBase.h"
-#include "ViewFactorRayStudy.h"
 #include "PatchSidesetGenerator.h"
+#include "ViewFactorRayBC.h"
+#include "ViewFactorRayStudy.h"
 
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "append_mesh_generator");
 registerMooseAction("HeatConductionApp", RadiationTransferAction, "setup_mesh_complete");
@@ -40,14 +39,6 @@ validParams<RadiationTransferAction>()
   params.addParam<std::vector<BoundaryName>>(
       "fixed_temperature_boundary",
       "The fixed temperature boundaries that participate in the radiative exchange.");
-
-  std::vector<BoundaryName> empty = {};
-  params.addParam<std::vector<BoundaryName>>(
-      "symmetry_boundary",
-      empty,
-      "The sidesets that represent symmetry lines/planes for the problem. These sidesets do not "
-      "participate in the radiative exchange"
-      "so they should not be listed in the sidesets parameter.");
 
   params.addParam<std::vector<FunctionName>>("fixed_boundary_temperatures",
                                              "The temperatures of the fixed boundary.");
@@ -75,6 +66,25 @@ validParams<RadiationTransferAction>()
   params.addParam<MooseEnum>(
       "view_factor_calculator", view_factor_calculator, "The view factor calculator being used.");
 
+  params.addParam<bool>(
+      "print_view_factor_info", false, "Flag to print information about computed view factors.");
+  params.addParam<bool>("normalize_view_factor",
+                        true,
+                        "Determines if view factors are normalized to sum to one (consistent with "
+                        "their definition).");
+
+  std::vector<BoundaryName> empty = {};
+  params.addParam<std::vector<BoundaryName>>(
+      "symmetry_boundary",
+      empty,
+      "The sidesets that represent symmetry lines/planes for the problem. These sidesets do not "
+      "participate in the radiative exchange"
+      "so they should not be listed in the sidesets parameter.");
+
+  MooseEnum qtypes("GAUSS GRID", "GRID");
+  params.addParam<MooseEnum>(
+      "ray_tracing_face_type", qtypes, "The face quadrature rule type used for ray tracing.");
+
   MooseEnum qorders("CONSTANT FIRST SECOND THIRD FOURTH FIFTH SIXTH SEVENTH EIGHTH NINTH TENTH "
                     "ELEVENTH TWELFTH THIRTEENTH FOURTEENTH FIFTEENTH SIXTEENTH SEVENTEENTH "
                     "EIGHTTEENTH NINTEENTH TWENTIETH",
@@ -82,12 +92,6 @@ validParams<RadiationTransferAction>()
   params.addParam<MooseEnum>(
       "ray_tracing_face_order", qorders, "The face quadrature rule order used for ray tracing.");
 
-  params.addParam<bool>(
-      "print_view_factor_info", false, "Flag to print information about computed view factors.");
-  params.addParam<bool>("normalize_view_factor",
-                        true,
-                        "Determines if view factors are normalized to sum to one (consistent with "
-                        "their definition).");
   params.addParam<unsigned int>(
       "polar_quad_order",
       16,
@@ -99,46 +103,43 @@ validParams<RadiationTransferAction>()
       "Order of the azimuthal quadrature per quadrant [azimuthal angle is measured in "
       "a plan perpendicular to the normal]. Only used if view_factor_calculator = "
       "ray_tracing.");
-  MooseEnum qtypes("GAUSS GRID", "GRID");
-  params.addParam<MooseEnum>("ray_tracing_face_type", qtypes, "The face quadrature type");
+
   return params;
 }
 
 RadiationTransferAction::RadiationTransferAction(const InputParameters & params)
   : Action(params),
     _boundary_names(getParam<std::vector<BoundaryName>>("boundary")),
-    _symmetry_boundary_names(getParam<std::vector<BoundaryName>>("symmetry_boundary")),
     _view_factor_calculator(getParam<MooseEnum>("view_factor_calculator"))
 {
+  const auto & symmetry_names = getParam<std::vector<BoundaryName>>("symmetry_boundary");
+
   if (_view_factor_calculator != "ray_tracing")
   {
-    if (params.isParamSetByUser("polar_quad_order"))
-      paramWarning("polar_quad_order",
-                   " only used for view_factor_calculator = ray_tracing. It is ignored for this "
-                   "calculation.");
+    for (const auto & param_name : {"polar_quad_order",
+                                    "azimuthal_quad_order",
+                                    "ray_tracing_face_type",
+                                    "ray_tracing_face_order"})
+      if (params.isParamSetByUser(param_name))
+        paramWarning(param_name,
+                     "Only used for view_factor_calculator = ray_tracing. It is ignored for this "
+                     "calculation.");
 
-    if (params.isParamSetByUser("azimuthal_quad_order"))
-      paramWarning("azimuthal_quad_order",
-                   "Only used for view_factor_calculator = ray_tracing. It is ignored for this "
-                   "calculation.");
+    if (symmetry_names.size())
+      paramError("symmetry_boundary",
+                 "Symmetry boundaries are only supported with view_factor_calculator = "
+                 "ray_tracing.");
   }
-
-  // check that there is no overlap between sidesets and symmetry sidesets
-  for (const auto & name : _boundary_names)
-    if (std::find(_symmetry_boundary_names.begin(), _symmetry_boundary_names.end(), name) !=
-        _symmetry_boundary_names.end())
-      paramError("boundary",
-                 "Boundary ",
-                 name,
-                 " is present in parameter boundary and symmetry_boundary.");
-
-  // currently symmetry boundaries only work with view_factor_calculator ==
-  // ray_tracing
-  if (!_symmetry_boundary_names.empty() &&
-      _view_factor_calculator != "ray_tracing")
-    paramError("symmetry_boundary",
-               "Symmetry boundaries are only supported by view_factor_calculator = "
-               "ray_tracing.");
+  else
+  {
+    // check that there is no overlap between sidesets and symmetry sidesets
+    for (const auto & name : _boundary_names)
+      if (std::find(symmetry_names.begin(), symmetry_names.end(), name) != symmetry_names.end())
+        paramError("boundary",
+                   "Boundary ",
+                   name,
+                   " is present in parameter boundary and symmetry_boundary.");
+  }
 }
 
 void
@@ -270,10 +271,11 @@ RadiationTransferAction::addRayBCs() const
   }
 
   // add symmetry BCs if applicable
-  if (_symmetry_boundary_names.size() > 0)
+  const auto & symmetry_names = getParam<std::vector<BoundaryName>>("symmetry_boundary");
+  if (symmetry_names.size() > 0)
   {
     InputParameters params = _factory.getValidParams("ReflectRayBC");
-    params.set<std::vector<BoundaryName>>("boundary") = _symmetry_boundary_names;
+    params.set<std::vector<BoundaryName>>("boundary") = symmetry_names;
     params.set<RayTracingStudy *>("_ray_tracing_study") =
         &_problem->getUserObject<ViewFactorRayStudy>(rayStudyName());
     _problem->addObject<RayBoundaryConditionBase>("ReflectRayBC", symmetryRayBCName(), params);
@@ -281,21 +283,9 @@ RadiationTransferAction::addRayBCs() const
 }
 
 UserObjectName
-RadiationTransferAction::viewFactorObjectName() const
-{
-  return "view_factor_uo_" + _name;
-}
-
-UserObjectName
 RadiationTransferAction::rayStudyName() const
 {
   return "ray_study_uo_" + _name;
-}
-
-UserObjectName
-RadiationTransferAction::radiationObjectName() const
-{
-  return "view_factor_surface_radiation_" + _name;
 }
 
 std::string
@@ -308,6 +298,18 @@ std::string
 RadiationTransferAction::symmetryRayBCName() const
 {
   return "symmetry_ray_bc_" + _name;
+}
+
+UserObjectName
+RadiationTransferAction::viewFactorObjectName() const
+{
+  return "view_factor_uo_" + _name;
+}
+
+UserObjectName
+RadiationTransferAction::radiationObjectName() const
+{
+  return "view_factor_surface_radiation_" + _name;
 }
 
 void

@@ -11,8 +11,6 @@
 
 // MOOSE includes
 #include "TimedPrint.h"
-#include "ReflectRayBC.h"
-#include "RayTracingPackingUtils.h"
 
 // Local includes
 #include "ViewFactorRayBC.h"
@@ -23,6 +21,10 @@
 #include "libmesh/enum_quadrature_type.h"
 #include "libmesh/fe_base.h"
 #include "libmesh/quadrature.h"
+
+// Ray tracing includes
+#include "ReflectRayBC.h"
+#include "RayTracingPackingUtils.h"
 
 registerMooseObject("HeatConductionApp", ViewFactorRayStudy);
 
@@ -50,6 +52,16 @@ ViewFactorRayStudy::validParams()
       "The convention for spawning rays from internal sidesets; denotes the sign of the dot "
       "product between a ray and the internal sideset side normal");
 
+  params.addParam<unsigned int>(
+      "polar_quad_order",
+      16,
+      "Order of the polar quadrature [polar angle is between ray and normal]. Must be even.");
+  params.addParam<unsigned int>(
+      "azimuthal_quad_order",
+      8,
+      "Order of the azimuthal quadrature per quadrant [azimuthal angle is measured in "
+      "a plan perpendicular to the normal].");
+
   // Shouldn't ever need RayKernels for view factors
   params.set<bool>("ray_kernel_coverage_check") = false;
   params.suppressParameter<bool>("ray_kernel_coverage_check");
@@ -69,16 +81,6 @@ ViewFactorRayStudy::validParams()
   params.set<bool>("_use_ray_registration") = false;
   // Do not need to bank Rays on completion
   params.set<bool>("_bank_rays_on_completion") = false;
-
-  params.addParam<unsigned int>(
-      "polar_quad_order",
-      16,
-      "Order of the polar quadrature [polar angle is between ray and normal]. Must be even.");
-  params.addParam<unsigned int>(
-      "azimuthal_quad_order",
-      8,
-      "Order of the azimuthal quadrature per quadrant [azimuthal angle is measured in "
-      "a plan perpendicular to the normal].");
 
   return params;
 }

@@ -119,8 +119,8 @@ protected:
 
   // Whether or not the mesh is 3D
   const bool _is_3d;
-private:
 
+private:
   /// View factor information by tid and then from/to pair
   std::vector<std::unordered_map<BoundaryID, std::unordered_map<BoundaryID, Real>>>
       _threaded_vf_info;

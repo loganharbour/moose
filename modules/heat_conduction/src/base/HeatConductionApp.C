@@ -10,8 +10,8 @@
 #include "HeatConductionApp.h"
 #include "Moose.h"
 #include "AppFactory.h"
-#include "RayTracingApp.h"
 #include "MooseSyntax.h"
+#include "RayTracingApp.h"
 
 InputParameters
 HeatConductionApp::validParams()
@@ -77,6 +77,7 @@ void
 HeatConductionApp::registerObjects(Factory & factory)
 {
   mooseDeprecated("use registerAll instead of registerObjects");
+  RayTracingApp::registerObjects(factory);
   Registry::registerObjectsTo(factory, {"HeatConductionApp"});
 }
 
@@ -84,6 +85,7 @@ void
 HeatConductionApp::associateSyntax(Syntax & syntax, ActionFactory & action_factory)
 {
   mooseDeprecated("use registerAll instead of associateSyntax");
+  RayTracingApp::associateSyntax(syntax, action_factory);
   Registry::registerActionsTo(action_factory, {"HeatConductionApp"});
   associateSyntaxInner(syntax, action_factory);
 }

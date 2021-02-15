@@ -24,14 +24,12 @@ RayTracingViewFactor::validParams()
 }
 
 RayTracingViewFactor::RayTracingViewFactor(const InputParameters & parameters)
-  : ViewFactorBase(parameters), _ray_study(getUserObject<ViewFactorRayStudy>("ray_study_name"))
+  : ViewFactorBase(parameters),
+    _divisor(_mesh.dimension() == 2 ? 2 : libMesh::pi),
+    _ray_study(getUserObject<ViewFactorRayStudy>("ray_study_name"))
 {
   if (_mesh.dimension() == 1)
-    mooseError("View factor calculations for 1D geometry makes no sense");
-  else if (_mesh.dimension() == 2)
-    _divisor = 2;
-  else
-    _divisor = libMesh::pi;
+    mooseError("View factor calculations not support 1D");
 }
 
 void
