@@ -67,3 +67,13 @@ public:
   virtual void finalize() override {}
   virtual void execute() override {}
 };
+
+class TestDeclareErrorsReporter : public GeneralReporter
+{
+public:
+  static InputParameters validParams();
+  TestDeclareErrorsReporter(const InputParameters & parameters);
+  virtual void initialize() override {}
+  virtual void finalize() override {}
+  virtual void execute() override {}
+};
