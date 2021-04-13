@@ -53,7 +53,7 @@ public:
    * see getVectorPostprocessorValueOld getVectorPostprocessorValueByName
    * getVectorPostprocessorValueOldByName
    */
-  virtual const VectorPostprocessorValue &
+  const VectorPostprocessorValue &
   getVectorPostprocessorValue(const std::string & param_name,
                               const std::string & vector_name) const;
 
@@ -74,7 +74,7 @@ public:
    * see getVectorPostprocessorValue getVectorPostprocessorValueOldByName
    * getVectorPostprocessorValueByName
    */
-  virtual const VectorPostprocessorValue &
+  const VectorPostprocessorValue &
   getVectorPostprocessorValueByName(const VectorPostprocessorName & name,
                                     const std::string & vector_name) const;
 
@@ -129,8 +129,9 @@ public:
    * see getVectorPostprocessorValueOld getVectorPostprocessorValueByName
    * getVectorPostprocessorValueOldByName
    */
-  virtual const VectorPostprocessorValue & getVectorPostprocessorValue(
-      const std::string & param_name, const std::string & vector_name, bool needs_broadcast) const;
+  const VectorPostprocessorValue & getVectorPostprocessorValue(const std::string & param_name,
+                                                               const std::string & vector_name,
+                                                               bool needs_broadcast) const;
 
   /**
    * Retrieve the value of the VectorPostprocessor
@@ -148,7 +149,7 @@ public:
    * see getVectorPostprocessorValue getVectorPostprocessorValueOldByName
    * getVectorPostprocessorValueByName
    */
-  virtual const VectorPostprocessorValue &
+  const VectorPostprocessorValue &
   getVectorPostprocessorValueByName(const VectorPostprocessorName & name,
                                     const std::string & vector_name,
                                     bool needs_broadcast) const;
@@ -163,8 +164,9 @@ public:
    *
    * see getVectorPostprocessorValue
    */
-  virtual const VectorPostprocessorValue & getVectorPostprocessorValueOld(
-      const std::string & param_name, const std::string & vector_name, bool needs_broadcast) const;
+  const VectorPostprocessorValue & getVectorPostprocessorValueOld(const std::string & param_name,
+                                                                  const std::string & vector_name,
+                                                                  bool needs_broadcast) const;
 
   /**
    * Retrieve the old value of a VectorPostprocessor
@@ -181,7 +183,7 @@ public:
    *
    * see getVectorPostprocessorValueByName
    */
-  virtual const VectorPostprocessorValue &
+  const VectorPostprocessorValue &
   getVectorPostprocessorValueOldByName(const VectorPostprocessorName & name,
                                        const std::string & vector_name,
                                        bool needs_broadcast) const;
@@ -197,7 +199,7 @@ public:
    * @param vector_name The name of the vector
    * @return The reference to the current scatter value
    */
-  virtual const ScatterVectorPostprocessorValue &
+  const ScatterVectorPostprocessorValue &
   getScatterVectorPostprocessorValue(const std::string & param_name,
                                      const std::string & vector_name) const;
 
@@ -212,7 +214,7 @@ public:
    * @param vector_name The name of the vector
    * @return The reference to the current scatter value
    */
-  virtual const ScatterVectorPostprocessorValue &
+  const ScatterVectorPostprocessorValue &
   getScatterVectorPostprocessorValueByName(const VectorPostprocessorName & name,
                                            const std::string & vector_name) const;
 
@@ -227,7 +229,7 @@ public:
    * @param vector_name The name of the vector
    * @return The reference to the old scatter value
    */
-  virtual const ScatterVectorPostprocessorValue &
+  const ScatterVectorPostprocessorValue &
   getScatterVectorPostprocessorValueOld(const std::string & param_name,
                                         const std::string & vector_name) const;
 
@@ -242,7 +244,7 @@ public:
    * @param vector_name The name of the vector
    * @return The reference to the old scatter value
    */
-  virtual const ScatterVectorPostprocessorValue &
+  const ScatterVectorPostprocessorValue &
   getScatterVectorPostprocessorValueOldByName(const VectorPostprocessorName & name,
                                               const std::string & vector_name) const;
 
@@ -296,6 +298,16 @@ public:
    * @return The name of the given VectorPostprocessor
    */
   const VectorPostprocessorName & getVectorPostprocessorName(const std::string & param_name) const;
+
+protected:
+  /**
+   * Helper for deriving classes to override to add dependencies when a UserObject
+   * is requested.
+   */
+  virtual void
+  addVectorPostprocessorDependencyHelper(const VectorPostprocessorName & /* name */) const
+  {
+  }
 
 private:
   /**
