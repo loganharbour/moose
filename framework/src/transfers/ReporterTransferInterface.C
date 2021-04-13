@@ -11,6 +11,7 @@
 
 #include "UserObject.h"
 #include "Reporter.h"
+#include "Transfer.h"
 
 InputParameters
 ReporterTransferInterface::validParams()
@@ -19,14 +20,21 @@ ReporterTransferInterface::validParams()
   return params;
 }
 
-ReporterTransferInterface::ReporterTransferInterface(const InputParameters & /*parameters*/) {}
+ReporterTransferInterface::ReporterTransferInterface(const Transfer * transfer)
+  : _rti_transfer(*transfer)
+{
+}
 
 void
 ReporterTransferInterface::addReporterTransferMode(const ReporterName & name,
                                                    const ReporterMode & mode,
                                                    FEProblemBase & problem)
 {
-  problem.getReporterData(ReporterData::WriteKey()).addConsumerMode(mode, name);
+  check(name, problem, "addReporterTransferMode()");
+
+  problem.getReporterData(ReporterData::WriteKey())
+      .getReporterStateBase(name)
+      .addConsumer(mode, _rti_transfer);
 }
 
 void
@@ -36,9 +44,11 @@ ReporterTransferInterface::transferReporter(const ReporterName & from_reporter,
                                             FEProblemBase & to_problem,
                                             unsigned int time_index)
 {
+  check(from_reporter, to_reporter, from_problem, to_problem, "transferReporter()");
+
   const ReporterData & from_data = from_problem.getReporterData();
   ReporterData & to_data = to_problem.getReporterData(ReporterData::WriteKey());
-  from_data.transfer(from_reporter, to_reporter, to_data, time_index);
+  from_data.getReporterContextBase(from_reporter).transfer(to_data, to_reporter, time_index);
 }
 
 void
@@ -49,10 +59,12 @@ ReporterTransferInterface::transferToVectorReporter(const ReporterName & from_re
                                                     dof_id_type index,
                                                     unsigned int time_index)
 {
+  check(from_reporter, to_reporter, from_problem, to_problem, "transferToVectorReporter()");
+
   const ReporterData & from_data = from_problem.getReporterData();
   ReporterData & to_data = to_problem.getReporterData(ReporterData::WriteKey());
-  const ReporterContextBase * from_context = from_data.getReporterContextBase(from_reporter);
-  from_context->transferToVector(to_data, to_reporter, index, time_index);
+  from_data.getReporterContextBase(from_reporter)
+      .transferToVector(to_data, to_reporter, index, time_index);
 }
 
 void
@@ -62,10 +74,12 @@ ReporterTransferInterface::declareClone(const ReporterName & from_reporter,
                                         FEProblemBase & to_problem,
                                         const ReporterMode & mode)
 {
+  check(from_reporter, from_problem, "declareClone()");
+
   const ReporterData & from_data = from_problem.getReporterData();
   ReporterData & to_data = to_problem.getReporterData(ReporterData::WriteKey());
-  const ReporterContextBase * from_context = from_data.getReporterContextBase(from_reporter);
-  from_context->declareClone(to_data, to_reporter, mode);
+  from_data.getReporterContextBase(from_reporter)
+      .declareClone(to_data, to_reporter, mode, _rti_transfer);
 
   // Hide variables (if requested in parameters) if name is associated with a reporter object
   if (to_problem.hasUserObject(to_reporter.getObjectName()))
@@ -84,10 +98,13 @@ ReporterTransferInterface::declareVectorClone(const ReporterName & from_reporter
                                               FEProblemBase & to_problem,
                                               const ReporterMode & mode)
 {
+  check(from_reporter, from_problem, "declareVectorClone()");
+
   const ReporterData & from_data = from_problem.getReporterData();
   ReporterData & to_data = to_problem.getReporterData(ReporterData::WriteKey());
-  const ReporterContextBase * from_context = from_data.getReporterContextBase(from_reporter);
-  from_context->declareVectorClone(to_data, to_reporter, mode);
+
+  from_data.getReporterContextBase(from_reporter)
+      .declareVectorClone(to_data, to_reporter, mode, _rti_transfer);
 
   // Hide variables (if requested in parameters) if name is associated with a reporter object
   if (to_problem.hasUserObject(to_reporter.getObjectName()))
@@ -104,8 +121,9 @@ ReporterTransferInterface::resizeReporter(const ReporterName & name,
                                           FEProblemBase & problem,
                                           dof_id_type n)
 {
-  ReporterData & data = problem.getReporterData(ReporterData::WriteKey());
-  data.resize(name, n);
+  check(name, problem, "resizeReporter()");
+
+  problem.getReporterData(ReporterData::WriteKey()).getReporterContextBase(name).resize(n);
 }
 
 std::vector<ReporterName>
@@ -120,4 +138,45 @@ ReporterTransferInterface::getReporterNamesHelper(std::string prefix,
   for (const auto & rn : rep_names)
     rnames.emplace_back(obj_name, prefix + rn.getObjectName() + ":" + rn.getValueName());
   return rnames;
+}
+
+void
+ReporterTransferInterface::check(const ReporterName & reporter,
+                                 const FEProblemBase & problem,
+                                 const std::string & method) const
+{
+  if (!problem.getReporterData().hasReporterValue(reporter))
+    _rti_transfer.mooseError("In ",
+                             method,
+                             ": Reporter with the name \"",
+                             reporter,
+                             "\" within app \"",
+                             problem.getMooseApp().name(),
+                             "\" was not found.");
+}
+
+void
+ReporterTransferInterface::check(const ReporterName & from_reporter,
+                                 const ReporterName & to_reporter,
+                                 const FEProblemBase & from_problem,
+                                 const FEProblemBase & to_problem,
+                                 const std::string & method) const
+{
+  if (!from_problem.getReporterData().hasReporterValue(from_reporter))
+    _rti_transfer.mooseError("In ",
+                             method,
+                             ": Reporter with the name \"",
+                             from_reporter,
+                             "\"\n was not found within app \"",
+                             from_problem.getMooseApp().name(),
+                             "\".");
+
+  if (!to_problem.getReporterData().hasReporterValue(to_reporter))
+    _rti_transfer.mooseError("In ",
+                             method,
+                             ": Reporter with the name \"",
+                             to_reporter,
+                             "\"\n was not found within app \"",
+                             to_problem.getMooseApp().name(),
+                             "\".");
 }

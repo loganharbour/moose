@@ -26,3 +26,35 @@ ReporterContextBase::getProducerModeEnum() const
 {
   return _producer_enum;
 }
+
+void
+ReporterContextBase::requiresConsumerModes(const ReporterStateBase & state,
+                                           const std::set<ReporterMode> & modes)
+{
+  for (const auto & mode_object_pair : state.getConsumers())
+  {
+    const ReporterMode consumer_mode = mode_object_pair.first;
+    const MooseObject * moose_object = mode_object_pair.second;
+
+    if (!modes.count(consumer_mode))
+    {
+      std::stringstream oss;
+      std::copy(modes.begin(), modes.end(), std::ostream_iterator<ReporterMode>(oss, " "));
+
+      mooseError("The Reporter value '",
+                 name(),
+                 "' is being produced in ",
+                 _producer_enum,
+                 " mode, but ",
+                 moose_object->type(),
+                 " '",
+                 moose_object->name(),
+                 "' is requesting to consume it in ",
+                 consumer_mode,
+                 " mode, which is not supported.\n\nThe mode must be { ",
+                 oss.str(),
+                 " }.\n\n",
+                 state.getInfo(this));
+    }
+  }
+}
