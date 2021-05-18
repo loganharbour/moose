@@ -226,8 +226,10 @@ private:
     auto param_prefix = paramErrorPrefix(_pars, param);
 
     // With no input location information, append object info (name + type)
-    const std::string object_prefix =
-        _pars.inputLocation(param).empty() ? errorPrefix("parameter error") : "";
+    const std::string object_prefix = (_pars.inputLocation(param).empty() ||
+                                       _pars.paramFullpath(param).rfind("GlobalParams", 0) == 0)
+                                          ? errorPrefix("parameter error")
+                                          : "";
 
     std::ostringstream oss;
     moose::internal::mooseStreamAll(oss, std::forward<Args>(args)...);
