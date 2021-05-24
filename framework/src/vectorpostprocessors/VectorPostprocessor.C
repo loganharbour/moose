@@ -87,6 +87,15 @@ VectorPostprocessor::declareVector(const std::string & vector_name)
           VectorPostprocessorReporterName(_vpp_name, vector_name), mode, _vpp_moose_object);
 }
 
+std::vector<VectorPostprocessorValue *>
+VectorPostprocessor::declareVectors(const std::vector<std::string> & vector_names)
+{
+  std::vector<VectorPostprocessorValue *> vectors(vector_names.size());
+  for (const auto i : index_range(vector_names))
+    vectors[i] = &declareVector(vector_names[i]);
+  return vectors;
+}
+
 const std::set<std::string> &
 VectorPostprocessor::getVectorNames() const
 {

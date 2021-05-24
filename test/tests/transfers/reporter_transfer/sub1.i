@@ -10,14 +10,14 @@
 
 [VectorPostprocessors]
   [to_sub_vpp]
-    type = ConstantVectorPostprocessor
+    type = ReceiverVectorPostprocessor
     vector_names = 'a b'
-    value = '11 11 11 ; 21 21 21'
+    default_values = '11 11 11; 21 21 21'
   []
   [from_sub_vpp]
-    type = ConstantVectorPostprocessor
+    type = ReceiverVectorPostprocessor
     vector_names = 'a b'
-    value = '31 31 31; 41 41 41'
+    default_values = '31 31 31; 41 41 41'
   []
 []
 

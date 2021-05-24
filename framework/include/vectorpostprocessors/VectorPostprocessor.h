@@ -68,6 +68,11 @@ protected:
    * Register a new vector to fill up.
    */
   VectorPostprocessorValue & declareVector(const std::string & vector_name);
+  /**
+   * Registers new vectors to fill up.
+   */
+  std::vector<VectorPostprocessorValue *>
+  declareVectors(const std::vector<std::string> & vector_names);
 
   /// The name of the VectorPostprocessor
   const std::string _vpp_name;
