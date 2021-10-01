@@ -321,7 +321,7 @@ PerfGraph::updateTiming()
     section_time._total_memory = 0.;
   }
 
-  recursivelyFillTime(_root_node.get());
+  recursivelyFillTime(*_root_node);
 
   // Update vector pointing to section times
   // Note: we are doing this _after_ recursively filling
@@ -337,156 +337,31 @@ PerfGraph::updateTiming()
 }
 
 void
-PerfGraph::recursivelyFillTime(PerfNode * current_node)
+PerfGraph::recursivelyFillTime(const PerfNode & current_node)
 {
-  auto id = current_node->id();
-
-  auto self = std::chrono::duration<double>(current_node->selfTime()).count();
-  auto children = std::chrono::duration<double>(current_node->childrenTime()).count();
-  auto total = std::chrono::duration<double>(current_node->totalTime()).count();
-  auto num_calls = current_node->numCalls();
-
-  auto self_memory = current_node->selfMemory();
-  auto children_memory = current_node->childrenMemory();
-  auto total_memory = current_node->totalMemory();
-
-  auto & section_info = _perf_graph_registry.readSectionInfo(id);
+  const auto & section_name = _perf_graph_registry.readSectionInfo(current_node.id())._name;
 
   // RHS insertion on purpose
-  auto & section_time = _section_time[section_info._name];
+  auto & section_time = _section_time[section_name];
 
-  section_time._self += self;
-  section_time._children += children;
-  section_time._total += total;
-  section_time._num_calls += num_calls;
+  section_time._self += current_node.selfTimeSec();
+  section_time._children += current_node.childrenTimeSec();
+  section_time._total += current_node.totalTimeSec();
+  section_time._num_calls += current_node.numCalls();
 
-  section_time._self_memory += self_memory;
-  section_time._children_memory += children_memory;
-  section_time._total_memory += total_memory;
+  section_time._self_memory += current_node.selfMemory();
+  section_time._children_memory += current_node.childrenMemory();
+  section_time._total_memory += current_node.totalMemory();
 
-  for (auto & child_it : current_node->children())
-    recursivelyFillTime(child_it.second.get());
+  for (auto & child_it : current_node.children())
+    recursivelyFillTime(*child_it.second);
 }
 
-void
-PerfGraph::recursivelyPrintGraph(PerfNode * current_node,
-                                 FullTable & vtable,
-                                 unsigned int level,
-                                 unsigned int current_depth)
-{
-  mooseAssert(_perf_graph_registry.sectionExists(current_node->id()),
-              "Unable to find section name!");
-
-  auto & current_section_info = _perf_graph_registry.readSectionInfo(current_node->id());
-
-  auto & name = current_section_info._name;
-  auto & node_level = current_section_info._level;
-
-  if (node_level <= level)
-  {
-    mooseAssert(!_section_time_ptrs.empty(),
-                "updateTiming() must be run before recursivelyPrintGraph!");
-
-    auto section = std::string(current_depth * 2, ' ') + name;
-
-    // The total time of the root node
-    auto total_root_time = std::chrono::duration<double>(_root_node->totalTime()).count();
-
-    auto num_calls = current_node->numCalls();
-    auto self = std::chrono::duration<double>(current_node->selfTime()).count();
-    auto self_avg = self / static_cast<Real>(num_calls);
-    auto self_percent = 100. * self / total_root_time;
-
-    auto total = std::chrono::duration<double>(current_node->totalTime()).count();
-    auto total_avg = total / static_cast<Real>(num_calls);
-    auto total_percent = 100. * total / total_root_time;
-
-    auto self_memory = current_node->selfMemory();
-    auto total_memory = current_node->totalMemory();
-
-    vtable.addRow(section,
-                  num_calls,
-                  self,
-                  self_avg,
-                  self_percent,
-                  self_memory,
-                  total,
-                  total_avg,
-                  total_percent,
-                  total_memory);
-
-    current_depth++;
-  }
-
-  for (auto & child_it : current_node->children())
-    recursivelyPrintGraph(child_it.second.get(), vtable, level, current_depth);
-}
-
-void
-PerfGraph::recursivelyPrintHeaviestGraph(PerfNode * current_node,
-                                         FullTable & vtable,
-                                         unsigned int current_depth)
-{
-  mooseAssert(!_section_time_ptrs.empty(),
-              "updateTiming() must be run before recursivelyPrintGraph!");
-
-  mooseAssert(_perf_graph_registry.sectionExists(current_node->id()),
-              "Could not find section info!");
-
-  auto & name = _perf_graph_registry.sectionInfo(current_node->id())._name;
-
-  auto section = std::string(current_depth * 2, ' ') + name;
-
-  // The total time of the root node
-  auto total_root_time = _section_time_ptrs[_root_node_id]->_total;
-
-  auto num_calls = current_node->numCalls();
-  auto self = std::chrono::duration<double>(current_node->selfTime()).count();
-  auto self_avg = self / static_cast<Real>(num_calls);
-  auto self_percent = 100. * self / total_root_time;
-
-  auto total = std::chrono::duration<double>(current_node->totalTime()).count();
-  auto total_avg = total / static_cast<Real>(num_calls);
-  auto total_percent = 100. * total / total_root_time;
-
-  auto self_memory = current_node->selfMemory();
-  auto total_memory = current_node->totalMemory();
-
-  vtable.addRow(section,
-                num_calls,
-                self,
-                self_avg,
-                self_percent,
-                self_memory,
-                total,
-                total_avg,
-                total_percent,
-                total_memory);
-
-  current_depth++;
-
-  if (!current_node->children().empty())
-  {
-    PerfNode * heaviest_child = nullptr;
-
-    for (auto & child_it : current_node->children())
-    {
-      auto current_child = child_it.second.get();
-
-      if (!heaviest_child || (current_child->totalTime() > heaviest_child->totalTime()))
-        heaviest_child = current_child;
-    }
-
-    recursivelyPrintHeaviestGraph(heaviest_child, vtable, current_depth);
-  }
-}
-
-void
-PerfGraph::print(const ConsoleStream & console, unsigned int level)
+PerfGraph::FullTable
+PerfGraph::treeTable(const unsigned int level, const bool heaviest /* = false */)
 {
   updateTiming();
 
-  console << "\nPerformance Graph:\n";
   FullTable vtable({"Section",
                     "Calls",
                     "Self(s)",
@@ -525,55 +400,37 @@ PerfGraph::print(const ConsoleStream & console, unsigned int level)
       0, // Memory
   });
 
-  recursivelyPrintGraph(_root_node.get(), vtable, level);
-  vtable.print(console);
+  auto act = [&vtable](const TreeInfo & info) {
+    vtable.addRow(std::string(info.depth() * 2, ' ') + info.name(),   // Section Name
+                  info.node().numCalls(),                             // Calls
+                  info.node().selfTimeSec(),                          // Self
+                  info.node().selfTimeAvg(),                          // Avg.
+                  100. * info.node().selfTimeSec() / info.rootTime(), // %
+                  info.node().selfMemory(),                           // Memory
+                  info.node().totalTimeSec(),                         // Total
+                  info.node().totalTimeAvg(),                         // Avg.
+                  100. * info.node().selfTimeSec() / info.rootTime(), // %
+                  info.node().totalMemory());                         // Memory
+  };
+  treeRecurse(*_root_node, act, level, heaviest, 0);
+
+  return vtable;
+}
+
+void
+PerfGraph::print(const ConsoleStream & console, unsigned int level)
+{
+  console << "\nPerformance Graph:\n";
+  treeTable(level).print(console);
 }
 
 void
 PerfGraph::printHeaviestBranch(const ConsoleStream & console)
 {
-  updateTiming();
-
   console << "\nHeaviest Branch:\n";
-  FullTable vtable({"Section",
-                    "Calls",
-                    "Self(s)",
-                    "Avg(s)",
-                    "%",
-                    "Mem(MB)",
-                    "Total(s)",
-                    "Avg(s)",
-                    "%",
-                    "Mem(MB)"},
-                   10);
-
-  vtable.setColumnFormat({VariadicTableColumnFormat::AUTO,    // Section Name
-                          VariadicTableColumnFormat::AUTO,    // Calls
-                          VariadicTableColumnFormat::FIXED,   // Self
-                          VariadicTableColumnFormat::FIXED,   // Avg.
-                          VariadicTableColumnFormat::PERCENT, // %
-                          VariadicTableColumnFormat::AUTO,    // Memory
-                          VariadicTableColumnFormat::FIXED,   // Total
-                          VariadicTableColumnFormat::FIXED,   // Avg.
-                          VariadicTableColumnFormat::PERCENT, // %
-                          VariadicTableColumnFormat::AUTO});  // Memory
-
-  vtable.setColumnPrecision({
-      1, // Section Name
-      0, // Calls
-      3, // Self
-      3, // Avg.
-      2, // %
-      0, // Memory
-      3, // Total
-      3, // Avg.
-      2, // %
-      0, // Memory
-  });
-
-  recursivelyPrintHeaviestGraph(_root_node.get(), vtable);
-  vtable.print(console);
+  treeTable(MAX_STACK_SIZE, /* heaviest = */ true).print(console);
 }
+
 
 void
 PerfGraph::printHeaviestSections(const ConsoleStream & console, const unsigned int num_sections)
