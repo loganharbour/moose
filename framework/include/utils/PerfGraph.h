@@ -29,6 +29,8 @@
 // Forward Declarations
 class PerfGuard;
 class PerfGraphLivePrint;
+class PerfTreeInfo;
+class PerfSectionInfo;
 
 template <class... Ts>
 class VariadicTable;
@@ -224,9 +226,23 @@ public:
   }
 
   /**
-   * Udates the time section_time and time for all currently running nodes
+   * Updates the time section_time and time for all currently running nodes
    */
   void updateTiming();
+
+  /**
+   * Fills the tree into objects that can easily be used for output.
+   *
+   * @param level The level to print out below (<=)
+   * @param heaviest Whether or not to fill only the heaviest branch
+   */
+  std::vector<std::shared_ptr<PerfTreeInfo>> treeInfo(const unsigned int level,
+                                                      const bool heaviest = false);
+
+  /**
+   * Gets the \p num_sections heaviest sections; to be used for output.
+   */
+  std::vector<PerfSectionInfo> heaviestSectionInfo(const unsigned int num_sections);
 
 protected:
   typedef VariadicTable<std::string,
@@ -354,30 +370,6 @@ protected:
   void pop();
 
   /**
-   * Helper for printing out the graph
-   *
-   * @param current_node The node to be working on right now
-   * @param console Where to print to
-   * @param level The level to print out below (<=)
-   * @param current_depth - Used in the recursion
-   */
-  void recursivelyPrintGraph(PerfNode * current_node,
-                             FullTable & vtable,
-                             unsigned int level,
-                             unsigned int current_depth = 0);
-
-  /**
-   * Helper for printing out the trace that has taken the most time
-   *
-   * @param current_node The node to be working on right now
-   * @param console Where to print to
-   * @param current_depth - Used in the recursion
-   */
-  void recursivelyPrintHeaviestGraph(PerfNode * current_node,
-                                     FullTable & vtable,
-                                     unsigned int current_depth = 0);
-
-  /**
    * Updates the cumulative self/children/total time
    *
    * Note: requires that self/children/total time are resized and zeroed before calling.
@@ -385,13 +377,6 @@ protected:
    * @param current_node The current node to work on
    */
   void recursivelyFillTime(PerfNode * current_node);
-
-  /**
-   * Helper for printing out the heaviest sections
-   *
-   * @param console Where to print to
-   */
-  void printHeaviestSections(const ConsoleStream & console);
 
   /// Whether or not to put everything in the perf graph
   bool _live_print_all;
@@ -479,4 +464,30 @@ protected:
   // Here so PerfGuard is the only thing that can call push/pop
   friend class PerfGuard;
   friend class PerfGraphLivePrint;
+
+private:
+  /**
+   * Helper for recursively filling treeInfo()
+   *
+   * @param parent_node_info The info for the parent node
+   * @param current_node The current node being added
+   * @param info The data structure to fill the info into
+   * @param level The level to print out below (<=)
+   * @param heaviest Whether or not to fill only the heaviest branch
+   * @param current_depth - Used in the recursion
+   */
+  void recursivelyFillTreeInfo(const std::shared_ptr<PerfTreeInfo> parent_node_info,
+                               const PerfNode & current_node,
+                               std::vector<std::shared_ptr<PerfTreeInfo>> & info,
+                               const unsigned int level,
+                               const bool heaviest,
+                               unsigned int current_depth) const;
+
+  /**
+   * Helper for building a VariadicTable that represents the tree.
+   *
+   * @param level The level to print out below (<=)
+   * @param heaviest Show only the heaviest branch
+   */
+  FullTable treeTable(const unsigned int level, const bool heaviest = false);
 };
