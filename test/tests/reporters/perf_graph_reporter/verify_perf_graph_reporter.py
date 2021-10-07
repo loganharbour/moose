@@ -8,7 +8,7 @@ def node_name(node):
     return 'Node {} with name "{}"'.format(node.id(), node.name())
 
 def check_section(pgr, name):
-    if name not in pgr.sections():
+    if not pgr.section(name):
         sys.exit(name + ' is not a section'.format(name))
 
 def check_level(node, level):
@@ -29,6 +29,12 @@ def check_num_children(node, num_children):
 
 def check(file, pid, recover):
     pgr = PerfGraphReporterReader(file, part=pid)
+
+    print(pgr.rootNode().showGraph())
+    # print(pgr.section('FEProblem::initialSetup').nodes()[0].showGraph())
+    # print(pgr.section('FEProblem::init'))
+    # for node in pgr.section('Console::outputStep').nodes():
+    #     print(node.path())
 
     # The name of the root node
     root_name = 'MooseTestApp (main)'

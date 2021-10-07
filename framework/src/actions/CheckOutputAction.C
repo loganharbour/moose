@@ -17,6 +17,7 @@
 #include "MooseVariableScalar.h"
 #include "AuxiliarySystem.h"
 #include "NonlinearSystemBase.h"
+#include "JSONOutput.h"
 
 registerMooseAction("MooseApp", CheckOutputAction, "check_output");
 

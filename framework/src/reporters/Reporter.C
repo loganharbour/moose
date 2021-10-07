@@ -16,7 +16,6 @@ Reporter::validParams()
 {
   InputParameters params = emptyInputParameters();
   params += OutputInterface::validParams();
-
   params.registerBase("Reporter");
   return params;
 }

@@ -18,6 +18,8 @@ public:
   static InputParameters validParams();
   JSONOutput(const InputParameters & parameters);
 
+  void check();
+
 protected:
   virtual void output(const ExecFlagType & type) override;
   virtual void outputReporters() override;
