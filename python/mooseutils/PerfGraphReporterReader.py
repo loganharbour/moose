@@ -10,15 +10,31 @@
 from mooseutils.ReporterReader import ReporterReader
 
 class PerfGraphObject:
+    """
+    Base class PerfGraphNode and PerfGraphSection.
+
+    This allows the interface for these two objects to be
+    similar and reduces duplication.
+    """
     def __init__(self, name, level):
+        # The name for this section
         self._name = name
+
+        # The level assigned to this section
         self._level = level
+
+        # The nodes associated with this object. For a PerfGraphNode,
+        # this is a single node. For a PerfGraphSection this is one or
+        # more nodes in said section.
         self._nodes = []
 
     def __str__(self):
         return self.info()
 
     def _addNode(self, node):
+        """
+        Internal method for adding a node to this object.
+        """
         if node not in self._nodes:
             self._nodes.append(node)
 
@@ -29,6 +45,10 @@ class PerfGraphObject:
         return sum([do(node) for node in self._nodes])
 
     def info(self):
+        """
+        Returns the number of calls, the time, and the memory
+        in a human readable form.
+        """
         info_str = 'Num calls: {}'.format(self.numCalls())
         info_str += '\nTime ({:.2f}%): Self {:.2e} s, Children {:.2e} s, Total {:.2e} s'.format(self.percentTime(), self.selfTime(), self.childrenTime(), self.totalTime())
         info_str += '\nMemory ({:.2f}%): Self {} MB, Children {} MB, Total {} MB'.format(self.percentMemory(), self.selfMemory(), self.childrenMemory(), self.totalMemory())
@@ -126,11 +146,9 @@ class PerfGraphNode(PerfGraphObject):
         # Validate that the data in the node is as we expect
         self._validateNodeData(name, node_data)
 
-        # Sets self._id, self._level, self._memory, etc...
-        self._name = name
-        for key, val in node_data.items():
-            if key in self._validNodeData():
-                setattr(self, '_' + key, val)
+        self._memory = node_data['memory']
+        self._num_calls = node_data['num_calls']
+        self._time = node_data['time']
 
         super().__init__(name, node_data['level'])
         self._addNode(self)
@@ -145,10 +163,15 @@ class PerfGraphNode(PerfGraphObject):
             if key not in self._validNodeData():
                 self._children.append(PerfGraphNode(key, val, self))
 
+        # We will fill the section after we build the graph
         self._section = None
 
     @staticmethod
     def _validNodeData():
+        """
+        Returns a dict of the valid keys for a single node from JSON
+        and to their corresponding types.
+        """
         return {'level': int, 'memory': int, 'num_calls': int, 'time': float}
 
     @staticmethod
@@ -167,7 +190,7 @@ class PerfGraphNode(PerfGraphObject):
         return self.child(name)
 
     def info(self):
-        info_str = 'PerfGraphNode "' + self.path() + '":'
+        info_str = 'PerfGraphNode "' + '/'.join(self.path()) + '":'
         info_str += '\n  ' + super().info().replace('\n', '\n  ')
         if self.children():
             info_str += '\n  Children:'
@@ -181,7 +204,7 @@ class PerfGraphNode(PerfGraphObject):
         while parent.parent() is not None:
             names.append(parent.parent().name())
             parent = parent.parent()
-        return '/'.join(names[::-1])
+        return names[::-1]
 
     def section(self):
         """
@@ -224,7 +247,7 @@ class PerfGraphSection(PerfGraphObject):
         info_str += '\n  ' + super().info().replace('\n', '\n  ')
         info_str += '\n  Nodes:'
         for node in self.nodes():
-            info_str += '\n    ' + node.path()
+            info_str += '\n    ' + '/'.join(node.path())
         return info_str
 
     def nodes(self):
