@@ -58,10 +58,11 @@ requirements:
     - libtool                   # [osx]
     - make                      # [osx]
     - mpi 1.0 mpich
-
-  test:
-    commands:
-      - echo "It works!"
+test:
+  script: run_test.sh
+  files:
+    - mpiexec.sh
+    - tests/helloworld.sh
 
 about:
   home: http://www.mpich.org/
