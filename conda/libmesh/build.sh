@@ -73,11 +73,10 @@ elif [[ $mpi == "moose-mpich" ]]; then
 fi
 
 source $SRC_DIR/configure_libmesh.sh
-configure_libmesh --prefix=${PREFIX}/libmesh \
-                  --with-vtk-lib=${BUILD_PREFIX}/libmesh-vtk/lib \
-                  --with-vtk-include=${BUILD_PREFIX}/libmesh-vtk/include/vtk-${SHORT_VTK_NAME} \
-                  --with-methods="opt oprof devel dbg" \
-                  --without-gdb-command
+METHODS="opt prof devel dbg" configure_libmesh --prefix=${PREFIX}/libmesh \
+                                               --with-vtk-lib=${BUILD_PREFIX}/libmesh-vtk/lib \
+                                               --with-vtk-include=${BUILD_PREFIX}/libmesh-vtk/include/vtk-${SHORT_VTK_NAME} \
+                                               --without-gdb-command
 
 make -j $CPU_COUNT
 make install

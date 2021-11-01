@@ -161,8 +161,7 @@ if [ -z "$go_fast" ]; then
   fi
 
   source $SCRIPT_DIR/configure_libmesh.sh
-  configure_libmesh INSTALL="${INSTALL_BINARY}" \
-                    --with-methods="${METHODS}" \
+  configure_libmesh INSTALL=${INSTALL_BINARY} \
                     --prefix=$LIBMESH_DIR \
                     $DISABLE_TIMESTAMPS $VTK_OPTIONS $* | tee -a "$SCRIPT_DIR/$DIAGNOSTIC_LOG" || exit 1
 else

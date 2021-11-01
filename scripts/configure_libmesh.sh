@@ -15,6 +15,11 @@
 # - conda/libmesh/build.sh
 function configure_libmesh()
 {
+  if [ -z "$METHODS" ]; then
+    echo "METHODS must be set in configure_libmesh"
+    exit 1
+  fi
+
   ../configure --enable-silent-rules \
                --enable-unique-id \
                --disable-warnings \
@@ -23,7 +28,8 @@ function configure_libmesh()
                --disable-maintainer-mode \
                --enable-petsc-hypre-required \
                --enable-metaphysicl-required \
-               --with-cxx-std-min=2014
+               --with-cxx-std-min=2014 \
+               "--with-methods=\"${METHODS}\""
 
   return $?
 }
