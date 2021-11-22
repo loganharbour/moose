@@ -30,12 +30,12 @@ JsonSyntaxTree::JsonSyntaxTree(const std::string & search_string) : _search(sear
 {
   // Registry holds a map with labels (ie MooseApp) as keys and a vector of RegistryEntry
   // as values. We need the reverse map: given an action or object name then get the label.
-  auto & actmap = Registry::allActions();
+  auto & actmap = moose::internal::getRegistry().allActions();
   for (auto & entry : actmap)
     for (auto & act : entry.second)
       _action_label_map[act._classname] = std::make_pair(entry.first, act._file);
 
-  auto & objmap = Registry::allObjects();
+  auto & objmap = moose::internal::getRegistry().allObjects();
   for (auto & entry : objmap)
     for (auto & obj : entry.second)
     {

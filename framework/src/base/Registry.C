@@ -16,46 +16,40 @@
 
 #include <memory>
 
-static Registry &
+namespace moose
+{
+namespace internal
+{
+
+Registry &
 getRegistry()
 {
-  static std::unique_ptr<Registry> _singleton;
-  if (!_singleton)
-    _singleton = std::make_unique<Registry>();
-  return *_singleton;
+  static Registry registry_singleton;
+  return registry_singleton;
 }
 
-const std::map<std::string, std::vector<RegistryEntry>> &
-Registry::allObjects()
-{
-  return getRegistry()._per_label_objects;
 }
-const std::map<std::string, std::vector<RegistryEntry>> &
-Registry::allActions()
-{
-  return getRegistry()._per_label_actions;
 }
 
 void
 Registry::addInner(const RegistryEntry & info)
 {
-  auto & r = getRegistry();
-  r._per_label_objects[info._label].push_back(info);
+  _per_label_objects[info._label].push_back(info);
 }
 
 void
 Registry::addActionInner(const RegistryEntry & info)
 {
-  auto & r = getRegistry();
-  r._per_label_actions[info._label].push_back(info);
+  _per_label_actions[info._label].push_back(info);
 }
 
 std::set<std::pair<std::string, std::string>>
-Registry::getLegacyConstructedObjects()
+Registry::getLegacyConstructedObjects() const
 {
   std::set<std::pair<std::string, std::string>> objects;
 
-  const auto add = [&objects](const auto & per_label_map) {
+  const auto add = [&objects](const auto & per_label_map)
+  {
     for (const auto & label_entries_pair : per_label_map)
     {
       const auto & label = label_entries_pair.first;
@@ -73,8 +67,8 @@ Registry::getLegacyConstructedObjects()
     }
   };
 
-  add(getRegistry()._per_label_objects);
-  add(getRegistry()._per_label_actions);
+  add(allObjects());
+  add(allActions());
 
   return objects;
 }
@@ -82,7 +76,8 @@ Registry::getLegacyConstructedObjects()
 void
 Registry::registerObjectsTo(Factory & f, const std::set<std::string> & labels)
 {
-  auto & r = getRegistry();
+  auto & r = moose::internal::getRegistry();
+
   for (const auto & label : labels)
   {
     r._known_labels.insert(label);
@@ -117,30 +112,19 @@ Registry::registerObjectsTo(Factory & f, const std::set<std::string> & labels)
 RegistryEntry &
 Registry::objData(const std::string & name)
 {
-  auto & r = getRegistry();
+  auto it = _name_to_entry.find(name);
 
-  auto it = r._name_to_entry.find(name);
-
-  if (it != r._name_to_entry.end())
+  if (it != _name_to_entry.end())
     return it->second;
   else
     mooseError("Object ", name, " is not registered yet");
 }
 
-bool
-Registry::isRegisteredObj(const std::string & name)
-{
-  auto & r = getRegistry();
-
-  auto it = r._name_to_entry.find(name);
-
-  return it != r._name_to_entry.end();
-}
-
 void
 Registry::registerActionsTo(ActionFactory & f, const std::set<std::string> & labels)
 {
-  auto & r = getRegistry();
+  auto & r = moose::internal::getRegistry();
+
   for (const auto & label : labels)
   {
     r._known_labels.insert(label);
@@ -156,7 +140,7 @@ Registry::registerActionsTo(ActionFactory & f, const std::set<std::string> & lab
 void
 Registry::checkLabels(const std::set<std::string> & known_labels)
 {
-  auto & r = getRegistry();
+  auto & r = moose::internal::getRegistry();
   std::vector<RegistryEntry> orphs;
 
   for (auto & entry : r._per_label_objects)
@@ -179,7 +163,6 @@ Registry::checkLabels(const std::set<std::string> & known_labels)
 char
 Registry::addKnownLabel(const std::string & label)
 {
-  auto & r = getRegistry();
-  r._known_labels.insert(label);
+  _known_labels.insert(label);
   return 0;
 }

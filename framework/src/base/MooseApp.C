@@ -443,7 +443,7 @@ MooseApp::MooseApp(InputParameters parameters)
     mooseError("gperftool is not available for CPU or heap profiling");
 #endif
 
-  Registry::addKnownLabel(_type);
+  moose::internal::getRegistry().addKnownLabel(_type);
   Moose::registerAll(_factory, _action_factory, _syntax);
 
   _the_warehouse = std::make_unique<TheWarehouse>();
@@ -750,7 +750,7 @@ MooseApp::setupOptions()
 
     Moose::out << "Label\tType\tName\tClass\tFile\n";
 
-    auto & objmap = Registry::allObjects();
+    auto & objmap = moose::internal::getRegistry().allObjects();
     for (auto & entry : objmap)
     {
       for (auto & obj : entry.second)
@@ -766,7 +766,7 @@ MooseApp::setupOptions()
       }
     }
 
-    auto & actmap = Registry::allActions();
+    auto & actmap = moose::internal::getRegistry().allActions();
     for (auto & entry : actmap)
     {
       for (auto & act : entry.second)
@@ -788,7 +788,7 @@ MooseApp::setupOptions()
     auto objsec = new hit::Section("objects");
     sec->addChild(objsec);
 
-    auto & objmap = Registry::allObjects();
+    auto & objmap = moose::internal::getRegistry().allObjects();
     for (auto & entry : objmap)
     {
       for (auto & obj : entry.second)
@@ -811,7 +811,7 @@ MooseApp::setupOptions()
 
     auto actsec = new hit::Section("actions");
     sec->addChild(actsec);
-    auto & actmap = Registry::allActions();
+    auto & actmap = moose::internal::getRegistry().allActions();
     for (auto & entry : actmap)
     {
       for (auto & act : entry.second)
@@ -2253,9 +2253,8 @@ MooseApp::hasRelationshipManager(const std::string & name) const
 {
   return std::find_if(_relationship_managers.begin(),
                       _relationship_managers.end(),
-                      [&name](const std::shared_ptr<RelationshipManager> & rm) {
-                        return rm->name() == name;
-                      }) != _relationship_managers.end();
+                      [&name](const std::shared_ptr<RelationshipManager> & rm)
+                      { return rm->name() == name; }) != _relationship_managers.end();
 }
 
 namespace
