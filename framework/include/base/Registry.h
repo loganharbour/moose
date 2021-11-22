@@ -229,6 +229,8 @@ public:
   std::set<std::pair<std::string, std::string>> getLegacyConstructedObjects() const;
 
 private:
+  Registry(){};
+
   void addInner(const RegistryEntry & info);
   void addActionInner(const RegistryEntry & info);
 
