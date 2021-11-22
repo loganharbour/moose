@@ -105,57 +105,6 @@ using paramsPtr = InputParameters (*)();
 using buildPtr = std::shared_ptr<MooseObject> (*)(const InputParameters & parameters);
 using buildActionPtr = std::shared_ptr<Action> (*)(const InputParameters & parameters);
 
-namespace moose
-{
-namespace internal
-{
-template <typename T>
-auto
-callValidParamsInner(long) -> decltype(T::validParams(), emptyInputParameters())
-{
-  return T::validParams();
-}
-
-template <typename T>
-auto
-callValidParamsInner(int) -> decltype(validParams<T>(), emptyInputParameters())
-{
-  // The following error could be useful when doing the final
-  // conversion/removal of the old style validParams functions:
-  // Moose::show_trace = false;
-  // Moose::show_multiple = true;
-  // mooseDeprecated("Convert validParams<",
-  //                demangle(typeid(T).name()),
-  //                ">() into a static member function and remove the old function.");
-  // Moose::show_multiple = false;
-  // Moose::show_trace = true;
-  return validParams<T>();
-}
-
-template <typename T>
-auto
-callValidParams() -> decltype(callValidParamsInner<T>(0), emptyInputParameters())
-{
-  return callValidParamsInner<T>(0);
-}
-
-template <typename T>
-std::shared_ptr<MooseObject>
-buildObj(const InputParameters & parameters)
-{
-  return std::make_shared<T>(parameters);
-}
-
-template <typename T>
-std::shared_ptr<Action>
-buildAct(const InputParameters & parameters)
-{
-  return std::make_shared<T>(parameters);
-}
-
-} // namespace internal
-} // namespace moose
-
 /// Holds details and meta-data info for a particular MooseObject or Action for use in the
 /// registry.
 struct RegistryEntry
@@ -204,7 +153,7 @@ public:
   static char add(const RegistryEntry & info)
   {
     RegistryEntry copy = info;
-    copy._build_ptr = &moose::internal::buildObj<T>;
+    copy._build_ptr = &build<T, MooseObject>;
     copy._params_ptr = &moose::internal::callValidParams<T>;
     addInner(copy);
     return 0;
@@ -217,7 +166,7 @@ public:
   static char addAction(const RegistryEntry & info)
   {
     RegistryEntry copy = info;
-    copy._build_action_ptr = &moose::internal::buildAct<T>;
+    copy._build_action_ptr = &build<T, Action>;
     copy._params_ptr = &moose::internal::callValidParams<T>;
     addActionInner(copy);
     return 0;
@@ -248,9 +197,25 @@ public:
   static RegistryEntry & objData(const std::string & name);
   static bool isRegisteredObj(const std::string & name);
 
+  /**
+   * Gets a set of objects (both MooseObjects and Actions) whose parameters
+   * are constructed using the legacy input parameter construction
+   *
+   * The first entry is the object name and the second is the label.
+   *
+   * Needed until #19439 is closed.
+   */
+  static std::set<std::pair<std::string, std::string>> getLegacyConstructedObjects();
+
 private:
   static void addInner(const RegistryEntry & info);
   static void addActionInner(const RegistryEntry & info);
+
+  template <typename T, typename ToType>
+  static std::shared_ptr<ToType> build(const InputParameters & parameters)
+  {
+    return std::make_shared<T>(parameters);
+  }
 
   std::map<std::string, RegistryEntry> _name_to_entry;
   std::map<std::string, std::vector<RegistryEntry>> _per_label_objects;

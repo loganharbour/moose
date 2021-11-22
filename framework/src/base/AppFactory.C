@@ -79,8 +79,16 @@ AppFactory::createShared(const std::string & app_type,
   return (*_name_to_build_pointer[app_type])(parameters);
 }
 
-bool
-AppFactory::isRegistered(const std::string & app_name) const
+std::set<std::string>
+AppFactory::getLegacyConstructedApps() const
 {
-  return _name_to_params_pointer.find(app_name) != _name_to_params_pointer.end();
+  std::set<std::string> apps;
+  for (const auto & name_params_pair : _name_to_params_pointer)
+  {
+    const auto params = name_params_pair.second();
+    if (params.have_parameter<bool>("_called_legacy_params") &&
+        params.get<bool>("_called_legacy_params"))
+      apps.insert(name_params_pair.first);
+  }
+  return apps;
 }

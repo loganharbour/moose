@@ -50,6 +50,35 @@ Registry::addActionInner(const RegistryEntry & info)
   r._per_label_actions[info._label].push_back(info);
 }
 
+std::set<std::pair<std::string, std::string>>
+Registry::getLegacyConstructedObjects()
+{
+  std::set<std::pair<std::string, std::string>> objects;
+
+  const auto add = [&objects](const auto & per_label_map) {
+    for (const auto & label_entries_pair : per_label_map)
+    {
+      const auto & label = label_entries_pair.first;
+      const auto & entries = label_entries_pair.second;
+
+      for (const auto & entry : entries)
+      {
+        const auto & object_name = entry._classname;
+        const auto params = entry._params_ptr();
+
+        if (params.template have_parameter<bool>("_called_legacy_params") &&
+            params.template get<bool>("_called_legacy_params"))
+          objects.insert(std::make_pair(object_name, label));
+      }
+    }
+  };
+
+  add(getRegistry()._per_label_objects);
+  add(getRegistry()._per_label_actions);
+
+  return objects;
+}
+
 void
 Registry::registerObjectsTo(Factory & f, const std::set<std::string> & labels)
 {
