@@ -68,6 +68,6 @@ CheckLegacyParamsAction::act()
         << "\nmember function InputParameters T::validParams() and remove the old function."
         << "\n\nSee mooseframework.org/newsletter/2021_11.html#legacy-input-parameter-deprecation"
         << "\nfor more information.\n";
-    mooseWarning(warning.str());
+    mooseError(warning.str());
   }
 }
