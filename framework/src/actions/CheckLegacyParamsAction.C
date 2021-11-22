@@ -63,7 +63,8 @@ CheckLegacyParamsAction::act()
       }
     }
   };
-  add_to_objects(moose::internal::getRegistry().allObjects());
+  const auto & all_objects = moose::internal::getRegistry().allObjects();
+  add_to_objects(all_objects);
   add_to_objects(moose::internal::getRegistry().allActions());
 
   // Get the applications whose input parameters are constructed using the legacy
