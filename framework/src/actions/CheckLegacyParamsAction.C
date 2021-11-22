@@ -58,7 +58,7 @@ CheckLegacyParamsAction::act()
 
         if (params.template have_parameter<bool>("_called_legacy_params") &&
             params.template get<bool>("_called_legacy_params"))
-          if (label.second != "MooseApp" || for_test)
+          if (label != "MooseApp" || for_test)
             objects.insert(std::make_pair(object_name, label));
       }
     }
