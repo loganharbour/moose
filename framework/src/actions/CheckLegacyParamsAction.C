@@ -44,6 +44,28 @@ CheckLegacyParamsAction::act()
     if (object_label_pair.second != "MooseApp" || for_test)
       objects.insert(object_label_pair);
 
+  const auto add_to_objects = [&objects, &for_test](const auto & per_label_map)
+  {
+    for (const auto & label_entries_pair : per_label_map)
+    {
+      const auto & label = label_entries_pair.first;
+      const auto & entries = label_entries_pair.second;
+
+      for (const auto & entry : entries)
+      {
+        const auto & object_name = entry._classname;
+        const auto params = entry._params_ptr();
+
+        if (params.template have_parameter<bool>("_called_legacy_params") &&
+            params.template get<bool>("_called_legacy_params"))
+          if (object_label_pair.second != "MooseApp" || for_test)
+            objects.insert(std::make_pair(object_name, label));
+      }
+    }
+  };
+  add_to_objects(moose::internal::getRegistry().allObjects());
+  add_to_objects(moose::internal::getRegistry().allActions());
+
   // Get the applications whose input parameters are constructed using the legacy
   // method, skipping only MooseApp (which we need for now for deprecation)
   std::stringstream apps_out;

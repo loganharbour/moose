@@ -46,31 +46,32 @@ Registry::addActionInner(const RegistryEntry & info)
 std::set<std::pair<std::string, std::string>>
 Registry::getLegacyConstructedObjects() const
 {
-  std::set<std::pair<std::string, std::string>> objects;
-
-  const auto add_to_objects = [&objects](const auto & per_label_map)
-  {
-    for (const auto & label_entries_pair : per_label_map)
-    {
-      const auto & label = label_entries_pair.first;
-      const auto & entries = label_entries_pair.second;
-
-      for (const auto & entry : entries)
-      {
-        const auto & object_name = entry._classname;
-        const auto params = entry._params_ptr();
-
-        if (params.template have_parameter<bool>("_called_legacy_params") &&
-            params.template get<bool>("_called_legacy_params"))
-          objects.insert(std::make_pair(object_name, label));
-      }
-    }
-  };
-
-  add_to_objects(allObjects());
-  add_to_objects(allActions());
-
-  return objects;
+  // std::set<std::pair<std::string, std::string>> objects;
+  //
+  // const auto add_to_objects = [&objects](const auto & per_label_map)
+  // {
+  //   for (const auto & label_entries_pair : per_label_map)
+  //   {
+  //     const auto & label = label_entries_pair.first;
+  //     const auto & entries = label_entries_pair.second;
+  //
+  //     for (const auto & entry : entries)
+  //     {
+  //       const auto & object_name = entry._classname;
+  //       const auto params = entry._params_ptr();
+  //
+  //       if (params.template have_parameter<bool>("_called_legacy_params") &&
+  //           params.template get<bool>("_called_legacy_params"))
+  //         objects.insert(std::make_pair(object_name, label));
+  //     }
+  //   }
+  // };
+  //
+  // add_to_objects(allObjects());
+  // add_to_objects(allActions());
+  //
+  // return objects;
+  return {};
 }
 
 void
