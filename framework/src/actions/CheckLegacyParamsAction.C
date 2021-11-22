@@ -39,9 +39,9 @@ CheckLegacyParamsAction::act()
   // using the legacy method, skipping those registered to MooseApp
   // (which is required so that apps that use legacy params from framework
   // objects still pass while we deprecate)
-  for (const auto & object_label_pair : Registry::getLegacyConstructedObjects())
-    if (object_label_pair.second != "MooseApp" || for_test)
-      objects.insert(object_label_pair);
+  // for (const auto & object_label_pair : Registry::getLegacyConstructedObjects())
+  //   if (object_label_pair.second != "MooseApp" || for_test)
+  //     objects.insert(object_label_pair);
 
   // Get the applications whose input parameters are constructed using the legacy
   // method, skipping only MooseApp (which we need for now for deprecation)
