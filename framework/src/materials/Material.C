@@ -147,3 +147,10 @@ Material::computeConstantOption()
 
   return co;
 }
+
+void
+Material::resolveOptionalProperties()
+{
+  for (const auto & name_proxy_pair : _optional_property_proxies)
+    name_proxy_pair.second->resolve(name_proxy_pair.first, *this);
+}
