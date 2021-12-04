@@ -12,6 +12,7 @@
 #include "MooseApp.h"
 #include "MaterialBase.h"
 #include "FEProblemBase.h"
+#include "StaticWarehouse.h"
 
 defineLegacyParams(MaterialPropertyInterface);
 
@@ -46,6 +47,8 @@ MaterialPropertyInterface::MaterialPropertyInterface(const MooseObject * moose_o
     _mi_block_ids(block_ids),
     _mi_boundary_ids(boundary_ids)
 {
+  moose::internal::getStaticWarehouse<MaterialPropertyInterface>().add(moose_object->getMooseApp(),
+                                                                       *this);
 
   // Set the MaterialDataType flag
   if (_mi_params.isParamValid("_material_data_type"))
@@ -316,4 +319,11 @@ MaterialPropertyInterface::checkExecutionStage()
   if (_mi_feproblem.startedInitialSetup())
     mooseError("Material properties must be retrieved during object construction. This is a code "
                "problem.");
+}
+
+void
+MaterialPropertyInterface::resolveOptionalProperties()
+{
+  for (auto & proxy : _optional_property_proxies)
+    proxy->resolve(*this);
 }

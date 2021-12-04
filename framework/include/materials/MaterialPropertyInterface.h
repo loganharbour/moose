@@ -29,6 +29,25 @@ template <>
 InputParameters validParams<MaterialPropertyInterface>();
 
 /**
+ * Helper class for deferred getting of material properties after the construction
+ * phase for materials. This enables "optional material properties" in materials.
+ * It works by returning a reference to a pointer to a material property (rather
+ * than a reference to the property value). The pointer will be set to point to
+ * either an existing material property or to nullptr if the requested property
+ * does not exist.
+ */
+class OptionalMaterialPropertyProxyBase
+{
+public:
+  OptionalMaterialPropertyProxyBase(const std::string & name) : _name(name) {}
+  virtual ~OptionalMaterialPropertyProxyBase() {}
+  virtual void resolve(MaterialPropertyInterface & mpi) = 0;
+
+protected:
+  const std::string _name;
+};
+
+/**
  * \class MaterialPropertyInterface
  * \brief An interface for accessing Materials
  *
@@ -266,6 +285,9 @@ public:
     return _material_property_dependencies;
   }
 
+  /// resolve all optional properties
+  void resolveOptionalProperties();
+
 protected:
   /// Parameters of the object with this interface
   const InputParameters & _mi_params;
@@ -388,9 +410,30 @@ private:
   /// Storage for the boundary ids created by BoundaryRestrictable
   const std::set<BoundaryID> & _mi_boundary_ids;
 
-  /// address stable pointer storage to enable returning optional property pointers via reference
-  std::list<std::unique_ptr<GenericOptionalMaterialPropertyBase>>
-      _optional_material_pointer_storage;
+  /// optional material properties
+  std::vector<std::unique_ptr<OptionalMaterialPropertyProxyBase>> _optional_property_proxies;
+};
+
+template <typename T, bool is_ad>
+class OptionalMaterialPropertyProxy : public OptionalMaterialPropertyProxyBase
+{
+public:
+  OptionalMaterialPropertyProxy(const std::string & name) : OptionalMaterialPropertyProxyBase(name)
+  {
+  }
+  const GenericOptionalMaterialProperty<T, is_ad> & value() const { return _value; }
+  void resolve(MaterialPropertyInterface & mpi) override
+  {
+    if (mpi.hasGenericMaterialProperty<T, is_ad>(_name))
+    {
+      std::cerr << "resolved " << _name << std::endl;
+      _value.set(&mpi.getGenericMaterialProperty<T, is_ad>(_name));
+    }
+    std::cerr << "did not resolve " << _name << std::endl;
+  }
+
+private:
+  GenericOptionalMaterialProperty<T, is_ad> _value;
 };
 
 template <typename T>
@@ -708,13 +751,8 @@ template <typename T, bool is_ad>
 const GenericOptionalMaterialProperty<T, is_ad> &
 MaterialPropertyInterface::getGenericOptionalMaterialProperty(const std::string & name)
 {
-
-  auto new_item = std::make_unique<GenericOptionalMaterialProperty<T, is_ad>>(
-      hasGenericMaterialProperty<T, is_ad>(name) ? &getGenericMaterialProperty<T, is_ad>(name)
-                                                 : nullptr);
-
-  const auto & prop = *new_item;
-  _optional_material_pointer_storage.push_back(std::move(new_item));
-
-  return prop;
+  auto proxy = std::make_unique<OptionalMaterialPropertyProxy<T, is_ad>>(name);
+  auto & optional_property = proxy->value();
+  _optional_property_proxies.push_back(std::move(proxy));
+  return optional_property;
 }

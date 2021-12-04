@@ -10,6 +10,8 @@
 #include "ResolveOptionalMaterialPropertiesAction.h"
 #include "Material.h"
 #include "FEProblem.h"
+#include "MaterialPropertyInterface.h"
+#include "StaticWarehouse.h"
 
 registerMooseAction("MooseApp",
                     ResolveOptionalMaterialPropertiesAction,
@@ -31,20 +33,7 @@ ResolveOptionalMaterialPropertiesAction::ResolveOptionalMaterialPropertiesAction
 void
 ResolveOptionalMaterialPropertiesAction::act()
 {
-  mooseAssert(_problem, "Problem doesn't exist");
-
-  const Moose::MaterialDataType mdt_list[] = {Moose::BLOCK_MATERIAL_DATA,
-                                              Moose::FACE_MATERIAL_DATA,
-                                              Moose::NEIGHBOR_MATERIAL_DATA,
-                                              Moose::INTERFACE_MATERIAL_DATA};
-
-  for (auto mdt : mdt_list)
-  {
-    auto & materials = _problem->getMaterialWarehouse()[mdt];
-
-    for (auto tid : make_range(materials.numThreads()))
-      for (auto matbase_ptr : materials.getObjects(tid))
-        if (auto mat_ptr = std::dynamic_pointer_cast<Material>(matbase_ptr))
-          mat_ptr->resolveOptionalProperties();
-  }
+  for (MaterialPropertyInterface * mpi :
+       moose::internal::getStaticWarehouse<MaterialPropertyInterface>().get(_app))
+    mpi->resolveOptionalProperties();
 }
