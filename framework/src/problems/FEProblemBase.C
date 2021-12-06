@@ -6262,7 +6262,7 @@ FEProblemBase::meshChangedHelper(bool intermediate_change)
   // Let the meshChangedInterface notify the mesh changed event before we update the active
   // semilocal nodes, because the set of ghosted elements may potentially be updated during a mesh
   // changed event.
-  for (const auto & mci : _notify_when_mesh_changes)
+  for (MeshChangedInterface * mci : _app.getInterfaceObjects<MeshChangedInterface>())
     mci->meshChanged();
 
   // Since the Mesh changed, update the PointLocator object used by DiracKernels.
@@ -6327,12 +6327,6 @@ FEProblemBase::meshChangedHelper(bool intermediate_change)
   // MOOSE-system specific data. libmesh system data has already been updated
   _nl->update(/*update_libmesh_system=*/false);
   _aux->update(/*update_libmesh_system=*/false);
-}
-
-void
-FEProblemBase::notifyWhenMeshChanges(MeshChangedInterface * mci)
-{
-  _notify_when_mesh_changes.push_back(mci);
 }
 
 void

@@ -1469,12 +1469,6 @@ public:
   virtual void meshChanged() override;
 
   /**
-   * Register an object that derives from MeshChangedInterface
-   * to be notified when the mesh changes.
-   */
-  void notifyWhenMeshChanges(MeshChangedInterface * mci);
-
-  /**
    * Initialize stateful properties for elements in a specific \p elem_range
    * This is needed when elements/boundary nodes are added to a specific subdomain
    * at an intermediate step
@@ -2073,9 +2067,6 @@ protected:
 
   /// Cache for calculating materials on interface
   std::vector<std::unordered_map<BoundaryID, bool>> _interface_mat_side_cache;
-
-  /// Objects to be notified when the mesh changes
-  std::vector<MeshChangedInterface *> _notify_when_mesh_changes;
 
   /**
    * Helper method to update some or all data after a mesh change.

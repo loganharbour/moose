@@ -9,20 +9,18 @@
 
 #include "MeshChangedInterface.h"
 
-#include "FEProblem.h"
+#include "MooseApp.h"
 
 defineLegacyParams(MeshChangedInterface);
 
 InputParameters
 MeshChangedInterface::validParams()
 {
-
   InputParameters params = emptyInputParameters();
   return params;
 }
 
 MeshChangedInterface::MeshChangedInterface(const InputParameters & params)
-  : _mci_feproblem(*params.getCheckedPointerParam<FEProblemBase *>("_fe_problem_base"))
 {
-  _mci_feproblem.notifyWhenMeshChanges(this);
+  params.getCheckedPointerParam<MooseApp *>("_moose_app")->registerInterfaceObject(*this);
 }

@@ -9,10 +9,7 @@
 
 #pragma once
 
-#include "MooseEnum.h"
-
 // Forward declarations
-class FEProblemBase;
 class InputParameters;
 class MeshChangedInterface;
 
@@ -37,8 +34,4 @@ public:
    * Called on this object when the mesh changes
    */
   virtual void meshChanged() {}
-
-protected:
-  /// Reference to FEProblemBase instance
-  FEProblemBase & _mci_feproblem;
 };
