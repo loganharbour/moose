@@ -33,8 +33,10 @@ GavinRenameMe::execute()
   // get the current element values from from_var
   std::set<MooseVariableFEBase *> needed_moose_vars({&_from_var});
   _fe_problem.setActiveElementalMooseVariables(needed_moose_vars, 0);
+  _from_var.prepareAux();
   for (const auto & elem : *_fe_problem.mesh().getActiveLocalElementRange())
   {
+    _fe_problem.prepare(elem, 0);
     _fe_problem.setCurrentSubdomainID(elem, 0);
     _fe_problem.reinitElem(elem, 0);
 
@@ -48,14 +50,16 @@ GavinRenameMe::execute()
   // but obviously you'll only add to a subset of them and will set 1 instead.
   // you may need to zero the other values... I don't remember
   needed_moose_vars = {&_to_var};
+  _to_var.prepareAux();
   _fe_problem.setActiveElementalMooseVariables(needed_moose_vars, 0);
   for (const auto & elem : *_fe_problem.mesh().getActiveLocalElementRange())
   {
+    _fe_problem.prepare(elem, 0);
     _fe_problem.setCurrentSubdomainID(elem, 0);
     _fe_problem.reinitElem(elem, 0);
 
     _to_var.setNodalValue(elem->id());
-    _to_var.add(_aux.solution());
+    _to_var.insert(_aux.solution());
   }
 
   _aux.solution().close();
