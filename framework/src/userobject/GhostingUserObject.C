@@ -10,6 +10,7 @@
 #include "GhostingUserObject.h"
 #include "NonlinearSystemBase.h"
 #include "MooseMesh.h"
+#include "SerializerGuard.h"
 
 registerMooseObject("MooseApp", GhostingUserObject);
 
@@ -109,4 +110,47 @@ GhostingUserObject::getElementalValue(const Elem * elem,
     return 1.;
   else
     return 0.;
+}
+
+void
+GhostingUserObject::execute()
+{
+  {
+    SerializerGuard sg(comm());
+    std::cerr << "rank " << processor_id() << std::endl;
+
+    const auto ghosted_ids = [this](Moose::RelationshipManagerType rm_type)
+    {
+      unsigned int map_idx =
+          (rm_type == Moose::RelationshipManagerType::GEOMETRIC ? GEOMETRIC_MAP_IDX
+                                                                : ALGEBRAIC_MAP_IDX);
+      std::set<dof_id_type> ids;
+      for (const auto & pid_map_pair : _maps[map_idx])
+        for (const auto & elem_matrix_pair : pid_map_pair.second)
+          ids.insert(elem_matrix_pair.first->id());
+      return ids;
+    };
+
+    const auto geoemtric_ghosted_ids = ghosted_ids(Moose::RelationshipManagerType::GEOMETRIC);
+    const auto algebraic_ghosted_ids = ghosted_ids(Moose::RelationshipManagerType::ALGEBRAIC);
+
+    std::set<dof_id_type> local_ids;
+    for (const auto & elem : *_mesh.getActiveLocalElementRange())
+      local_ids.insert(elem->id());
+
+    std::cerr << "  local: ";
+    for (const auto id : local_ids)
+      std::cerr << id << " ";
+    std::cerr << std::endl;
+
+    std::cerr << "  geometric ghosted: ";
+    for (const auto id : geoemtric_ghosted_ids)
+      std::cerr << id << " ";
+    std::cerr << std::endl;
+
+    std::cerr << "  algebraic ghosted: ";
+    for (const auto id : algebraic_ghosted_ids)
+      std::cerr << id << " ";
+    std::cerr << std::endl;
+  }
 }
