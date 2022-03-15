@@ -30,7 +30,7 @@ class MooseApp;
 class ExecutorInterface
 {
 public:
-  ExecutorInterface(const MooseObject * moose_object);
+  ExecutorInterface(const MooseObject & moose_object);
 
   static InputParameters validParams();
 
@@ -48,8 +48,16 @@ public:
    */
   Executor & getExecutorByName(const ExecutorName & executor_name) const;
 
+  std::vector<Executor *> getExecutors(const std::string & param_name) const;
+  std::vector<Executor *>
+  getExecutorsByName(const std::vector<ExecutorName> & executor_names) const;
+
+  const std::set<const Executor *> coupledExecutors() const { return _coupled_executors; }
+
 private:
-  const MooseObject * _ei_moose_object;
+  const MooseObject & _ei_moose_object;
 
   MooseApp & _ei_app;
+
+  mutable std::set<const Executor *> _coupled_executors;
 };

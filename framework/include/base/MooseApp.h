@@ -326,7 +326,7 @@ public:
    */
   void setExecutioner(std::shared_ptr<Executioner> && executioner) { _executioner = executioner; }
   void setExecutor(std::shared_ptr<Executor> && executor) { _executor = executor; }
-  void
+  std::shared_ptr<Executor>
   addExecutor(const std::string & type, const std::string & name, const InputParameters & params);
 
   /**

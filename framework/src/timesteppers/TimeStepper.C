@@ -9,7 +9,7 @@
 
 #include "TimeStepper.h"
 #include "FEProblem.h"
-#include "Transient.h"
+#include "TransientExecutor.h"
 #include "MooseApp.h"
 
 InputParameters
@@ -36,17 +36,18 @@ TimeStepper::TimeStepper(const InputParameters & parameters)
     _fe_problem(parameters.have_parameter<FEProblemBase *>("_fe_problem_base")
                     ? *getParam<FEProblemBase *>("_fe_problem_base")
                     : *getParam<FEProblem *>("_fe_problem")),
-    _executioner(*getCheckedPointerParam<Transient *>("_executioner")),
+    _transient_executor(*getCheckedPointerParam<TransientExecutor *>("_transient_executor")),
+    _executioner(_transient_executor),
     _time(_fe_problem.time()),
     _time_old(_fe_problem.timeOld()),
     _t_step(_fe_problem.timeStep()),
     _dt(_fe_problem.dt()),
-    _dt_min(_executioner.dtMin()),
-    _dt_max(_executioner.dtMax()),
-    _end_time(_executioner.endTime()),
+    _dt_min(_transient_executor.dtMin()),
+    _dt_max(_transient_executor.dtMax()),
+    _end_time(_transient_executor.endTime()),
     _sync_times(_app.getOutputWarehouse().getSyncTimes()),
-    _timestep_tolerance(_executioner.timestepTol()),
-    _verbose(_executioner.verbose()),
+    _timestep_tolerance(_transient_executor.timestepTol()),
+    _verbose(_transient_executor.verbose()),
     _converged(true),
     _cutback_factor_at_failure(getParam<Real>("cutback_factor_at_failure")),
     _reset_dt(getParam<bool>("reset_dt")),
@@ -158,7 +159,8 @@ TimeStepper::constrainStep(Real & dt)
 void
 TimeStepper::step()
 {
-  _converged = _executioner.timeStepSolveObject()->solve();
+  mooseError("unimplemented");
+  // _converged = _transient_executor.timeStepSolveObject()->solve();
 }
 
 void
@@ -205,5 +207,5 @@ TimeStepper::forceTimeStep(Real dt)
 void
 TimeStepper::forceNumSteps(const unsigned int num_steps)
 {
-  _executioner.forceNumSteps(num_steps);
+  _transient_executor.forceNumSteps(num_steps);
 }

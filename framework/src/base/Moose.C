@@ -93,7 +93,7 @@ addActionTypes(Syntax & syntax)
   /**** Register Actions ****/
   /**************************/
   registerMooseObjectTask("create_problem",               Problem,                false);
-  registerMooseObjectTask("setup_executioner",            Executioner,            false);
+  registerMooseObjectTask("setup_executioner",            Executor,            false);
   registerMooseObjectTask("read_executor",                Executor,               false);
   registerTask("add_executor", true);
 

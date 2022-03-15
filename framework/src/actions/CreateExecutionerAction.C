@@ -15,6 +15,7 @@
 #include "Eigenvalue.h"
 #include "FEProblem.h"
 #include "EigenProblem.h"
+#include "Executor.h"
 
 registerMooseAction("MooseApp", CreateExecutionerAction, "setup_executioner");
 
@@ -44,8 +45,8 @@ CreateExecutionerAction::act()
     _moose_object_pars.set<EigenProblem *>("_eigen_problem") = eigen_problem.get();
   _moose_object_pars.set<SubProblem *>("_subproblem") = static_cast<SubProblem *>(_problem.get());
 
-  std::shared_ptr<Executioner> executioner =
-      _factory.create<Executioner>(_type, "Executioner", _moose_object_pars);
+  std::shared_ptr<Executor> executioner =
+      _factory.create<Executor>(_type, "Executor", _moose_object_pars);
 
   std::shared_ptr<Eigenvalue> eigen_executioner =
       std::dynamic_pointer_cast<Eigenvalue>(executioner);
@@ -59,7 +60,9 @@ CreateExecutionerAction::act()
       _moose_object_pars.isParamValid("solve_type"))
     setupAutoPreconditioning();
 
-  _app.setExecutioner(std::move(executioner));
+  auto dummy_executioner = executioner->dummyExecutioner();
+  _app.setExecutioner(std::move(dummy_executioner));
+  _app.addExecutorParams(_type, _name, _moose_object_pars);
 }
 
 void

@@ -9,13 +9,20 @@
 
 #pragma once
 
-#include "Executioner.h"
+#include "MooseObject.h"
 #include "ExecutorInterface.h"
+#include "UserObjectInterface.h"
+#include "PostprocessorInterface.h"
+#include "Restartable.h"
+#include "PerfGraphInterface.h"
+#include "Reporter.h"
+#include "ReporterInterface.h"
 
 #include <string>
 
 class Problem;
 class Executor;
+class FEProblemBase;
 
 /// The Executor class directs the execution flow of simulations.  It manages
 /// outputting, time stepping, mesh adaptivity, solve sequencing, multiapp
@@ -23,7 +30,14 @@ class Executor;
 /// the same pattern as with mesh generators.  Subclass here and implement your
 /// own run function if you need special or fancy functionality that
 /// isn't supported by the default executors available.
-class Executor : public Executioner, public ExecutorInterface
+class Executor : public MooseObject,
+                 private Reporter,          // see addAttributeReporter
+                 private ReporterInterface, // see addAttributeReporter
+                 public ExecutorInterface,
+                 public UserObjectInterface,
+                 public PostprocessorInterface,
+                 public Restartable,
+                 public PerfGraphInterface
 {
 public:
   /// This object tracks the success/failure state of the executor system as
@@ -59,8 +73,9 @@ public:
     /// descendant's results.  If success_msg is true, then all result output
     /// that contains a message will be printed even if it converged/passed.
     /// Otherwise, messages will only be printed for unconverged/failed results.
-    std::string
-    str(bool success_msg = false, const std::string & indent = "", const std::string & subname = "")
+    std::string str(bool success_msg = false,
+                    const std::string & indent = "",
+                    const std::string & subname = "") const
     {
       std::string s = indent + label(success_msg, subname) + "\n";
       for (auto & entry : subs)
@@ -116,7 +131,7 @@ public:
     }
 
   private:
-    std::string label(bool success_msg, const std::string & subname = "")
+    std::string label(bool success_msg, const std::string & subname = "") const
     {
       std::string state_str =
           success_msg || !converged ? (std::string("(") + (converged ? "pass" : "FAIL") + ")") : "";
@@ -132,11 +147,13 @@ public:
 
   static InputParameters validParams();
 
+  virtual void init() {}
+  virtual void initialize() {}
+  virtual void finialize() {}
+
   /// This is the main function for executors - this is how executors should
   /// invoke child/sub executors - by calling their exec function.
-  Result exec();
-
-  virtual void execute() override final {}
+  Result execute();
 
   /// Executors need to return a Result object describing how execution went -
   /// rather than constructing Result objects directly, the newResult function
@@ -150,14 +167,31 @@ public:
   }
 
   /// Whether the executor and all its sub-executors passed / converged
-  virtual bool lastSolveConverged() const override { return _result.convergedAll(); }
+  virtual bool lastSolveConverged() const { return _result.convergedAll(); }
+
+  std::shared_ptr<Executioner> & dummyExecutioner() const { return _dummy_executioner; }
+
+  FEProblemBase & feProblem() { return _fe_problem; }
+
+  /**
+   * Get the verbose output flag
+   * @return The verbose output flag
+   */
+  const bool & verbose() const { return _verbose; }
 
 protected:
   /// This function contains the primary execution implementation for a
   /// executor.  Custom executor behavior should be localized to this function.  If
   /// you are writing a executor - this is basically where you should put all your
   /// code.
-  virtual Result run() = 0;
+  virtual Result run() { mooseError("fuck"); }
+
+  Executor & addSubExecutor(const std::string & type,
+                            const std::string & name,
+                            InputParameters params,
+                            const bool apply_params = false);
+
+  FEProblemBase & _fe_problem;
 
   /// The execute-on flag to associate with the beginning of this executor's execution.
   /// This allows the framework and users to trigger other object execution by
@@ -168,8 +202,12 @@ protected:
   /// associating other objects with this flag.
   ExecFlagType _end_flag;
 
+  bool _verbose;
+
 private:
   /// Stores the result representing the outcome from the run function.  It is
   /// a local member variable here to facilitate restart capability.
   Result _result;
+
+  mutable std::shared_ptr<Executioner> _dummy_executioner;
 };

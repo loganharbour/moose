@@ -76,6 +76,23 @@
   tagged_vector_for_partial_residual = false
 []
 
+# [Executors]
+#   [steady]
+#     type = SteadyExecutor
+#     executors = picard
+#   []
+#   [picard]
+#     type = PicardExecutor
+#     fixed_point_max_its = 50
+#     executor = solve
+#   []
+#   [solve]
+#     type = FEProblemSolveExecutor
+#     nl_rel_tol = 1e-2
+#     nl_abs_tol = 1e-12
+#   []
+# []
+
 [Executioner]
   type = FixedPointSteady
   nl_rel_tol = 1e-2

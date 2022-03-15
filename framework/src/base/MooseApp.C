@@ -1074,25 +1074,25 @@ MooseApp::executeExecutioner()
     return;
 
   // run the simulation
-  if (_use_executor && _executor)
-  {
-    Moose::PetscSupport::petscSetupOutput(_command_line.get());
+  // if (_use_executor && _executor)
+  // {
+  Moose::PetscSupport::petscSetupOutput(_command_line.get());
 
-    _executor->init();
-    errorCheck();
-    auto result = _executor->exec();
-    if (!result.convergedAll())
-      mooseError(result.str());
-  }
-  else if (_executioner)
-  {
-    Moose::PetscSupport::petscSetupOutput(_command_line.get());
-    _executioner->init();
-    errorCheck();
-    _executioner->execute();
-  }
-  else
-    mooseError("No executioner was specified (go fix your input file)");
+  _executor->init();
+  errorCheck();
+  auto result = _executor->execute();
+  if (!result.convergedAll())
+    mooseError(result.str());
+  // }
+  // else if (_executioner)
+  // {
+  //   Moose::PetscSupport::petscSetupOutput(_command_line.get());
+  //   _executioner->init();
+  //   errorCheck();
+  //   _executioner->execute();
+  // }
+  // else
+  //   mooseError("No executioner was specified (go fix your input file)");
 }
 
 bool
@@ -1197,7 +1197,7 @@ MooseApp::feProblem() const
   return _executor.get() ? _executor->feProblem() : _executioner->feProblem();
 }
 
-void
+std::shared_ptr<Executor>
 MooseApp::addExecutor(const std::string & type,
                       const std::string & name,
                       const InputParameters & params)
@@ -1207,6 +1207,8 @@ MooseApp::addExecutor(const std::string & type,
   if (_executors.count(executor->name()) > 0)
     mooseError("an executor with name '", executor->name(), "' already exists");
   _executors[executor->name()] = executor;
+
+  return executor;
 }
 
 void
@@ -1246,21 +1248,24 @@ MooseApp::recursivelyCreateExecutors(const std::string & current_executor_name,
 
   current_branch.push_back(current_executor_name);
 
-  // Build the dependencies first
+  // Find the dependencies
   const auto & params = *_executor_params[current_executor_name].second;
-
+  std::set<ExecutorName> dependency_names;
   for (const auto & param : params)
   {
-    if (dynamic_cast<InputParameters::Parameter<ExecutorName> *>(param.second))
-    {
-      const auto & dependency_name =
-          static_cast<InputParameters::Parameter<ExecutorName> *>(param.second)->get();
+    if (const auto name = dynamic_cast<InputParameters::Parameter<ExecutorName> *>(param.second))
+      dependency_names.insert(name->get());
+    if (const auto names =
+            dynamic_cast<InputParameters::Parameter<std::vector<ExecutorName>> *>(param.second))
+      for (const auto & name : names->get())
+        dependency_names.insert(name);
+  }
 
-      possible_roots.remove(dependency_name);
-
-      if (!dependency_name.empty())
-        recursivelyCreateExecutors(dependency_name, possible_roots, current_branch);
-    }
+  // Build the dependencies
+  for (const auto & dependency_name : dependency_names)
+  {
+    possible_roots.remove(dependency_name);
+    recursivelyCreateExecutors(dependency_name, possible_roots, current_branch);
   }
 
   // Add this Executor
@@ -1344,7 +1349,7 @@ MooseApp::getExecutor(const std::string & name, bool fail_if_not_found)
 Executioner *
 MooseApp::getExecutioner() const
 {
-  return _executioner.get() ? _executioner.get() : _executor.get();
+  return _executioner.get() ? _executioner.get() : _executor->dummyExecutioner().get();
 }
 
 void
@@ -2349,8 +2354,9 @@ MooseApp::hasRelationshipManager(const std::string & name) const
 {
   return std::find_if(_relationship_managers.begin(),
                       _relationship_managers.end(),
-                      [&name](const std::shared_ptr<RelationshipManager> & rm)
-                      { return rm->name() == name; }) != _relationship_managers.end();
+                      [&name](const std::shared_ptr<RelationshipManager> & rm) {
+                        return rm->name() == name;
+                      }) != _relationship_managers.end();
 }
 
 namespace

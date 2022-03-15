@@ -116,8 +116,9 @@ void
 TimeSequenceStepperBase::step()
 {
   TimeStepper::step();
-  if (converged() && !_executioner.fixedPointSolve().XFEMRepeatStep())
-    _current_step++;
+  mooseError("TODO");
+  // if (converged() && !_executioner.fixedPointSolve().XFEMRepeatStep())
+  // _current_step++;
 }
 
 Real

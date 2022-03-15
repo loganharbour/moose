@@ -38,6 +38,7 @@
       input = '2d_diffusion_fixed_point_toggle_mat.i'
       exodiff = '2d_diffusion_fixed_point_toggle_mat_out.e'
 
+      cli_args = '--executor'
       detail = "materials."
     []
   []

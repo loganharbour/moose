@@ -47,7 +47,7 @@ BinaryTestExecutor::run()
 
   if (isParamValid("inner1"))
   {
-    bool converged = result.record("inner1", _inner1.exec());
+    bool converged = result.record("inner1", _inner1.execute());
     if (getParam<bool>("return_early_inner_fail") && !converged)
     {
       _console << "BinaryTestExecutor " << name() << " END EARLY\n" << std::flush;
@@ -56,7 +56,7 @@ BinaryTestExecutor::run()
   }
 
   if (isParamValid("inner2"))
-    result.record("inner2", _inner2.exec());
+    result.record("inner2", _inner2.execute());
 
   if (getParam<bool>("fail_late"))
     result.fail("manual late fail");

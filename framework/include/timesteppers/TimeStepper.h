@@ -14,7 +14,7 @@
 #include "ScalarCoupleable.h"
 
 class FEProblemBase;
-class Transient;
+class TransientExecutor;
 
 /**
  * Base class for time stepping
@@ -121,10 +121,11 @@ protected:
   virtual Real computeFailedDT();
 
   FEProblemBase & _fe_problem;
-  /// Reference to transient executioner
-  Transient & _executioner;
+  /// Reference to transient executor
+  TransientExecutor & _transient_executor;
+  TransientExecutor & _executioner;
 
-  /// Values from executioner
+  /// Values from executor
   Real & _time;
   Real & _time_old;
   int & _t_step;
