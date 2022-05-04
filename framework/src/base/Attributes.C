@@ -27,8 +27,11 @@
 #include "ShapeElementUserObject.h"
 #include "Reporter.h"
 #include "SystemBase.h"
+#include "ExecFlagRegistry.h"
 
 #include <algorithm>
+
+const ExecFlagType EXEC_ALL = defineExecFlag("ALL");
 
 std::ostream &
 operator<<(std::ostream & os, Interfaces & iface)
@@ -121,13 +124,12 @@ void
 AttribExecOns::initFrom(const MooseObject * obj)
 {
   _vals.clear();
-  auto sup = dynamic_cast<const SetupInterface *>(obj);
-  if (sup)
+  if (const auto sup = dynamic_cast<const SetupInterface *>(obj))
   {
-    auto e = sup->getExecuteOnEnum();
-    for (auto & on : e.items())
-      if (e.contains(on))
-        _vals.push_back(on);
+    const auto & current_items = sup->getExecuteOnEnum();
+    _vals.reserve(current_items.size());
+    for (auto & on : current_items)
+      _vals.push_back(on);
   }
 }
 
@@ -135,14 +137,14 @@ bool
 AttribExecOns::isMatch(const Attribute & other) const
 {
   auto a = dynamic_cast<const AttribExecOns *>(&other);
-  if (!a || a->_vals.size() < 1)
+  if (!a || a->_vals.empty())
     return false;
   auto cond = a->_vals[0];
-  if (cond == Moose::ALL)
+  if (cond == EXEC_ALL)
     return true;
 
-  for (auto val : _vals)
-    if (val == Moose::ALL || val == cond)
+  for (const auto val : _vals)
+    if (val == EXEC_ALL || val == cond)
       return true;
   return false;
 }

@@ -11,6 +11,8 @@
 #include "MooseApp.h"
 #include "FEProblem.h"
 
+#include "ExecFlagRegistry.h"
+
 InputParameters
 Executor::validParams()
 {
@@ -32,12 +34,12 @@ Executor::Executor(const InputParameters & parameters)
 {
   if (!parameters.isParamSetByUser("begin_exec_flag"))
   {
-    _begin_flag = ExecFlagType("exec_" + _name + "_begin");
+    _begin_flag = moose::internal::getExecFlagRegistry().registerFlag("exec_" + _name + "_begin");
     _app.addExecFlag(_begin_flag);
   }
   if (!parameters.isParamSetByUser("end_exec_flag"))
   {
-    _end_flag = ExecFlagType("exec_" + _name + "_end");
+    _end_flag = moose::internal::getExecFlagRegistry().registerFlag("exec_" + _name + "_end");
     _app.addExecFlag(_end_flag);
   }
 }
