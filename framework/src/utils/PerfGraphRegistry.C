@@ -17,6 +17,7 @@ getPerfGraphRegistry()
 }
 
 PerfGraphRegistry::PerfGraphRegistry()
+  : GenericRegistry<std::string, PerfGraphSectionInfo>("PerfGraphRegistry")
 {
   // Reserve space so that re-allocation doesn't need to happen much
   // This does not take much memory and, for most cases, will keep a single
@@ -36,10 +37,9 @@ PerfGraphRegistry::registerSection(const std::string & section_name,
                                    const std::string & live_message,
                                    const bool print_dots)
 {
-  if (section_name == "")
+  if (section_name.empty())
     mooseError("Section name not provided when registering timed section!");
-
-  if (live_message == "")
+  if (live_message.empty())
     mooseError("Live message not provided when registering timed section!");
 
   return actuallyRegisterSection(section_name, level, live_message, print_dots);
@@ -51,83 +51,23 @@ PerfGraphRegistry::actuallyRegisterSection(const std::string & section_name,
                                            const std::string & live_message,
                                            const bool print_dots)
 {
-  PerfID id = 0;
-
+  const auto create =
+      [this, &section_name, &level, &live_message, &print_dots](const std::size_t id)
   {
-    std::lock_guard<std::mutex> lock(_section_name_to_id_mutex);
+    const PerfGraphSectionInfo info(id, section_name, level, live_message, print_dots);
 
-    auto it = _section_name_to_id.find(section_name);
+    // Also register in _id_to_section_info
+    {
+      std::unique_lock write_lock(_id_to_section_info_mutex);
+      mooseAssert(_id_to_section_info.size() == id, "Section is already inserted");
+      _id_to_section_info.push_back(info);
+    }
 
-    // Is it already registered?
-    if (it != _section_name_to_id.end() && it->first == section_name)
-      return it->second;
+    return info;
+  };
 
-    // It's not...
-    id = _section_name_to_id.size();
-
-    _section_name_to_id.emplace(section_name, id);
-  }
-
-  {
-    std::lock_guard<std::mutex> lock(_id_to_section_info_mutex);
-    _id_to_section_info.emplace_back(id, section_name, level, live_message, print_dots);
-  }
-
-  return id;
-}
-
-PerfID
-PerfGraphRegistry::sectionID(const std::string & section_name) const
-{
-  std::lock_guard<std::mutex> lock(_section_name_to_id_mutex);
-
-  try
-  {
-    return _section_name_to_id.at(section_name);
-  }
-  catch (const std::out_of_range & e)
-  {
-    mooseError("Section Name Not Found: ", section_name);
-  }
-}
-
-const PerfGraphSectionInfo &
-PerfGraphRegistry::sectionInfo(const PerfID section_id) const
-{
-  std::lock_guard<std::mutex> lock(_id_to_section_info_mutex);
-
-  try
-  {
-    return _id_to_section_info.at(section_id);
-  }
-  catch (const std::out_of_range & e)
-  {
-    mooseError("ID Not Found: ", section_id);
-  }
-}
-
-bool
-PerfGraphRegistry::sectionExists(const std::string & section_name) const
-{
-  std::lock_guard<std::mutex> lock(_section_name_to_id_mutex);
-
-  return _section_name_to_id.count(section_name);
-}
-
-bool
-PerfGraphRegistry::sectionExists(const PerfID section_id) const
-{
-  std::lock_guard<std::mutex> lock(_id_to_section_info_mutex);
-
-  return section_id < _id_to_section_info.size();
-}
-
-long unsigned int
-PerfGraphRegistry::numSections() const
-{
-  std::lock_guard<std::mutex> lock(_id_to_section_info_mutex);
-
-  return _id_to_section_info.size();
+  return registerItem(section_name, create);
+  ;
 }
 
 const PerfGraphSectionInfo &
