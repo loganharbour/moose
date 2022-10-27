@@ -97,6 +97,12 @@ public:
   std::set<ReporterName> getReporterNames() const;
 
   /**
+   * Return a list of all reporter names with the given type
+   */
+  template <typename T>
+  std::set<ReporterName> getReporterNames() const;
+
+  /**
    * Method for returning read only references to Reporter values.
    * @tparam T The Reporter value C++ type.
    * @param reporter_name The name of the reporter value, which includes the object name and the
@@ -465,6 +471,21 @@ ReporterData::needReporterTimeIndex(const ReporterName & reporter_name,
 {
   getReporterValue<T>(reporter_name, 0); // for error checking that it is declared
   getReporterStateHelper<T>(reporter_name, /* declare = */ false).value(time_index);
+}
+
+template <typename T>
+std::set<ReporterName>
+ReporterData::getReporterNames() const
+{
+  std::set<ReporterName> output;
+  for (const auto & name_context_pair : _context_ptrs)
+  {
+    const auto & ptr = name_context_pair.second;
+    mooseAssert(ptr, "Null context ptr");
+    if (dynamic_cast<const ReporterState<T> *>(ptr.get()))
+      output.insert(ptr->name());
+  }
+  return output;
 }
 
 // This is defined here to avoid cyclic includes, see ReporterContext.h
