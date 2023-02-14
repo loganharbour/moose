@@ -69,7 +69,7 @@ SimpleHexagonGenerator::SimpleHexagonGenerator(const InputParameters & parameter
                       ? _hexagon_size
                       : _hexagon_size * std::cos(M_PI / (Real)HEXAGON_NUM_SIDES));
   declareMeshProperty<unsigned int>("background_intervals_meta", 1);
-  declareMeshProperty<unsigned int>("node_id_background_meta", 6);
+  declareMeshProperty<dof_id_type>("node_id_background_meta", 6);
   declareMeshProperty<Real>("max_radius_meta", 0.0);
   declareMeshProperty<std::vector<unsigned int>>("num_sectors_per_side_meta", {1, 1, 1, 1, 1, 1});
   declareMeshProperty<Real>("pitch_meta", _pitch);
