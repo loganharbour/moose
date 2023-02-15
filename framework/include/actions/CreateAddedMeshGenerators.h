@@ -9,14 +9,14 @@
 
 #pragma once
 
-#include "MooseObjectAction.h"
+#include "Action.h"
 
-class AppendMeshGeneratorAction : public MooseObjectAction
+class CreateAddedMeshGenerators : public Action
 {
 public:
   static InputParameters validParams();
 
-  AppendMeshGeneratorAction(const InputParameters & params);
+  CreateAddedMeshGenerators(const InputParameters & params);
 
   virtual void act() override;
 };
