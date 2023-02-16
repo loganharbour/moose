@@ -2051,11 +2051,13 @@ MooseApp::createAddedMeshGenerators()
 std::shared_ptr<MeshGenerator>
 MooseApp::createMeshGenerator(const std::string & generator_name)
 {
+  libmesh_parallel_only(comm());
   mooseAssert(constructingMeshGenerators(), "Should not run now");
 
   const auto find_params = _mesh_generator_params.find(generator_name);
   mooseAssert(find_params != _mesh_generator_params.end(), "Not added");
   const auto & [type, params] = find_params->second;
+  mooseAssert(comm().verify(type + generator_name), "Inconsistent construction order");
 
   std::shared_ptr<MeshGenerator> mg = _factory.create<MeshGenerator>(type, generator_name, params);
 
@@ -2209,7 +2211,8 @@ MooseApp::createMeshGeneratorOrder()
 
   _ordered_mesh_generators.clear();
 
-  DependencyResolver<MeshGenerator *> resolver;
+  // We dare not sort these based on address!
+  DependencyResolver<MeshGenerator *, MeshGenerator::Comparator> resolver;
 
   // Add all of the dependencies into the resolver
   for (const auto & it : _mesh_generators)
@@ -2225,7 +2228,7 @@ MooseApp::createMeshGeneratorOrder()
   {
     _ordered_mesh_generators = resolver.getSortedValuesSets();
   }
-  catch (CyclicDependencyException<std::shared_ptr<MeshGenerator>> & e)
+  catch (CyclicDependencyException<MeshGenerator *, MeshGenerator::Comparator> & e)
   {
     const auto & cycle = e.getCyclicDependencies();
     std::vector<std::string> names;
@@ -2326,6 +2329,8 @@ MooseApp::appendMeshGenerator(const std::string & type,
 void
 MooseApp::executeMeshGenerators()
 {
+  libmesh_parallel_only(comm());
+
   // we do not need to do this when there are no mesh generators
   if (_mesh_generators.empty())
     return;
@@ -2349,7 +2354,7 @@ MooseApp::executeMeshGenerators()
   {
     for (const auto & generator : generator_set)
     {
-      auto name = generator->name();
+      const auto & name = generator->name();
 
       auto current_mesh = generator->generateInternal();
 
