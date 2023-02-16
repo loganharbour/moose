@@ -31,6 +31,7 @@ HexIDPatternedMeshGenerator::validParams()
 
 HexIDPatternedMeshGenerator::HexIDPatternedMeshGenerator(const InputParameters & parameters)
   : PatternedHexMeshGenerator(parameters),
+    _mesh_ptrs(getMeshes("inputs")),
     _element_id_name(getParam<std::string>("id_name")),
     _assign_type(getParam<MooseEnum>("assign_type")),
     _use_exclude_id(isParamValid("exclude_id"))
@@ -80,14 +81,9 @@ HexIDPatternedMeshGenerator::generate()
         "id_name", "An element integer with the name '", _element_id_name, "' already exists");
   }
 
-  std::vector<std::unique_ptr<ReplicatedMesh>> meshes;
-  meshes.reserve(_input_names.size());
-  for (MooseIndex(_input_names) i = 0; i < _input_names.size(); ++i)
-  {
-    std::unique_ptr<ReplicatedMesh> cell_mesh =
-        dynamic_pointer_cast<ReplicatedMesh>(*_mesh_ptrs[i]);
-    meshes.push_back(std::move(cell_mesh));
-  }
+  std::vector<std::unique_ptr<ReplicatedMesh>> meshes(_input_names.size());
+  for (const auto i : index_range(_input_names))
+    meshes[i] = dynamic_pointer_cast<ReplicatedMesh>(std::move(*_mesh_ptrs[i]));
 
   // asssign reporting IDs to individual elements
   std::set<subdomain_id_type> background_block_ids;

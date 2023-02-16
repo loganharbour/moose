@@ -25,6 +25,12 @@ public:
 
   std::unique_ptr<MeshBase> generate() override;
 
+private:
+  /// The input meshes
+  /// We need to request these again even though the parent (PatternedHexMeshGenerator)
+  /// requests them because we need our own copy
+  const std::vector<std::unique_ptr<MeshBase> *> _mesh_ptrs;
+
 protected:
   /// name of integer ID
   const std::string _element_id_name;
