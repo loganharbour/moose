@@ -2084,7 +2084,7 @@ MooseApp::createMeshGenerator(const std::string & generator_name)
   {
     if (!hasMeshGenerator(dependency))
       mg->mooseError("Dependent MeshGenerator '", dependency, "' does not exist");
-    auto & dependency_mg = getMeshGenerator(dependency);
+    auto & dependency_mg = getMeshGeneratorInternal(dependency);
     mg->addParentMeshGenerator(dependency_mg, MeshGenerator::AddParentChildKey());
     dependency_mg.addChildMeshGenerator(*mg, MeshGenerator::AddParentChildKey());
   }
@@ -2248,7 +2248,7 @@ MooseApp::createMeshGeneratorOrder()
     MeshGenerator * mg = it.second.get();
     resolver.addItem(mg);
     for (const auto & dep_mg : mg->getParentMeshGenerators())
-      resolver.addEdge(&getMeshGenerator(dep_mg->name()), mg);
+      resolver.addEdge(&getMeshGeneratorInternal(dep_mg->name()), mg);
   }
 
   // ...and sort them
