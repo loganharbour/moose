@@ -551,6 +551,9 @@ CoreMeshGenerator::CoreMeshGenerator(const InputParameters & parameters)
 std::unique_ptr<MeshBase>
 CoreMeshGenerator::generate()
 {
+  // Must be called to release the ReactorMeshParams mesh
+  releaseReactorMeshParams();
+
   // This generate() method will be called once the subgenerators that we depend on are
   // called. This is where we reassign subdomain ids/names in case they were merged
   // when stitching assemblies into the core. This is also where we set region_id extra
