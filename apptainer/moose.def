@@ -49,7 +49,7 @@ From: {{ APPTAINER_FROM }}
     PYTHON_VERSION=3.10
 
     # Install mamba in MOOSE_MAMBAFORGE
-    curl -L https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh -o ${TEMP_LOC}/mambaforge.sh
+    curl -L https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-${MAMBAFORGE_VERSION}-Linux-$(uname -m).sh -o ${TEMP_LOC}/mambaforge.sh
     bash ${TEMP_LOC}/mambaforge.sh -b -p ${MOOSE_MAMBAFORGE}
     rm ${TEMP_LOC}/mambaforge.sh
     PATH=${MOOSE_MAMBAFORGE}/bin:$PATH
