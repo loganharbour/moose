@@ -20,7 +20,7 @@ From: mooseharbor.hpc.inl.gov/hpc-base/rocky8-x86_64-infiniband:10-19-2022
 
     # Additional installs
     dnf install -y vim tmux emacs wget rsync hostname python3-pyyaml python3-devel python39 \
-                   cmake diffutils bison flex redhat-lsb-core.x86_64 perl-IO-Compress perl-JSON \
+                   cmake diffutils bison flex redhat-lsb-core perl-IO-Compress perl-JSON \
                    perl-JSON-PP libtirpc libtirpc-devel zlib-devel patch patchutils epel-release \
                    file libpng libpng-devel unzip jq
     # After epel-release
@@ -65,9 +65,14 @@ EOF
     # We need git lfs
     mkdir ${TEMP_LOC}/gitlfs
     cd ${TEMP_LOC}/gitlfs
-    curl -L -O https://github.com/git-lfs/git-lfs/releases/download/v3.2.0/git-lfs-linux-amd64-v3.2.0.tar.gz
-    tar -xf git-lfs-linux-amd64-v3.2.0.tar.gz
-    cd git-lfs-3.2.0
+    LFS_VERSION=3.3.0
+    LFS_ARCH=$(uname -m)
+    if [ "${LFS_ARCH}" == "aarch64" ]; then
+        LFS_ARCH=arm64
+    fi
+    curl -L -O https://github.com/git-lfs/git-lfs/releases/download/v${LFS_VERSION}/git-lfs-linux-${LFS_ARCH}-v${LFS_VERSION}.tar.gz
+    tar -xf git-lfs-linux-${LFS_ARCH}-v${LFS_VERSION}.tar.gz
+    cd git-lfs-${LFS_VERSION}
     ./install.sh
 
     # Clean Up
