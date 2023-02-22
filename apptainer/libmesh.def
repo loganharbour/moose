@@ -87,6 +87,11 @@ From: {{ APPTAINER_FROM }}
     METHODS="{{ METHODS or "opt" }}"
 {%- endif %}
 
+    # Autotools is needed for a rebootstrap on arm
+    if [ "$(uname -m)" == "aarch64" ]; then
+        dnf install -y libtool autoconf automake
+    fi
+
     # Build libMesh
     umask 022
     cd ${ROOT_BUILD_DIR}/moose

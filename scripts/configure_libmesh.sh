@@ -41,10 +41,10 @@ function configure_libmesh()
   # If METHODS is not set in update_and_rebuild_libmesh.sh, set a default value.
   export METHODS=${METHODS:="opt oprof devel dbg"}
 
-  # On ARM Mac, we need to re-bootstrap because the current autotools
+  # On ARM, we need to re-bootstrap because the current autotools
   # in libMesh don't work with arm64 :(
   # Roy is working on an autotools update eventually...
-  if [[ $(uname) == Darwin  ]] && [[ $(uname -m) == arm64 ]]; then
+  if [[ $(uname -m) == arm64 ]] || [[ $(uname -m) == aarch64 ]] ; then
     echo "INFO: Re-bootstrapping libMesh and its dependencies"
     cd $SRC_DIR || exit $?
     ./bootstrap || exit $?
