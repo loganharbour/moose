@@ -30,8 +30,7 @@ MeshGeneratorMesh::MeshGeneratorMesh(const InputParameters & parameters) : Moose
 {
   if (isParamValid("final_generator"))
     _app.getMeshGeneratorSystem().setFinalMeshGeneratorName(
-        getParam<std::string>("final_generator"),
-        MeshGeneratorSystem::SetFinalMeshGeneratorNameKey());
+        getParam<std::string>("final_generator"));
 }
 
 std::unique_ptr<MooseMesh>

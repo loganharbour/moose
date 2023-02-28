@@ -428,10 +428,10 @@ MeshGeneratorSystem::getMeshGeneratorNames() const
 }
 
 void
-MeshGeneratorSystem::setFinalMeshGeneratorName(const std::string & generator_name,
-                                               const SetFinalMeshGeneratorNameKey)
+MeshGeneratorSystem::setFinalMeshGeneratorName(const std::string & generator_name)
 {
   mooseAssert(_final_generator_name.empty(), "Already set");
+  mooseAssert(_app.actionWarehouse().getCurrentTaskName() == "setup_mesh", "Incorrect call time");
   _final_generator_name = generator_name;
 }
 
