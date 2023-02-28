@@ -261,14 +261,18 @@ MeshGenerator::setMeshPropertyHelper(const std::string & data_name)
 }
 
 void
-MeshGenerator::addParentMeshGenerator(const MeshGenerator & mg, const AddParentChildKey)
+MeshGenerator::addParentMeshGenerator(const MeshGenerator & mg)
 {
+  mooseAssert(_app.actionWarehouse().getCurrentTaskName() == "create_added_mesh_generators",
+              "Incorrect call time");
   _parent_mesh_generators.insert(&mg);
 }
 
 void
-MeshGenerator::addChildMeshGenerator(const MeshGenerator & mg, const AddParentChildKey)
+MeshGenerator::addChildMeshGenerator(const MeshGenerator & mg)
 {
+  mooseAssert(_app.actionWarehouse().getCurrentTaskName() == "create_added_mesh_generators",
+              "Incorrect call time");
   _child_mesh_generators.insert(&mg);
 }
 

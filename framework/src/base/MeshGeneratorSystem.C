@@ -308,8 +308,8 @@ MeshGeneratorSystem::createMeshGenerator(const std::string & generator_name)
     mooseAssert(hasMeshGenerator(dependency), "Missing dependency");
 
     auto & dependency_mg = getMeshGeneratorInternal(dependency);
-    mg->addParentMeshGenerator(dependency_mg, MeshGenerator::AddParentChildKey());
-    dependency_mg.addChildMeshGenerator(*mg, MeshGenerator::AddParentChildKey());
+    mg->addParentMeshGenerator(dependency_mg);
+    dependency_mg.addChildMeshGenerator(*mg);
   }
 
   // Loop through all of the MeshGeneratorName and std::vector<MeshGeneratorName>

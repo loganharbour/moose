@@ -79,30 +79,17 @@ public:
   }
 
   /**
-   * Class that is used as a parameter to add[Parent/Child]() that allows only
-   * MooseApp methods to call said methods
-   */
-  class AddParentChildKey
-  {
-    friend class MeshGeneratorSystem;
-    AddParentChildKey() {}
-    AddParentChildKey(const AddParentChildKey &) {}
-  };
-
-  /**
    * Adds the MeshGenerator \p mg as a parent.
    *
-   * Protected by the AddParentChildKey so that parents can only be
-   * added by the MooseApp.
+   * This should only be called when mesh generators are being created
    */
-  void addParentMeshGenerator(const MeshGenerator & mg, const AddParentChildKey);
+  void addParentMeshGenerator(const MeshGenerator & mg);
   /**
    * Adds the MeshGenerator \p mg as a child.
    *
-   * Protected by the AddParentChildKey so that parents can only be
-   * added by the MooseApp.
+   * This should only be called when mesh generators are being created
    */
-  void addChildMeshGenerator(const MeshGenerator & mg, const AddParentChildKey);
+  void addChildMeshGenerator(const MeshGenerator & mg);
 
   /**
    * Gets the MeshGenerators that are parents to this MeshGenerator.
