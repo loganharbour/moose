@@ -472,8 +472,7 @@ makedirs(const std::string & dir_name, bool throw_on_failure)
   auto n = split_dir_names.size();
 
   // remove '.' and '..' when possible
-  auto i = n;
-  i = 0;
+  decltype(n) i = 0;
   while (i != n)
   {
     if (split_dir_names[i] == ".")
@@ -528,8 +527,7 @@ removedirs(const std::string & dir_name, bool throw_on_failure)
   auto n = split_dir_names.size();
 
   // remove '.' and '..' when possible
-  auto i = n;
-  i = 0;
+  decltype(n) i = 0;
   while (i != n)
   {
     if (split_dir_names[i] == ".")
@@ -558,8 +556,7 @@ removedirs(const std::string & dir_name, bool throw_on_failure)
   for (i = n; i > 0; --i)
   {
     std::string cur_dir = base_dir;
-    auto j = i;
-    for (j = 0; j < i; ++j)
+    for (decltype(i) j = 0; j < i; ++j)
       cur_dir += "/" + split_dir_names[j];
 
     // listDir should return at least '.' and '..'
@@ -1058,7 +1055,7 @@ rsplit(const std::string & str, const std::string & delimiter, std::size_t max_c
 {
   std::vector<std::string> output;
   std::size_t count = 0;
-  size_t prev = str.length(), pos = str.length();
+  size_t prev = str.length(), pos;
   do
   {
     pos = str.rfind(delimiter, prev);
