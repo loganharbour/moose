@@ -58,7 +58,7 @@ public:
 
   virtual NumericVector<Number> & RHS() override { return *_nl_implicit_sys.rhs; }
 
-  virtual NonlinearSolver<Number> * nonlinearSolver() override
+  virtual NonlinearSolver<Number> * nonlinearSolver() override final
   {
     return _nl_implicit_sys.nonlinear_solver.get();
   }
