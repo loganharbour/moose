@@ -5,6 +5,7 @@ Manipulate Apptainer/Harbor containers based on version/hashes of MOOSE reposito
 import os
 import sys
 import argparse
+import re
 import socket
 import subprocess
 
@@ -119,6 +120,10 @@ class ApptainerGenerator:
         build_parser.add_argument('--sign', type=int,
                                   help='Sign the built container with the given key')
 
+        squash_parser = action_parser.add_parser('squash', parents=[parent],
+                                                 help='Squash a container')
+        add_default_args(squash_parser)
+
         push_parser = action_parser.add_parser('push', parents=[parent],
                                                 help='Push a container')
         add_default_args(push_parser, remote=True)
@@ -126,6 +131,8 @@ class ApptainerGenerator:
                                  help='An alternate tag to push to')
         push_parser.add_argument('--to-tag-prefix', type=str,
                                  help='A prefix to add to the pushed tag')
+        push_parser.add_argument('--squashed', action='store_true',
+                                 help='Push the squashed container (app only)')
 
         uri_parser = action_parser.add_parser('uri', parents=[parent],
                                               help='Get the URI to a container')
@@ -176,11 +183,10 @@ class ApptainerGenerator:
         self.print(self.add_color(' '.join(command), 'green'))
         subprocess.run(command, check=True)
 
-    def container_path(self, name: str, tag: str, image=True):
+    def container_path(self, name: str, tag: str, ext='sif'):
         """
         Gets the local path to a container or definition file
         """
-        ext = 'sif' if image else 'def'
         return os.path.join(self.dir, f'{name}_{tag}.{ext}')
 
     def oras_uri(self, project: str, name: str, tag: str):
@@ -245,16 +251,26 @@ class ApptainerGenerator:
         command += [file, def_file]
         self.run(command)
 
-    @staticmethod
-    def oras_exists(uri: str):
+    def oras_call(self, command, loud=True, check=True, cwd=os.getcwd()):
+        config_file = os.path.join(os.environ['HOME'], '.apptainer/docker-config.json')
+        command = ['oras', '--registry-config', config_file] + command
+
+        if loud:
+            stdout = sys.stdout
+            stderr = sys.stderr
+            self.print(self.add_color(' '.join(command), 'green'))
+        else:
+            stdout = subprocess.PIPE
+            stderr = subprocess.PIPE
+
+        return subprocess.run(command, stdout=stdout, stderr=stderr, check=check, cwd=cwd)
+
+    def oras_exists(self, uri: str):
         """
         Checks whether or not the given image exists via ORAS
         """
-        config_file = os.path.join(os.environ['HOME'], '.apptainer/docker-config.json')
-        uri = uri.replace('oras://', '')
-        command = ['oras', 'manifest', 'fetch', '--registry-config', config_file, uri]
-        process = subprocess.run(command, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, check=False)
+        command = ['manifest', 'fetch', uri.replace('oras://', '')]
+        process = self.oras_call(command, loud=False, check=False)
         if process.returncode == 0:
             return True
 
@@ -524,7 +540,7 @@ class ApptainerGenerator:
         new_definition = self._add_definition_labels(new_definition)
 
         # Definition file checks
-        container_definition_path = self.container_path(self.name, self.tag, image=False)
+        container_definition_path = self.container_path(self.name, self.tag, ext='def')
         self.print(f'Writing definition to {container_definition_path}')
         if os.path.exists(container_definition_path):
             if self.args.overwrite:
@@ -557,12 +573,38 @@ class ApptainerGenerator:
         args = []
         if self.args.build_args is not None:
             args = self.args.build_args.split(' ')
-        container_definition_path = self.container_path(self.name, self.tag, image=False)
+        container_definition_path = self.container_path(self.name, self.tag, ext='def')
         self.apptainer_build(container_definition_path, self.name, self.tag, args=args)
 
         # Sign if requested
         if self.args.sign is not None:
             self.apptainer_sign(self.name, self.tag, self.args.sign)
+
+    def _action_squash(self):
+        """
+        Performs the "squash" action
+        """
+        if self.args.library != 'app':
+            self.error('Can only squash applications')
+
+        container_path = self.container_path(self.name, self.tag)
+        if not os.path.exists(container_path):
+            self.error(f'Container {container_path} does not exist')
+        self.print(f'Squashing container {container_path}')
+
+        squashfs_path = self.container_path(self.name, self.tag, ext='squashfs')
+        if os.path.exists(squashfs_path):
+            if self.args.overwrite:
+                self.warn(f'Overwriting {squashfs_path}')
+                os.remove(squashfs_path)
+            else:
+                self.error(f'Squashed filesystem {squashfs_path} already exists')
+
+        bind_mount = os.path.dirname(squashfs_path) + ':' + os.path.dirname(squashfs_path)
+        command = ['apptainer', 'exec', '-B', bind_mount, container_path, '/opt/moose-apptainer/squash.sh', squashfs_path]
+        self.run(command)
+
+        self.print(f'Container was squashed to {squashfs_path}')
 
     def _action_push(self):
         """
@@ -577,14 +619,60 @@ class ApptainerGenerator:
         if not os.path.exists(container_path):
             self.error(f'Container {container_path} does not exist')
 
-        uri = self.oras_uri(self.project, self.name, to_tag)
-        if self.oras_exists(uri):
-            if self.args.overwrite:
-                self.warn(f'Overwriting {uri}')
-            else:
-                self.error(f'Tag {uri} already exists')
+        if self.args.squashed:
+            squashfs_path = self.container_path(self.name, from_tag, ext='squashfs')
+            if not os.path.exists(squashfs_path):
+                self.error(f'To-be squashed container {squashfs_path} does not exist')
 
-        self.apptainer_push(self.project, self.name, from_tag, to_tag)
+            # Load the def file from the container
+            dep_def_cmd = ['apptainer', 'inspect', '-d', container_path]
+            dep_def = subprocess.check_output(dep_def_cmd).decode(sys.stdout.encoding)
+
+            # Find the container that this was based on
+            dep_from_re = re.search(r'From: +(([a-zA-Z0-9_.]+)\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\:([a-zA-Z0-9_.-]+))', dep_def)
+            if not dep_from_re:
+                self.error(f'Failed to parse from-container from def for {container_path}')
+            dep_uri = 'oras://' + dep_from_re.group(1)
+            dep_host = dep_from_re.group(2)
+            dep_project = dep_from_re.group(3)
+            dep_name = dep_from_re.group(4)
+            dep_tag = dep_from_re.group(5)
+
+            # Get the container that this was based on
+            self.print(f'Fetching dependent container {dep_name}:{dep_tag}')
+            from_container_path = self.container_path(dep_name, dep_tag)
+            if os.path.exists(from_container_path):
+                if self.args.overwrite:
+                    self.warn(f'Overwriting {from_container_path}')
+                    os.remove(from_container_path)
+                else:
+                    self.error(f'From container {from_container_path} already exists')
+            self.apptainer_pull(dep_project, dep_name, dep_tag)
+
+            name_arch = self.name.split('-')[-1]
+            to_name = self.name.replace(name_arch, 'squashed-' + name_arch)
+            oras_uri = self.oras_uri(self.project, to_name, to_tag)
+            if self.oras_exists(oras_uri):
+                if self.args.overwrite:
+                    self.warn(f'Overwriting {oras_uri}')
+                else:
+                    self.error(f'Tag {oras_uri} already exists')
+
+            self.print(f'Pushing squashed container {to_name}:{to_tag}')
+            oras_command = ['push',
+                            oras_uri.replace('oras://', ''),
+                            os.path.basename(squashfs_path),
+                            os.path.basename(from_container_path)]
+            self.oras_call(oras_command, cwd=self.dir)
+        else:
+            uri = self.oras_uri(self.project, self.name, to_tag)
+            if self.oras_exists(uri):
+                if self.args.overwrite:
+                    self.warn(f'Overwriting {uri}')
+                else:
+                    self.error(f'Tag {uri} already exists')
+
+            self.apptainer_push(self.project, self.name, from_tag, to_tag)
 
     def _action_path(self):
         """
