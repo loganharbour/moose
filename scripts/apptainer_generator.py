@@ -7,6 +7,7 @@ import sys
 import argparse
 import socket
 import subprocess
+import platform
 
 import jinja2
 
@@ -426,6 +427,10 @@ class ApptainerGenerator:
             jinja_data['APPLICATION_NAME'] = os.path.basename(app_root)
             jinja_data['BINARY_NAME'] = app_name
             self.add_application_additions(app_root, jinja_data)
+
+        # Set ARCH for the dependency (static from localimage) for mpich
+        if self.args.library == 'mpich':
+            jinja_data['ARCH'] = platform.machine()
 
         # Set MOOSE_[TOOLS, TEST_TOOLS]_VERSION
         if self.args.library == 'moose':

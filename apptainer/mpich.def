@@ -1,6 +1,10 @@
+{%- if ARCH == 'x86_64' %}
 BootStrap: oras
-# Any Rocky-8 image which supplies a development stack with MPI available
-From: mooseharbor.hpc.inl.gov/hpc-base/rocky8-x86_64-infiniband:10-19-2022
+From: mooseharbor.hpc.inl.gov/hpc-base/rocky8-{{ ARCH }}-infiniband:10-19-2022
+{%- else %}
+BootStrap: localimage
+From: /apps/containers/mpi_03.sif
+{%- endif %}
 
 %environment
     # Set Environment for MPICH
