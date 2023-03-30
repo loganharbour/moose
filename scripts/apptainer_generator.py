@@ -8,6 +8,8 @@ import argparse
 import re
 import socket
 import subprocess
+import json
+import tempfile
 
 import jinja2
 
@@ -214,18 +216,6 @@ class ApptainerGenerator:
         self.run(command)
         return file
 
-    def apptainer_push(self, project: str, name: str, from_tag: str, to_tag=None):
-        """
-        Pushes the given image via apptainer
-        """
-        if to_tag is None:
-            to_tag = from_tag
-        oras_uri = self.oras_uri(project, name, to_tag)
-        file = self.container_path(name, from_tag)
-        self.print(f'Pushing {file}')
-        command = ['apptainer', 'push', file, oras_uri]
-        self.run(command)
-
     def apptainer_sign(self, name: str, tag: str, key_id: int):
         """
         Signs the given image vit apptainer
@@ -279,6 +269,25 @@ class ApptainerGenerator:
 
         print(process.stderr.decode("utf-8"), file=sys.stderr)
         raise Exception('Failed to check ORAS image existance')
+
+    def oras_push(self, project: str, name: str, tag: str, files: list):
+        oras_uri = self.oras_uri(project, name, tag).replace('oras://', '')
+        oras_command = ['push', oras_uri]
+
+        annotations = None
+        for file in files:
+            if not file.startswith(self.dir):
+                self.error(f'File {file} does not start with generation dir {self.dir}')
+            if file.endwith('.sif'):
+                annotations = self.build_oras_annotations(file)
+            oras_command.append(os.path.basename(file))
+
+        with tempfile.NamedTemporaryFile() as annotation_tf:
+            if annotations is not None:
+                annotation_tf.write(json.dumps(annotations))
+                oras_command += ['--annotation-file', annotation_tf.name]
+
+            self.oras_call(oras_command, cwd=self.dir)
 
     @staticmethod
     def add_name_suffix(meta, suffix):
@@ -352,12 +361,18 @@ class ApptainerGenerator:
         """
         Adds common labels to the given definition content
         """
+        # Get the moose sha
+        moose_sha_command = ['git', 'rev-parse', 'HEAD']
+        moose_sha = subprocess.check_output(moose_sha_command, encoding='utf-8', cwd=MOOSE_DIR).rstrip()
+
         definition += '\n\n%labels\n'
         name = self.name
         if hasattr(self.args, 'modify') and self.args.modify is not None:
             name += '.modified'
         definition += f'    {name}.buildhost {socket.gethostname()}\n'
         definition += f'    {name}.version {self.tag}\n'
+        definition += f'    {name}.moose_sha {moose_sha}\n'
+
         # If we have CIVET info, add the url
         if 'CIVET_SERVER' in os.environ and 'CIVET_JOB_ID' in os.environ:
             civet_server = os.environ.get('CIVET_SERVER')
@@ -462,6 +477,17 @@ class ApptainerGenerator:
                 jinja_var = f'vtk_{var}'
                 jinja_data[jinja_var] = meta['source'][var]
 
+    @staticmethod
+    def build_oras_annotations(container_path):
+        inspect_cmd = ['apptainer', 'inspect', '-j', container_path]
+        inspection = json.loads(subprocess.check_output(inspect_cmd).decode(sys.stdout.encoding))
+
+        annotations = {}
+        if 'labels' in inspection['data']['attributes']:
+            for key, value in inspection['data']['attributes'].items():
+                if key not in ['Authors', 'Version']:
+                    annotations[key] = value
+        return annotations
 
     def _action_exists(self):
         """
@@ -672,7 +698,7 @@ class ApptainerGenerator:
                 else:
                     self.error(f'Tag {uri} already exists')
 
-            self.apptainer_push(self.project, self.name, from_tag, to_tag)
+            self.oras_push(self.project, self.name, to_tag, [container_path])
 
     def _action_path(self):
         """
