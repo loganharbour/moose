@@ -123,7 +123,7 @@ class ApptainerGenerator:
                                   help='Sign the built container with the given key')
 
         squash_parser = action_parser.add_parser('squash', parents=[parent],
-                                                 help='Squash a container')
+                                                 help='Squash a container (app only)')
         add_default_args(squash_parser)
 
         push_parser = action_parser.add_parser('push', parents=[parent],
@@ -270,22 +270,26 @@ class ApptainerGenerator:
         print(process.stderr.decode("utf-8"), file=sys.stderr)
         raise Exception('Failed to check ORAS image existance')
 
-    def oras_push(self, project: str, name: str, tag: str, files: list):
+    def oras_push(self, project: str, name: str, tag: str, files: list, annotation_sif=None):
+        """
+        Pushes the given files via oras
+        """
         oras_uri = self.oras_uri(project, name, tag).replace('oras://', '')
         oras_command = ['push', oras_uri]
 
-        annotations = None
         for file in files:
             if not file.startswith(self.dir):
                 self.error(f'File {file} does not start with generation dir {self.dir}')
-            if file.endswith('.sif'):
-                annotations = self.build_oras_annotations(file)
             oras_command.append(os.path.basename(file))
+
+        annotations = None
+        if annotation_sif is not None:
+            annotations = self.build_oras_annotations(file)
 
         with tempfile.NamedTemporaryFile() as annotation_tf:
             if annotations is not None:
                 annotation_tf.write(json.dumps(annotations))
-                oras_command += ['--annotation-file', annotation_tf.name]
+                oras_command.extend(['--annotation-file', annotation_tf.name])
 
             self.oras_call(oras_command, cwd=self.dir)
 
@@ -685,11 +689,8 @@ class ApptainerGenerator:
                     self.error(f'Tag {oras_uri} already exists')
 
             self.print(f'Pushing squashed container {to_name}:{to_tag}')
-            oras_command = ['push',
-                            oras_uri.replace('oras://', ''),
-                            os.path.basename(squashfs_path),
-                            os.path.basename(from_container_path)]
-            self.oras_call(oras_command, cwd=self.dir)
+            self.oras_push(self.project, to_name, to_tag, [squashfs_path, from_container_path],
+                           annotation_sif=container_path)
         else:
             uri = self.oras_uri(self.project, self.name, to_tag)
             if self.oras_exists(uri):
