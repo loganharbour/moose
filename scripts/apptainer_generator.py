@@ -270,25 +270,27 @@ class ApptainerGenerator:
         print(process.stderr.decode("utf-8"), file=sys.stderr)
         raise Exception('Failed to check ORAS image existance')
 
-    def oras_push(self, project: str, name: str, tag: str, files: list, annotation_sif=None):
+    def oras_push(self, project: str, name: str, tag: str, files: list, extra_annotations={}):
         """
         Pushes the given files via oras
         """
         oras_uri = self.oras_uri(project, name, tag).replace('oras://', '')
         oras_command = ['push', oras_uri]
 
+        annotations = {}
         for file in files:
             if not file.startswith(self.dir):
                 self.error(f'File {file} does not start with generation dir {self.dir}')
-            oras_command.append(os.path.basename(file))
+            filetype_suffix = ''
+            if file.endswith('.sif'):
+                annotations = self.build_oras_annotations(file, extra_annotations=extra_annotations)
+                filetype_suffix = ':application/vnd.sylabs.sif.layer.v1.sif'
+            oras_command.append(os.path.basename(file) + filetype_suffix)
 
-        annotations = None
-        if annotation_sif is not None:
-            annotations = self.build_oras_annotations(file)
-
-        with tempfile.NamedTemporaryFile() as annotation_tf:
+        with tempfile.NamedTemporaryFile(mode='w') as annotation_tf:
             if annotations is not None:
-                annotation_tf.write(json.dumps(annotations))
+                with annotation_tf.file as tf:
+                    tf.write(json.dumps(annotations))
                 oras_command.extend(['--annotation-file', annotation_tf.name])
 
             self.oras_call(oras_command, cwd=self.dir)
@@ -373,15 +375,16 @@ class ApptainerGenerator:
         name = self.name
         if hasattr(self.args, 'modify') and self.args.modify is not None:
             name += '.modified'
-        definition += f'    {name}.buildhost {socket.gethostname()}\n'
-        definition += f'    {name}.version {self.tag}\n'
+        definition += f'    {name}.build_host {socket.gethostname()}\n'
+        definition += f'    {name}.build_user {os.getlogin()}\n'
         definition += f'    {name}.moose_sha {moose_sha}\n'
+        definition += f'    {name}.version {self.tag}\n'
 
         # If we have CIVET info, add the url
         if 'CIVET_SERVER' in os.environ and 'CIVET_JOB_ID' in os.environ:
             civet_server = os.environ.get('CIVET_SERVER')
             civet_job_id = os.environ.get('CIVET_JOB_ID')
-            definition += f'    {name}.job {civet_server}/job/{civet_job_id}\n'
+            definition += f'    {name}.civet_job {civet_server}/job/{civet_job_id}\n'
         return definition
 
     @staticmethod
@@ -482,15 +485,25 @@ class ApptainerGenerator:
                 jinja_data[jinja_var] = meta['source'][var]
 
     @staticmethod
-    def build_oras_annotations(container_path):
+    def get_sif_labels(sif_path):
+        inspect_cmd = ['apptainer', 'inspect', '-j', sif_path]
+        inspection = json.loads(subprocess.check_output(inspect_cmd).decode(sys.stdout.encoding))
+
+        if 'labels' in inspection['data']['attributes']:
+            return inspection['data']['attributes']['labels']
+        return {}
+
+    @staticmethod
+    def build_oras_annotations(container_path, extra_annotations={}):
         inspect_cmd = ['apptainer', 'inspect', '-j', container_path]
         inspection = json.loads(subprocess.check_output(inspect_cmd).decode(sys.stdout.encoding))
 
-        annotations = {}
+        annotations = {'$manifest': {}}
         if 'labels' in inspection['data']['attributes']:
-            for key, value in inspection['data']['attributes'].items():
-                if key not in ['Authors', 'Version']:
-                    annotations[key] = value
+            labels = ApptainerGenerator.get_sif_labels(container_path)
+            for key, value in labels.items():
+                if key not in ['Authors:', 'Version:']:
+                    annotations['$manifest'][key] = value
         return annotations
 
     def _action_exists(self):
@@ -679,14 +692,24 @@ class ApptainerGenerator:
                     self.error(f'From container {from_container_path} already exists')
             self.apptainer_pull(dep_project, dep_name, dep_tag)
 
+            # Add "-squashed" to the end of the name
             name_arch = self.name.split('-')[-1]
             to_name = self.name.replace(name_arch, 'squashed-' + name_arch)
+
+            # Make sure it doesn't already exist
             oras_uri = self.oras_uri(self.project, to_name, to_tag)
             if self.oras_exists(oras_uri):
                 if self.args.overwrite:
                     self.warn(f'Overwriting {oras_uri}')
                 else:
                     self.error(f'Tag {oras_uri} already exists')
+
+            # Fill the extra annotations (the labels from the app container)
+            extra_annotations = {}
+            app_labels = self.get_sif_labels(container_path)
+            for key, value in app_labels.items():
+                if key.startswith(self.project):
+                    extra_annotations[key] = value
 
             self.print(f'Pushing squashed container {to_name}:{to_tag}')
             self.oras_push(self.project, to_name, to_tag, [squashfs_path, from_container_path],
