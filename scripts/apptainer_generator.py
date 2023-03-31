@@ -278,7 +278,7 @@ class ApptainerGenerator:
         for file in files:
             if not file.startswith(self.dir):
                 self.error(f'File {file} does not start with generation dir {self.dir}')
-            if file.endwith('.sif'):
+            if file.endswith('.sif'):
                 annotations = self.build_oras_annotations(file)
             oras_command.append(os.path.basename(file))
 
