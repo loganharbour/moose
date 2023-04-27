@@ -65,9 +65,6 @@ From: {{ APPTAINER_FROM }}
     rm ${ROOT_BUILD_DIR}/mambaforge.sh
     PATH=${MOOSE_MAMBAFORGE}/bin:$PATH
 
-    # Basic installs in the base
-    mamba install -yq python=${PYTHON_VERSION}
-
     # Add moose channels
     conda config --env --add channels https://conda.software.inl.gov/public
     # Add an alt channel if given
@@ -93,6 +90,9 @@ From: {{ APPTAINER_FROM }}
     pip3 --no-cache install lcov-cobertura
     {%- endif %}
 
+    # Few packages needed by apps
+    dnf install -y fftw-devel gsl-devel
+
     # Build and install wasp
     # This is redundant; hopefully we can use the one from conda in the future
     export WASP_DIR={{ WASP_DIR }}
@@ -103,4 +103,5 @@ From: {{ APPTAINER_FROM }}
 
     # Clean up
     conda clean -ya
+    dnf clean all
     rm -rf ${ROOT_BUILD_DIR}
