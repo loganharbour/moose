@@ -19,9 +19,6 @@
 {#- Name of the environment to create in mamba                                                -#}
 {%- set MOOSE_MAMBA_ENV = 'moose' -%}
 
-{#- Location to install the packed mamba environment                                          -#}
-{%- set MOOSE_TOOLS_DIR = '/opt/moose-tools' -%}
-
 {#- The installation location for wasp                                                        -#}
 {%- set WASP_DIR = '/opt/wasp' -%}
 
@@ -38,17 +35,13 @@ From: {{ APPTAINER_FROM }}
     git submodule update --init --recursive framework/contrib/wasp
 
 %environment
-    if [ -d {{ MOOSE_MAMBAFORGE }} ]; then
-      export PATH={{ MOOSE_MAMBAFORGE }}/bin:$PATH
-      source activate {{ MOOSE_MAMBAFORGE }}/envs/{{ MOOSE_MAMBA_ENV }}
-    fi
-    if [ -d {{ MOOSE_TOOLS_DIR }} ]; then
-      export PATH={{ MOOSE_TOOLS_DIR }}/bin:$PATH
-    fi
-    if [ -d {{ WASP_DIR }} ]; then
-      export WASP_DIR={{ WASP_DIR }}
-      export PATH=${WASP_DIR}/bin:$PATH
-    fi
+    export PATH={{ MOOSE_MAMBAFORGE }}/bin:$PATH
+    source activate {{ MOOSE_MAMBAFORGE }}/envs/{{ MOOSE_MAMBA_ENV }}
+
+    # This will overwrite WASP_DIR from conda, that's okay for now.
+    # This is a temp fix; hopefully we can get the conda one working eventually
+    export WASP_DIR={{ WASP_DIR }}
+    export PATH=${WASP_DIR}/bin:$PATH
 
 %post
     umask 022
@@ -61,17 +54,10 @@ From: {{ APPTAINER_FROM }}
     MOOSE_TEST_TOOLS_VERSION={{ MOOSE_TEST_TOOLS_VERSION }}
     CONDA_ALT_CHANNEL={{ CONDA_ALT_CHANNEL }}
     export MOOSE_JOBS={{ MOOSE_JOBS }}
-    export WASP_DIR={{ WASP_DIR }}
 
     # Pinned versions
     MAMBAFORGE_VERSION=23.1.0-1
     PYTHON_VERSION=3.10
-
-    # Build and install wasp
-    cd ${ROOT_BUILD_DIR}/moose
-    ./scripts/update_and_rebuild_wasp.sh -D CMAKE_INSTALL_PREFIX:STRING=${WASP_DIR}
-    cd ..
-    rm -rf moose
 
     # Install mamba in MOOSE_MAMBAFORGE
     curl -L https://github.com/conda-forge/miniforge/releases/download/${MAMBAFORGE_VERSION}/Mambaforge-${MAMBAFORGE_VERSION}-Linux-x86_64.sh -o ${ROOT_BUILD_DIR}/mambaforge.sh
@@ -80,7 +66,7 @@ From: {{ APPTAINER_FROM }}
     PATH=${MOOSE_MAMBAFORGE}/bin:$PATH
 
     # Basic installs in the base
-    mamba install -yq python=${PYTHON_VERSION} conda-pack
+    mamba install -yq python=${PYTHON_VERSION}
 
     # Add moose channels
     conda config --env --add channels https://conda.software.inl.gov/public
@@ -103,41 +89,17 @@ From: {{ APPTAINER_FROM }}
 
     {% if DEV_CONTAINER is defined -%}
     # Other Development container installs
-    dnf --enablerepo=powertools install -y lcov
-    # need to add lcov-cobertura
+    dnf --enablerepo=powertools install -y lcov doxygen
+    pip3 --no-cache install lcov-cobertura
     {%- endif %}
 
-    # Setup the install script to be ran in a later
-    # container that packages up the environment for a
-    # smaller install into MOOSE_TOOLS_DIR
-    echo '# moose-tools install script
-
-umask 022
-
-# package environment into MOOSE_TOOLS_TAR
-conda clean -ya
-MOOSE_TOOLS_TAR=$(mktemp -u).tar.gz
-conda pack -q -n {{ MOOSE_MAMBA_ENV }} -o ${MOOSE_TOOLS_TAR}
-rm -rf /root/.conda* {{ MOOSE_MAMBAFORGE }}
-
-# extract into MOOSE_TOOLS_DIR
-MOOSE_TOOLS_DIR={{ MOOSE_TOOLS_DIR }}
-mkdir ${MOOSE_TOOLS_DIR}
-tar -xzf ${MOOSE_TOOLS_TAR} -C ${MOOSE_TOOLS_DIR}
-rm ${MOOSE_TOOLS_TAR}
-chmod -R o=u-w,g=u-w ${MOOSE_TOOLS_DIR}
-
-# so that we can use python in setup
-export PATH=${MOOSE_TOOLS_DIR}/bin:$PATH
-
-{% if DEV_CONTAINER is defined %}
-# Development container installs
-pip3 --no-cache install lcov-cobertura
-{% endif %}
-
-# done with this script
-rm /root/install_moose_tools.sh' > /root/install_moose_tools.sh
-    chmod u+x /root/install_moose_tools.sh
+    # Build and install wasp
+    # This is redundant; hopefully we can use the one from conda in the future
+    export WASP_DIR={{ WASP_DIR }}
+    cd ${ROOT_BUILD_DIR}/moose
+    ./scripts/update_and_rebuild_wasp.sh -D CMAKE_INSTALL_PREFIX:STRING=${WASP_DIR}
+    cd ..
+    rm -rf moose
 
     # Clean up
     conda clean -ya
