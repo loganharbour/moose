@@ -64,7 +64,7 @@ From: {{ APPTAINER_FROM }}
     export WASP_DIR={{ WASP_DIR }}
 
     # Pinned versions
-    MAMBAFORGE_VERSION=22.9.0-2
+    MAMBAFORGE_VERSION=23.1.0-1
     PYTHON_VERSION=3.10
 
     # Build and install wasp
