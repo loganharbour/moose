@@ -542,7 +542,13 @@ Comment::render(int indent,
 }
 
 Node *
-Comment::clone(bool absolute_path)
+Comment::clone(bool
+#ifdef WASP_ENABLED
+absolute_path
+#else
+/* absolute_path */
+#endif
+)
 {
 #ifdef WASP_ENABLED
   auto n = new Comment(_dhi, _hnv);
@@ -1121,27 +1127,11 @@ Field::vecIntVal()
   std::vector<int> vec;
   for (const auto & s : vecStrVal())
   {
-#ifdef WASP_ENABLED
     std::istringstream iss(s);
     int conversion;
     if ((iss >> conversion).fail() || !iss.eof())
       throw Error("cannot convert field '" + fullpath() + "' value '" + s + "' to integer");
     vec.push_back(conversion);
-#else
-    try
-    {
-      size_t pos = 0;
-      auto converted_val = std::stoi(s, &pos);
-      if (pos != s.size())
-        throw std::invalid_argument("dummy");
-
-      vec.push_back(converted_val);
-    }
-    catch (...)
-    {
-      throw Error("cannot convert field '" + fullpath() + "' value '" + s + "' to integer");
-    }
-#endif
   }
   return vec;
 }
@@ -1152,27 +1142,11 @@ Field::vecFloatVal()
   std::vector<double> vec;
   for (const auto & s : vecStrVal())
   {
-#ifdef WASP_ENABLED
     std::istringstream iss(s);
     double conversion;
     if ((iss >> conversion).fail() || !iss.eof())
       throw Error("cannot convert field '" + fullpath() + "' value '" + s + "' to float");
     vec.push_back(conversion);
-#else
-    try
-    {
-      size_t pos = 0;
-      auto converted_val = std::stod(s, &pos);
-      if (pos != s.size())
-        throw std::invalid_argument("dummy");
-
-      vec.push_back(converted_val);
-    }
-    catch (...)
-    {
-      throw Error("cannot convert field '" + fullpath() + "' value '" + s + "' to float");
-    }
-#endif
   }
   return vec;
 }
@@ -1180,23 +1154,16 @@ Field::vecFloatVal()
 std::vector<std::string>
 Field::vecStrVal()
 {
-#ifdef WASP_ENABLED
-  std::string array_data = val();
-  if (!quoteChar(array_data).empty())
-  {
-    array_data = array_data.substr(1, array_data.size() - 2);
-  }
-  return split(array_data);
-#else
+#ifndef WASP_ENABLED
   if (_kind != Kind::String && _kind != Kind::Int && _kind != Kind::Float)
     throw Error("field node '" + fullpath() + "' does not hold a vec-typed value (val='" + _val +
                 "')");
+#endif
 
-  std::string unquoted = _val;
-  if (unquoted[0] == '\'' || unquoted[0] == '"')
+  std::string unquoted = val();
+  if (!quoteChar(unquoted).empty())
     unquoted = unquoted.substr(1, unquoted.size() - 2);
   return split(unquoted);
-#endif
 }
 
 bool
@@ -1233,86 +1200,47 @@ Field::boolVal()
 int64_t
 Field::intVal()
 {
-#ifdef WASP_ENABLED
-  std::string str_value = val();
-  std::istringstream iss(str_value);
-  int64_t conversion;
-  if ((iss >> conversion).fail() || !iss.eof())
-    throw Error("cannot convert field '" + fullpath() + "' value '" + str_value + "' to integer");
-  return conversion;
-#else
+#ifndef WASP_ENABLED
   if (_kind != Kind::Int)
     throw Error("field node '" + fullpath() + "' does not hold an int-typed value (val='" + _val +
                 "')");
-  try
-  {
-    size_t pos = 0;
-    auto converted_val = std::stoll(_val, &pos);
-    if (pos != _val.size())
-      throw std::invalid_argument("dummy");
-    return converted_val;
-  }
-  catch (...)
-  {
-    throw Error("cannot convert '" + _val + "' to int");
-  }
 #endif
+
+  std::string str_value = val();
+  std::istringstream iss(str_value);
+  int64_t converted_val;
+  if ((iss >> converted_val).fail() || !iss.eof())
+    throw Error("cannot convert field '" + fullpath() + "' value '" + str_value + "' to integer");
+  return converted_val;
 }
 
 double
 Field::floatVal()
 {
-#ifdef WASP_ENABLED
-  std::string str_value = val();
-  std::istringstream iss(str_value);
-  double conversion;
-  if ((iss >> conversion).fail() || !iss.eof())
-    throw Error("cannot convert field '" + fullpath() + "' value '" + str_value + "' to float");
-  return conversion;
-#else
+#ifndef WASP_ENABLED
   if (_kind != Kind::Float && _kind != Kind::Int)
     throw Error("field node '" + fullpath() + "' does not hold a float-typed value (val='" + _val +
                 "')");
-  try
-  {
-    size_t pos = 0;
-    auto converted_val = std::stod(_val, &pos);
-    if (pos != _val.size())
-      throw std::invalid_argument("dummy");
-    return converted_val;
-  }
-  catch (...)
-  {
-    throw Error("cannot convert '" + _val + "' to float");
-  }
 #endif
+
+  std::string str_value = val();
+  std::istringstream iss(str_value);
+  double converted_val;
+  if ((iss >> converted_val).fail() || !iss.eof())
+    throw Error("cannot convert field '" + fullpath() + "' value '" + str_value + "' to float");
+  return converted_val;
 }
 
 std::string
 Field::strVal()
 {
-#ifdef WASP_ENABLED
-  std::string node_data = val();
-  auto quote = quoteChar(node_data);
-  if (quote != "")
-  {
-    node_data = node_data.substr(1, node_data.size() - 2);
-    size_t pos = node_data.find("\\" + quote, 0);
-    while (pos != std::string::npos)
-    {
-      node_data.replace(pos, 2, quote);
-      pos += 1; // handles when replaced text is a substring of find text
-      pos = node_data.find("\\" + quote, pos);
-    }
-  }
-  return node_data;
-#else
-  std::string s = _val;
+  const auto value = val();
+  std::string s = value;
 
-  auto quote = quoteChar(_val);
+  const auto quote = quoteChar(value);
   if (quote != "")
   {
-    s = _val.substr(1, _val.size() - 2);
+    s = value.substr(1, value.size() - 2);
 
     size_t pos = s.find("\\" + quote, 0);
     while (pos != std::string::npos)
@@ -1324,7 +1252,6 @@ Field::strVal()
   }
 
   return s;
-#endif
 }
 
 #ifndef WASP_ENABLED
