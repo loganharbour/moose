@@ -90,19 +90,20 @@ toBool(const std::string & val, bool * dst)
 }
 
 #ifndef WASP_ENABLED
-// clang-format of
+// clang-format off
 std::string
 nodeTypeName(NodeType t)
 {
-#define nodecase(type)                                                                             \
-  case NodeType::type:                                                                             \
-    return #type;
+  #define nodecase(type) case NodeType::type: return #type;
   switch (t)
-  {
-    nodecase(Root) nodecase(Section) nodecase(Comment) nodecase(Field) default
-      : return std::to_string((int)t);
-  }
-#undef nodecase
+    {
+      nodecase(Root)
+      nodecase(Section)
+      nodecase(Comment)
+      nodecase(Field)
+      default : return std::to_string((int)t);
+    }
+  #undef nodecase
 }
 // clang-format on
 #endif
@@ -608,6 +609,9 @@ Section::render(int indent,
 )
 {
 #ifdef WASP_ENABLED
+  // renders blank lines before sections, fields, and comments by comparing
+  // the number of lines already rendered with the line number of the next
+  // non-blank returning the gathered line count
   const auto append_blank_lines = [](std::string & render_out, int next_print, int start_line)
   {
     int line_tally = start_line + std::count(render_out.begin(), render_out.end(), '\n');
