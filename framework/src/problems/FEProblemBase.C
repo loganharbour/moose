@@ -785,8 +785,6 @@ FEProblemBase::initialSetup()
       //      _app.setBackupObject(backup);
       //      _app.restoreCachedBackup();
 
-      std::cout << "Restoring!" << std::endl;
-
       _app.restore(backup, _app.isRestarting());
 
       if (_material_props.hasStatefulProperties() || _bnd_material_props.hasStatefulProperties() ||
@@ -1039,6 +1037,7 @@ FEProblemBase::initialSetup()
   if ((_app.isRestarting() || _app.isRecovering()) && _app.hasCachedBackup())
   {
     _app.restoreCachedBackup();
+
     // We may have just clobbered initial conditions that were explicitly set
     // In a _restart_ scenario it is completely valid to specify new initial conditions
     // for some of the variables which should override what's coming from the restart file
