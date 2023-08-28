@@ -173,10 +173,11 @@ FEProblemBase::validParams()
                         "EXPERIMENTAL: If true, a sub_app may use a "
                         "restart file instead of using of using the master "
                         "backup file");
-  params.addParam<bool>("skip_additional_restart_data",
-                        false,
-                        "True to skip additional data in equation system for restart. It is useful "
-                        "for starting a transient calculation with a steady-state solution");
+  params.addDeprecatedParam<bool>("skip_additional_restart_data",
+                                  false,
+                                  "True to skip additional data in equation system for restart.",
+                                  "This parameter is no longer used, as we do not load additional "
+                                  "vectors by default with restart");
   params.addParam<bool>("skip_nl_system_check",
                         false,
                         "True to skip the NonlinearSystem check for work to do (e.g. Make sure "
@@ -289,8 +290,7 @@ FEProblemBase::validParams()
   params.addParamNamesToGroup("use_nonlinear previous_nl_solution_required nl_sys_names "
                               "ignore_zeros_in_jacobian",
                               "Nonlinear system(s)");
-  params.addParamNamesToGroup("restart_file_base force_restart skip_additional_restart_data",
-                              "Restart");
+  params.addParamNamesToGroup("restart_file_base force_restart", "Restart");
   params.addParamNamesToGroup("verbose_multiapps parallel_barrier_messaging", "Verbosity");
   params.addParamNamesToGroup(
       "null_space_dimension transpose_null_space_dimension near_null_space_dimension",
@@ -308,10 +308,7 @@ FEProblemBase::FEProblemBase(const InputParameters & parameters)
     Restartable(this, "FEProblemBase"),
     _mesh(*getCheckedPointerParam<MooseMesh *>("mesh")),
     _req(declareManagedRestartableDataWithContext<RestartableEquationSystems>(
-        equation_systems_restartable_name,
-        nullptr,
-        _mesh,
-        getParam<bool>("skip_additional_restart_data"))),
+        equation_systems_restartable_name, nullptr, _mesh)),
     _initialized(false),
     _solve(getParam<bool>("solve")),
     _transient(false),
@@ -464,6 +461,9 @@ FEProblemBase::FEProblemBase(const InputParameters & parameters)
     {
       restart_file_base = MooseUtils::convertLatestCheckpoint(restart_file_base);
       setRestartFile(restart_file_base);
+
+      // If we're restarting, only load the vectors that have already been added
+      _req.set().setLoadAllVectors(false);
     }
   }
 
