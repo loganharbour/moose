@@ -11,6 +11,7 @@
 
 #include "InputParameters.h"
 #include "PerfGraphInterface.h"
+#include "MeshGeneratorNode.h"
 
 #include "libmesh/parallel_object.h"
 #include "libmesh/mesh_base.h"
@@ -73,7 +74,8 @@ public:
    * Get a reference to a pointer that will be the output of the
    * MeshGenerator named name
    */
-  [[nodiscard]] std::unique_ptr<MeshBase> & getMeshGeneratorOutput(const MeshGeneratorName & name);
+  [[nodiscard]] std::unique_ptr<MeshBase> & getMeshGeneratorOutput(const MeshGeneratorName & name,
+                                                                   const MeshGenerator & from_mg);
 
   /**
    * Creates (constructs) all of the MeshGenerators that have been
@@ -150,6 +152,10 @@ public:
    */
   bool hasBreakMeshByBlockGenerator() const { return _has_bmbb; }
 
+  const MeshGeneratorNode * queryMeshGeneratorNode(const MeshGeneratorName & name) const;
+
+  const MeshGeneratorNode & getMeshGeneratorNode(const MeshGeneratorName & name) const;
+
 private:
   /**
    * Gets the MeshGeneratorNames that are referenced in an object's parameters.
@@ -187,6 +193,12 @@ private:
     return const_cast<MeshGenerator &>(std::as_const(*this).getMeshGenerator(name));
   }
 
+  /**
+   * Get a reference to a pointer that will be the output of the
+   * MeshGenerator named name
+   */
+  [[nodiscard]] std::unique_ptr<MeshBase> & getMeshGeneratorOutput(const MeshGeneratorName & name);
+
   /// The MooseApp that owns this system
   MooseApp & _app;
 
@@ -208,6 +220,8 @@ private:
 
   /// Holds the map of save in mesh -> name
   std::map<std::string, std::unique_ptr<MeshBase>> _save_in_meshes;
+
+  std::unordered_map<std::string, std::unique_ptr<MeshGeneratorNode>> _nodes;
 
   /// Whether any of the mesh generators are a \p BreakMeshByBlockGenerator
   bool _has_bmbb;

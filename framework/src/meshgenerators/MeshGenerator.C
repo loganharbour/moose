@@ -157,7 +157,7 @@ MeshGenerator::getMeshByName(const MeshGeneratorName & mesh_generator_name)
     return _null_mesh;
 
   _requested_mesh_generators.insert(mesh_generator_name);
-  auto & mesh = _app.getMeshGeneratorSystem().getMeshGeneratorOutput(mesh_generator_name);
+  auto & mesh = _app.getMeshGeneratorSystem().getMeshGeneratorOutput(mesh_generator_name, *this);
   _requested_meshes.emplace_back(mesh_generator_name, &mesh);
   return mesh;
 }

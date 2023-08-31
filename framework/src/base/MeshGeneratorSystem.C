@@ -400,6 +400,11 @@ MeshGeneratorSystem::createMeshGenerator(const std::string & generator_name)
   const auto & [type, params] = find_params->second;
   mooseAssert(comm().verify(type + generator_name), "Inconsistent construction order");
 
+  auto it_added_pair =
+      _nodes.emplace(generator_name, std::make_unique<MeshGeneratorNode>(generator_name, type));
+  mooseAssert(it_added_pair.second, "Not added");
+  auto & mg_node = *it_added_pair.first->second;
+
   std::shared_ptr<MeshGenerator> mg =
       _app.getFactory().create<MeshGenerator>(type, generator_name, params);
 
@@ -433,12 +438,20 @@ MeshGeneratorSystem::createMeshGenerator(const std::string & generator_name)
   {
     const auto & param_name = param_dependency_pair.first;
     const auto & dependency_name = param_dependency_pair.second;
-
     if (mg->isNullMeshName(dependency_name))
       continue;
 
+    // This could actually be invalid if they provide a mesh generator in a parameter, but
+    // don't ever actually try to get it (thus we don't check for its existance). In this case,
+    // this error will be handled further down with the error telling the developer to
+    // call getMesh() on this mesh. That error is more important than it not existing because
+    // it is a developer error and not a user error.
+    const auto query_dependency_node = queryMeshGeneratorNode(dependency_name);
+    static const MeshGeneratorNode invalid_node("INVALID_NAME", "INVALID_TYPE");
+    const auto & dependency_node = query_dependency_node ? *query_dependency_node : invalid_node;
+
     // True if this dependency was requested and is a parent
-    if (mg->isParentMeshGenerator(dependency_name))
+    if (mg_node.isParent(dependency_node))
     {
       mooseAssert(mg->getRequestedMeshGenerators().count(dependency_name), "Wasn't requested");
       continue;
@@ -447,8 +460,12 @@ MeshGeneratorSystem::createMeshGenerator(const std::string & generator_name)
     // Whether or not this is a dependency of at least one SubGenerator
     auto find_sub_dependency = std::find_if(mg->getSubMeshGenerators().begin(),
                                             mg->getSubMeshGenerators().end(),
-                                            [&dependency_name](const auto & mg)
-                                            { return mg->isParentMeshGenerator(dependency_name); });
+                                            [this, &dependency_node](const auto & mg)
+                                            {
+                                              const auto & mg_node =
+                                                  this->getMeshGeneratorNode(mg->name());
+                                              return mg_node.isParent(dependency_node);
+                                            });
     const auto is_sub_dependency = find_sub_dependency != mg->getSubMeshGenerators().end();
 
     // This should be used by a sub generator
@@ -496,6 +513,24 @@ MeshGeneratorSystem::createMeshGenerator(const std::string & generator_name)
   _mesh_generator_params.erase(find_params);
 
   return mg;
+}
+
+std::unique_ptr<MeshBase> &
+MeshGeneratorSystem::getMeshGeneratorOutput(const MeshGeneratorName & name,
+                                            const MeshGenerator & from_mg)
+{
+  auto node_it = _nodes.find(name);
+  mooseAssert(node_it != _nodes.end(), "Missing node");
+  auto & node = *node_it->second;
+
+  auto from_node_it = _nodes.find(from_mg.name());
+  mooseAssert(from_node_it != _nodes.end(), "Misisng node");
+  auto & from_node = *from_node_it->second;
+
+  node.addChild(from_node);
+  from_node.addParent(node);
+
+  return getMeshGeneratorOutput(name);
 }
 
 std::unique_ptr<MeshBase> &
@@ -571,4 +606,22 @@ bool
 MeshGeneratorSystem::appendingMeshGenerators() const
 {
   return _app.actionWarehouse().getCurrentTaskName() == "append_mesh_generator";
+}
+
+const MeshGeneratorNode *
+MeshGeneratorSystem::queryMeshGeneratorNode(const MeshGeneratorName & name) const
+{
+  const auto it = _nodes.find(name);
+  if (it == _nodes.end())
+    return nullptr;
+  return it->second.get();
+}
+
+const MeshGeneratorNode &
+MeshGeneratorSystem::getMeshGeneratorNode(const MeshGeneratorName & name) const
+{
+  const auto node = queryMeshGeneratorNode(name);
+  if (!node)
+    mooseError("Failed to find a MeshGeneratorNode for '", name, "'");
+  return *node;
 }
