@@ -1667,6 +1667,23 @@ MooseApp::runInputs() const
   return false;
 }
 
+RestartableDataMap &
+MooseApp::getRestartableDataMap(const RestartableDataMapName & name)
+{
+  if (auto map = queryRestartableDataMap(name))
+    return *map;
+
+  mooseError("Unable to find RestartableDataMap object for the supplied name '",
+             name,
+             "', did you call registerRestartableDataMapName in the application constructor?");
+}
+
+RestartableDataMap *
+MooseApp::queryRestartableDataMap(const RestartableDataMapName & name)
+{
+  return const_cast<RestartableDataMap *>(std::as_const(*this).queryRestartableDataMap(name));
+}
+
 void
 MooseApp::setOutputPosition(const Point & p)
 {
@@ -1774,8 +1791,7 @@ MooseApp::registerRestartableData(std::unique_ptr<RestartableDataValue> data,
               "The desired meta data name does not exist: " + metaname);
 
   // Select the data store for saving this piece of restartable data (mesh or everything else)
-  auto & data_map =
-      metaname.empty() ? _restartable_data[tid] : _restartable_meta_data[metaname].first;
+  auto & data_map = metaname.empty() ? _restartable_data[tid] : getRestartableDataMap(metaname);
 
   RestartableDataValue * stored_data = data_map.findData(data->name());
   if (stored_data)
@@ -1815,10 +1831,9 @@ bool
 MooseApp::hasRestartableMetaData(const std::string & name,
                                  const RestartableDataMapName & metaname) const
 {
-  auto it = _restartable_meta_data.find(metaname);
-  if (it == _restartable_meta_data.end())
-    return false;
-  return it->second.first.hasData(name);
+  if (const auto map = queryRestartableDataMap(metaname))
+    return map->hasData(name);
+  return false;
 }
 
 RestartableDataValue &
@@ -1841,50 +1856,80 @@ MooseApp::getRestartableMetaData(const std::string & name,
 }
 
 void
-MooseApp::possiblyLoadRestartableMetaData(const RestartableDataMapName & name,
-                                          const std::filesystem::path & folder_base)
+MooseApp::possiblyLoadCheckpointMetaData(const RestartableDataMapName & name,
+                                         const std::filesystem::path & checkpoint_folder_base,
+                                         const bool retain_reader)
 {
   const auto & map_name = getRestartableDataMapName(name);
-  const auto meta_data_folder_base = metaDataFolderBase(folder_base, map_name);
+  const auto meta_data_folder_base = checkpointMetaDataFolderBase(checkpoint_folder_base, map_name);
   if (RestartableDataReader::isAvailable(meta_data_folder_base))
-  {
-    RestartableDataReader reader(*this, getRestartableDataMap(name));
-    reader.setErrorOnLoadWithDifferentNumberOfProcessors(false);
-    reader.setInput(meta_data_folder_base);
-    reader.restore();
-  }
+    loadRestartableMetaData(name, meta_data_folder_base, retain_reader);
 }
 
 void
-MooseApp::loadRestartableMetaData(const std::filesystem::path & folder_base)
+MooseApp::loadRestartableMetaData(const RestartableDataMapName & name,
+                                  const std::filesystem::path & folder,
+                                  const bool retain_reader)
+{
+  auto & entry = _restartable_meta_data.at(name);
+
+  mooseAssert(entry.reader, "Not available");
+
+  entry.reader->setErrorOnLoadWithDifferentNumberOfProcessors(false);
+  entry.reader->setInput(folder);
+  entry.reader->restore();
+
+  if (!retain_reader)
+    entry.reader->clear();
+}
+
+void
+MooseApp::loadCheckpointMetaData(const std::filesystem::path & checkpoint_folder_base)
 {
   for (const auto & name_map_pair : _restartable_meta_data)
-    possiblyLoadRestartableMetaData(name_map_pair.first, folder_base);
+    possiblyLoadCheckpointMetaData(name_map_pair.first, checkpoint_folder_base, true);
+}
+
+void
+MooseApp::finalizeRestartableMetaData()
+{
+  for (auto & name_entry_pair : _restartable_meta_data)
+    if (auto & reader = name_entry_pair.second.reader)
+    {
+      mooseAssert(reader->isRestoring(), "Should be restoring");
+      reader = nullptr;
+    }
 }
 
 std::vector<std::filesystem::path>
 MooseApp::writeRestartableMetaData(const RestartableDataMapName & name,
-                                   const std::filesystem::path & folder_base)
+                                   const std::filesystem::path & folder)
 {
   if (processor_id() != 0)
     mooseError("MooseApp::writeRestartableMetaData(): Should only run on processor 0");
 
-  const auto & map_name = getRestartableDataMapName(name);
-  const auto meta_data_folder_base = metaDataFolderBase(folder_base, map_name);
-
   RestartableDataWriter writer(*this, getRestartableDataMap(name));
-  return writer.write(meta_data_folder_base);
+  return writer.write(folder);
 }
 
 std::vector<std::filesystem::path>
-MooseApp::writeRestartableMetaData(const std::filesystem::path & folder_base)
+MooseApp::writeCheckpointMetaData(const RestartableDataMapName & name,
+                                  const std::filesystem::path & checkpoint_folder_base)
+{
+  const auto & map_name = getRestartableDataMapName(name);
+  const auto meta_data_folder_base = checkpointMetaDataFolderBase(checkpoint_folder_base, map_name);
+  return writeRestartableMetaData(name, meta_data_folder_base);
+}
+
+std::vector<std::filesystem::path>
+MooseApp::writeCheckpointMetaData(const std::filesystem::path & checkpoint_folder_base)
 {
   std::vector<std::filesystem::path> paths;
 
   if (processor_id() == 0)
     for (const auto & name_map_pair : _restartable_meta_data)
     {
-      const auto map_paths = writeRestartableMetaData(name_map_pair.first, folder_base);
+      const auto map_paths = writeCheckpointMetaData(name_map_pair.first, checkpoint_folder_base);
       paths.insert(paths.end(), map_paths.begin(), map_paths.end());
     }
 
@@ -2354,8 +2399,8 @@ MooseApp::checkpointSuffix()
 }
 
 std::filesystem::path
-MooseApp::metaDataFolderBase(const std::filesystem::path & folder_base,
-                             const std::string & map_suffix)
+MooseApp::checkpointMetaDataFolderBase(const std::filesystem::path & folder_base,
+                                       const std::string & map_suffix)
 {
   return RestartableDataIO::restartableDataFolder(folder_base /
                                                   std::filesystem::path("meta_data" + map_suffix));
@@ -2696,15 +2741,11 @@ MooseApp::getRelationshipManagerInfo() const
 void
 MooseApp::checkMetaDataIntegrity() const
 {
-  for (auto map_iter = _restartable_meta_data.begin(); map_iter != _restartable_meta_data.end();
-       ++map_iter)
+  for (const auto & [name, entry] : _restartable_meta_data)
   {
-    const RestartableDataMapName & name = map_iter->first;
-    const RestartableDataMap & meta_data = map_iter->second.first;
-
     std::vector<std::string> not_declared;
 
-    for (const auto & data : meta_data)
+    for (const auto & data : entry.map)
       if (!data.declared())
         not_declared.push_back(data.name());
 
@@ -2725,21 +2766,13 @@ MooseApp::checkMetaDataIntegrity() const
 const RestartableDataMapName MooseApp::MESH_META_DATA = "MeshMetaData";
 const RestartableDataMapName MooseApp::MESH_META_DATA_SUFFIX = "mesh";
 
-RestartableDataMap &
-MooseApp::getRestartableDataMap(const RestartableDataMapName & name)
+const RestartableDataMap *
+MooseApp::queryRestartableDataMap(const RestartableDataMapName & name) const
 {
-  auto iter = _restartable_meta_data.find(name);
-  if (iter == _restartable_meta_data.end())
-    mooseError("Unable to find RestartableDataMap object for the supplied name '",
-               name,
-               "', did you call registerRestartableDataMapName in the application constructor?");
-  return iter->second.first;
-}
-
-bool
-MooseApp::hasRestartableDataMap(const RestartableDataMapName & name) const
-{
-  return _restartable_meta_data.count(name);
+  const auto it = _restartable_meta_data.find(name);
+  if (it == _restartable_meta_data.end())
+    return nullptr;
+  return &it->second.map;
 }
 
 void
@@ -2748,8 +2781,12 @@ MooseApp::registerRestartableDataMapName(const RestartableDataMapName & name, st
   if (!suffix.empty())
     std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::tolower);
   suffix.insert(0, "_");
-  _restartable_meta_data.emplace(
-      std::make_pair(name, std::make_pair(RestartableDataMap(), suffix)));
+
+  MetaDataEntry entry;
+  entry.suffix = suffix;
+  entry.reader = std::make_unique<RestartableDataReader>(*this, entry.map);
+
+  _restartable_meta_data.emplace(name, std::move(entry));
 }
 
 const std::string &
@@ -2758,7 +2795,29 @@ MooseApp::getRestartableDataMapName(const RestartableDataMapName & name) const
   const auto it = _restartable_meta_data.find(name);
   if (it == _restartable_meta_data.end())
     mooseError("MooseApp::getRestartableDataMapName: The name '", name, "' is not registered");
-  return it->second.second;
+  return it->second.suffix;
+}
+
+LateRestartableDataRestorer &
+MooseApp::getLateRestartableDataRestorer(const THREAD_ID tid,
+                                         const RestartableDataMapName & metaname /* = "" */)
+{
+  if (metaname.empty())
+    return _rd_reader.getLateRestorer();
+
+  if (tid != 0)
+    mooseError("MooseApp::getLateRestartableDataRestorer(): The meta data storage for '",
+               metaname,
+               "' is not threaded");
+
+  const auto it = _restartable_meta_data.find(metaname);
+  if (it == _restartable_meta_data.end())
+    mooseError(
+        "MooseApp::getLateRestartableDataRestorer(): Failed to find meta name '", metaname, "'");
+
+  auto & reader_ptr = it->second.reader;
+  mooseAssert(reader_ptr, "not set");
+  return reader_ptr->getLateRestorer();
 }
 
 PerfGraph &
