@@ -2,7 +2,7 @@
 
 !---
 
-## Chemical Reactions
+## [Chemical Reactions](modules/chemical_reactions/index.md)
 
 Provides a set of tools for the calculation of multicomponent aqueous
 reactive transport in porous media, originally developed as the MOOSE application RAT
@@ -10,7 +10,7 @@ reactive transport in porous media, originally developed as the MOOSE applicatio
 
 !---
 
-## Contact
+## [Contact](modules/contact/index.md)
 
 Provides the necessary tools for modeling mechanical contact using
 algorithms to enforce constraints between surfaces in the mesh, to prevent penetration and develop
@@ -26,7 +26,7 @@ contact forces.
 
 !---
 
-## Electromagnetics
+## [Electromagnetics](modules/electromagnetics/index.md)
 
 The Electromagnetics module provides components and models to simulate electromagnetic wave problems
 using MOOSE, and facilitate coupling of electromagnetic simulations to other physical domains.
@@ -47,7 +47,7 @@ example for coupling to an external application.
 
 !---
 
-## Fluid Properties
+## [Fluid Properties](modules/fluid_properties/index.md)
 
 The Fluid Properties module provides a consistent interface to fluid properties such as density,
 viscosity, enthalpy and many others, as well as derivatives with respect to the primary
@@ -56,7 +56,7 @@ swapping the name of the Fluid Properties UserObject in a plug-and-play manner.
 
 !---
 
-## Fluid-Structure Interaction
+## [Fluid-Structure Interaction](modules/fsi/index.md)
 
 Provides tools that solve fluid and structure problems, wherein, their behavior is
 inter-dependent. Currently capable of simulating fluid-structure interaction
@@ -64,7 +64,7 @@ behavior using an acoustic formulation for the fluid.
 
 !---
 
-## Functional Expansion Tools
+## [Functional Expansion Tools](modules/functional_expansion_tools/index.md)
 
 A MOOSE module for continuous, mesh-agnostic, high-fidelity, reduced-data MultiApp coupling
 
@@ -76,7 +76,7 @@ separate app [!citep](Wendt2018a,Wendt2017c,Kerby2017).
 
 !---
 
-## Geochemistry
+## [Geochemistry](modules/geochemistry/index.md)
 
 Solves geochemical models. The capabilities include:
 
@@ -90,7 +90,7 @@ It is designed to interface easily with the porous flow module so that complicat
 
 !--
 
-## Heat Conduction
+## [Heat Conduction](modules/heat_conduction/index.md)
 
 Basic utilities for solving the transient heat conduction equation:
 
@@ -102,7 +102,7 @@ heat transfer in the future, accordingly.
 
 !---
 
-## Level Set
+## [Level Set](modules/level_set/index.md)
 
 The level set module provides basic functionality to solve the level set equation, which is
 simply the multi-dimensional advection equation:
@@ -112,7 +112,7 @@ simply the multi-dimensional advection equation:
 
 !---
 
-## Navier Stokes
+## [Navier Stokes](modules/navier_stokes/index.md)
 
 A library for the implementation of simulation tools that solve the multi-dimensional
 Navier-Stokes equations using either the continuous Galerkin finite element (CGFE) or the finite volume (FV) method. The Navier-Stokes equations may be solved with:
@@ -125,7 +125,7 @@ Zero-dimensional turbulence models are available and coarse regularized k-epsilo
 
 !---
 
-## Navier Stokes
+## [Navier Stokes](modules/navier_stokes/index.md)
 
 Flow in a lid-driven cavity with Re=417 (left) and Re=833 (right).
 
@@ -145,14 +145,25 @@ Flow in a lid-driven cavity with Re=417 (left) and Re=833 (right).
 
 !---
 
-## Phase Field
+## [Optimization](modules/optimization/index.md)
+
+The MOOSE optimization module provides functionality for solving inverse optimization problems in moose. It is based on PDE constrained optimization using the PETSc TAO optimization solver.
+
+!media large_media/optimization/fig_optCycle.png
+       style=width:80%;margin:auto;padding-top:2.5%;
+       id=fig:optCycle
+       caption=Optimization cycle example for parameterizing an internal heat source distribution $q_v$ to match the simulated and experimental temperature field, $T$ and $\widetilde{T}$, respectively.
+
+!---
+
+## [Phase Field](modules/phase_field/index.md)
 
 The MOOSE phase field module is a library for simplifying the implementation of simulation tools that
 employ the phase field model.
 
 !---
 
-## Porous Flow
+## [Porous Flow](modules/porous_flow/index.md)
 
 The PorousFlow module is a library of physics for fluid and heat flow in porous media. It is
 formulated in an extremely general manner, so is capable of solving problems with an arbitrary number
@@ -161,7 +172,7 @@ set of primary variables.
 
 !---
 
-## Ray Tracing
+## [Ray Tracing](modules/ray_tracing/index.md)
 
 Provides capability for tracing rays through a finite element mesh. Notable features include:
 
@@ -185,7 +196,7 @@ Provides capability for tracing rays through a finite element mesh. Notable feat
 
 !--
 
-## Reconstructed Discontinuous Galerkin (rDG)
+## [Reconstructed Discontinuous Galerkin (rDG)](modules/rdg/index.md)
 
 The MOOSE rDG module is a library for the implementation of simulation tools that solve
 convection-dominated problems using the class of so-called reconstructed discontinuous Galerkin (rDG)
@@ -194,7 +205,7 @@ second-order cell-centered finite volume method (FVM).
 
 !---
 
-## Reactor
+## [Reactor](modules/reactor/index.md)
 
 Adds advanced meshing capabilities to MOOSE so that users can create complex-geometry
 meshes related to the structures of reactor cores. This includes:
@@ -214,7 +225,7 @@ meshes related to the structures of reactor cores. This includes:
 
 !---
 
-## Stochastic Tools
+## [Stochastic Tools](modules/stochastic_tools/index.md)
 
 !row!
 !col! width=60%
@@ -238,7 +249,7 @@ applications. Capabilities include:
 
 !---
 
-## Tensor Mechanics
+## [Tensor Mechanics](modules/tensor_mechanics/index.md)
 
 The Tensor Mechanics module is a library of simulation tools that solve continuum mechanics
 problems. The module can be used to simulation both linear and finite strain
@@ -247,7 +258,7 @@ Creep, and Damage due to cracking and property degradation.
 
 !---
 
-## Thermal Hydraulics
+## [Thermal Hydraulics](modules/thermal_hydraulics/index.md)
 
 The Thermal Hydraulics module is a library of components that can be used to build thermal-hydraulic
 simulations. Basic capabilities include a 1-phase, variable-area, inviscid, compressible flow model
@@ -256,7 +267,7 @@ pluggable closure systems and models.
 
 !---
 
-## Extended Finite Element Method (XFEM)
+## [Extended Finite Element Method (XFEM)](modules/xfem/index.md)
 
 A MOOSE-based implementation of the extended finite element method, which is a numerical method that
 is especially designed for treating discontinuities.
