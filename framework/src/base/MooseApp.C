@@ -1195,6 +1195,8 @@ MooseApp::registerRestartableNameWithFilter(const std::string & name,
 std::vector<std::filesystem::path>
 MooseApp::backup(const std::filesystem::path & folder_base)
 {
+  parallel_object_only();
+
   TIME_SECTION("backup", 2, "Backing Up Application to File");
 
   preBackup();
@@ -1206,6 +1208,8 @@ MooseApp::backup(const std::filesystem::path & folder_base)
 std::unique_ptr<Backup>
 MooseApp::backup()
 {
+  parallel_object_only();
+
   TIME_SECTION("backup", 2, "Backing Up Application");
 
   RestartableDataWriter writer(*this, _restartable_data);
@@ -1221,6 +1225,8 @@ MooseApp::backup()
 void
 MooseApp::restore(const std::filesystem::path & folder_base, const bool for_restart)
 {
+  parallel_object_only();
+
   TIME_SECTION("restore", 2, "Restoring Application from File");
 
   const DataNames filter_names = for_restart ? getRecoverableData() : DataNames{};
@@ -1234,6 +1240,8 @@ MooseApp::restore(const std::filesystem::path & folder_base, const bool for_rest
 void
 MooseApp::restore(std::unique_ptr<Backup> backup, const bool for_restart)
 {
+  parallel_object_only();
+
   TIME_SECTION("restore", 2, "Restoring Application");
 
   const DataNames filter_names = for_restart ? getRecoverableData() : DataNames{};
@@ -1263,6 +1271,8 @@ MooseApp::restoreFromInitialBackup(const bool for_restart)
 std::unique_ptr<Backup>
 MooseApp::finalizeRestore()
 {
+  parallel_object_only();
+
   if (!_rd_reader.isRestoring())
     mooseError("MooseApp::finalizeRestore(): Not currently restoring");
 
