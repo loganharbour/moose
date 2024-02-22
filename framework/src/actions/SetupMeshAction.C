@@ -152,7 +152,8 @@ SetupMeshAction::setupMesh(MooseMesh * mesh)
   unsigned int level = getParam<unsigned int>("uniform_refine");
 
   // Did they specify extra refinement levels on the command-line?
-  level += _app.getParam<unsigned int>("refinements");
+  if (_app.isParamSetByUser("refinements"))
+    level += _app.getParam<unsigned int>("refinements");
 
   mesh->setUniformRefineLevel(level, getParam<bool>("skip_deletion_repartition_after_refine"));
 #endif // LIBMESH_ENABLE_AMR

@@ -840,8 +840,8 @@
 
   [check_syntax_no_input]
     type = 'RunException'
-    input = 'Foo'
-    input_switch = '--check-input'
+    input = ''
+    cli_args = '--check-input'
     expect_err = 'You specified --check-input, but did not provide an input file. Add -i <inputfile> to your command line.'
 
     requirement = 'The system shall report an error when requested to check the syntax in an input file but no input file is supplied.'

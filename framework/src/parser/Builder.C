@@ -307,97 +307,6 @@ Builder::walk(const std::string & fullpath, const std::string & nodepath, hit::N
   walkRaw(fullpath, nodepath, n);
 }
 
-std::string
-Builder::hitCLIFilter(std::string appname, const std::vector<std::string> & argv)
-{
-  std::string hit_text;
-  bool afterDoubleDash = false;
-  for (std::size_t i = 1; i < argv.size(); i++)
-  {
-    std::string arg(argv[i]);
-
-    // all args after a "--" are hit parameters
-    if (arg == "--")
-    {
-      afterDoubleDash = true;
-      continue;
-    } // otherwise try to guess if a hit params have started by looking for "=" and "/"
-    else if (arg.find("=", 0) != std::string::npos)
-      afterDoubleDash = true;
-
-    // skip over args that don't look like or are before hit parameters
-    if (!afterDoubleDash)
-      continue;
-    // skip arguments with no equals sign
-    if (arg.find("=", 0) == std::string::npos)
-      continue;
-    // skip cli flags (i.e. start with dash)
-    if (arg.find("-", 0) == 0)
-      continue;
-    if (appname == "main")
-    {
-      auto pos = arg.find(":", 0);
-      if (pos == 0) // trim leading colon
-        arg = arg.substr(pos + 1, arg.size() - pos - 1);
-      else if (pos != std::string::npos && pos < arg.find("=", 0)) // param is for non-main subapp
-        continue;
-    }
-    else // app we are loading is a multiapp subapp
-    {
-      std::string name;
-      std::string num;
-      pcrecpp::RE("(.*?)"  // Match the multiapp name
-                  "(\\d+)" // math the multiapp number
-                  )
-          .FullMatch(appname, &name, &num);
-      auto pos = arg.find(":", 0);
-      if (pos == 0)
-        ; // cli param is ":" prefixed meaning global for all main+subapps
-      else if (pos == std::string::npos) // param is for main app - skip
-        continue;
-      else if (arg.find(":", pos + 1) != std::string::npos) // param is for a nested multiapp -skip
-        continue;
-      else if (arg.substr(0, pos) != appname &&
-               arg.substr(0, pos) != name) // param is for different multiapp - skip
-      {
-        _app.commandLine()->markHitParam(i);
-        continue;
-      }
-      arg = arg.substr(pos + 1, arg.size() - pos - 1); // trim off subapp name prefix
-    }
-
-    try
-    {
-      hit::check("CLI_ARG", arg);
-      hit_text += " " + arg;
-      // handle case where bash ate quotes around an empty string after the "="
-      if (arg.find("=", 0) == arg.size() - 1)
-        hit_text += "''";
-      _app.commandLine()->markHitParamUsed(i);
-    }
-    catch (hit::ParseError & err)
-    {
-      // bash might have eaten quotes around a hit string value or vector
-      // so try quoting after the "=" and reparse
-      auto quoted = arg;
-      auto pos = quoted.find("=", 0);
-      if (pos != std::string::npos)
-        quoted = arg.substr(0, pos + 1) + "'" + arg.substr(pos + 1, quoted.size() - pos) + "'";
-      try
-      {
-        hit::check("CLI_ARG", quoted);
-        hit_text += " " + quoted;
-        _app.commandLine()->markHitParamUsed(i);
-      }
-      catch (hit::ParseError & err)
-      {
-        mooseError("invalid hit in arg '", arg, "': ", err.what());
-      }
-    }
-  }
-  return hit_text;
-}
-
 hit::Node *
 Builder::root()
 {
@@ -409,9 +318,9 @@ void
 Builder::build()
 {
   // add in command line arguments
+  const auto cli_input = _app.commandLine()->buildHitParams();
   try
   {
-    auto cli_input = hitCLIFilter(_app.name(), _app.commandLine()->getArguments());
     _cli_root.reset(hit::parse("CLI_ARGS", cli_input));
     hit::explode(_cli_root.get());
     hit::merge(_cli_root.get(), root());
@@ -513,13 +422,9 @@ Builder::errorCheck(const Parallel::Communicator & comm, bool warn_unused, bool 
   auto cli = _app.commandLine();
   if (warn_unused)
   {
-    for (auto arg : cli->unused(comm))
-      _warnmsg += hit::errormsg("CLI_ARG",
-                                nullptr,
-                                "unused command line parameter '",
-                                cli->getArguments()[arg],
-                                "'") +
-                  "\n";
+    for (const auto & arg : cli->unusedHitParams(comm))
+      _warnmsg +=
+          hit::errormsg("CLI_ARG", nullptr, "unused command line parameter '", arg, "'") + "\n";
     for (auto & msg : uwcli.errors)
       _warnmsg += msg + "\n";
     for (auto & msg : uw.errors)
@@ -527,13 +432,9 @@ Builder::errorCheck(const Parallel::Communicator & comm, bool warn_unused, bool 
   }
   else if (err_unused)
   {
-    for (auto arg : cli->unused(comm))
-      _errmsg += hit::errormsg("CLI_ARG",
-                               nullptr,
-                               "unused command line parameter '",
-                               cli->getArguments()[arg],
-                               "'") +
-                 "\n";
+    for (const auto & arg : cli->unusedHitParams(comm))
+      _errmsg +=
+          hit::errormsg("CLI_ARG", nullptr, "unused command line parameter '", arg, "'") + "\n";
     for (auto & msg : uwcli.errors)
       _errmsg += msg + "\n";
     for (auto & msg : uw.errors)
@@ -1647,16 +1548,24 @@ Builder::setDoubleIndexParameter(const std::string & full_name,
                                  GlobalParamsAction * global_block)
 {
   // Get the full string assigned to the variable full_name
-  std::string buffer = root()->param<std::string>(full_name);
+  std::string buffer = MooseUtils::trim(root()->param<std::string>(full_name));
 
   // split vector at delim ;
   // NOTE: the substrings are _not_ of type T yet
-  std::vector<std::string> first_tokenized_vector;
-  MooseUtils::tokenize(buffer, first_tokenized_vector, 1, ";");
-  param->set().resize(first_tokenized_vector.size());
+  // The zero length here is intentional, as we want something like:
+  // "abc; 123;" -> ["abc", "123", ""]
+  std::vector<std::string> first_split_vector;
+  // With split, we will get a single entry if the buffer is empty. However,
+  // that should represent an empty vector<vector>. Therefore, only split
+  // if we have values.
+  if (!buffer.empty())
+  {
+    first_split_vector = MooseUtils::split(buffer, ";");
+    param->set().resize(first_split_vector.size());
+  }
 
-  for (unsigned j = 0; j < first_tokenized_vector.size(); ++j)
-    if (!MooseUtils::tokenizeAndConvert<T>(first_tokenized_vector[j], param->set()[j]))
+  for (unsigned j = 0; j < first_split_vector.size(); ++j)
+    if (!MooseUtils::tokenizeAndConvert<T>(first_split_vector[j], param->set()[j]))
     {
       _errmsg +=
           hit::errormsg(root()->find(full_name), "invalid format for parameter ", full_name) + "\n";
@@ -1666,8 +1575,8 @@ Builder::setDoubleIndexParameter(const std::string & full_name,
   if (in_global)
   {
     global_block->remove(short_name);
-    global_block->setDoubleIndexParam<T>(short_name).resize(first_tokenized_vector.size());
-    for (unsigned j = 0; j < first_tokenized_vector.size(); ++j)
+    global_block->setDoubleIndexParam<T>(short_name).resize(first_split_vector.size());
+    for (unsigned j = 0; j < first_split_vector.size(); ++j)
     {
       global_block->setDoubleIndexParam<T>(short_name)[j].resize(param->get()[j].size());
       for (unsigned int i = 0; i < param->get()[j].size(); ++i)

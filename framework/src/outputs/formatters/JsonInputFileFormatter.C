@@ -60,7 +60,7 @@ JsonInputFileFormatter::addLine(const std::string & line,
 
   MooseUtils::tokenize(doc, elements, len, " \t");
   std::string first(max_line_len - line.size() + extra, ' ');
-  _stream << first << "# " << elements[0] << "\n";
+  _stream << first << "# " << (elements.size() ? elements[0] : doc) << "\n";
   std::string cindent(max_line_len + indent.size() + extra, ' ');
   for (size_t i = 1; i < elements.size(); ++i)
     _stream << cindent << "# " << elements[i] << "\n";
