@@ -357,6 +357,7 @@ CommandLine::populateCommandLineParams(InputParameters & params)
 #define trySetParameter(type)                                                                      \
   if (params.have_parameter<type>(name))                                                           \
   {                                                                                                \
+    static_assert(InputParameters::isValidCommandLineType<type>::value, "Not a supported value");  \
     auto & value = params.set<type>(name);                                                         \
     setCommandLineParam(entry_it, param, search_string, value);                                    \
     found_switch = search_string;                                                                  \
@@ -373,6 +374,8 @@ CommandLine::populateCommandLineParams(InputParameters & params)
 
 #undef trySetParameter
 
+        // This error should be unreachable because it is a compile-time check within
+        // InputParameters::addCommandLineParamHelper, but let's keep it just in case
         mooseError("Command-line parameter '",
                    name,
                    "' is not of a consumable type.\n\nAdd an entry with this type to "

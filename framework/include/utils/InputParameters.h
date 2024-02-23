@@ -83,6 +83,22 @@ public:
   };
 
   /**
+   * Determines whether or not the given type is a type that is supported for
+   * a command line parameter.
+   *
+   * In particular, whether or not CommandLine::populateCommandLineParams
+   * supports extracting these types.
+   */
+  template <typename T>
+  struct isValidCommandLineType
+  {
+    static constexpr bool value =
+        std::is_same_v<T, std::string> || std::is_same_v<T, std::vector<std::string>> ||
+        std::is_same_v<T, Real> || std::is_same_v<T, unsigned int> || std::is_same_v<T, int> ||
+        std::is_same_v<T, bool> || std::is_same_v<T, MooseEnum>;
+  };
+
+  /**
    * This method adds a description of the class that will be displayed
    * in the input file syntax dump
    */
@@ -1530,6 +1546,10 @@ InputParameters::addCommandLineParamHelper(const std::string & name,
                                            const bool required,
                                            const bool value_required)
 {
+  static_assert(isValidCommandLineType<T>::value,
+                "This type is not a supported command line parameter type. See "
+                "CommandLine::populateCommandLineParams to add it as a supported type.");
+
   auto & cl_data = at(name)._cl_data;
   cl_data = CommandLineMetadata();
 
