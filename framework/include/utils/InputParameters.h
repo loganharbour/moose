@@ -1552,10 +1552,16 @@ InputParameters::addCommandLineParamHelper(const std::string & name,
 
   // No arguments needed for a boolean parameter
   if constexpr (std::is_same_v<T, bool>)
+  {
+    (void)value_required; // purposely unused; doesn't take a value
     cl_data->argument_type = CommandLineMetadata::ArgumentType::NONE;
+  }
   // MooseEnums require a value
   else if constexpr (std::is_same_v<T, MooseEnum>)
+  {
+    (void)value_required; // purposely unused; always required
     cl_data->argument_type = CommandLineMetadata::ArgumentType::REQUIRED;
+  }
   // The user didn't specify a default, so a value is required
   else if (value_required)
     cl_data->argument_type = CommandLineMetadata::ArgumentType::REQUIRED;
