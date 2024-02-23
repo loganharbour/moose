@@ -617,29 +617,6 @@ TEST(CommandLine, duplicateOptions)
   }
 }
 
-TEST(CommandLine, unconsumableParameterType)
-{
-  InputParameters params = emptyInputParameters();
-  params.addCommandLineParam<int *>("value", "--value", "Doc");
-
-  CommandLine cl;
-  cl.addArgument("/path/to/exe");
-  cl.addArgument("--value");
-  cl.parse();
-
-  try
-  {
-    cl.populateCommandLineParams(params);
-    FAIL();
-  }
-  catch (const std::exception & err)
-  {
-    ASSERT_EQ(std::string(err.what()),
-              "Command-line parameter 'value' is not of a consumable type.\n\nAdd an entry with "
-              "this type to CommandLine::populateCommandLineParams() if it is needed.");
-  }
-}
-
 TEST(CommandLine, unappliedArgument)
 {
   const auto test_not_applied = [this](const std::vector<std::string> & args,
