@@ -21,12 +21,6 @@
 CommandLine::CommandLine() {}
 CommandLine::CommandLine(int argc, char * argv[]) { addArguments(argc, argv); }
 CommandLine::CommandLine(const std::vector<std::string> & args) { addArguments(args); }
-CommandLine::CommandLine(const std::vector<std::string> & subapp_args,
-                         const CommandLine & parent_command_line)
-  : _parent_command_line(&parent_command_line)
-{
-  addArguments(subapp_args);
-}
 
 void
 CommandLine::addArguments(int argc, char * argv[])
@@ -236,7 +230,7 @@ CommandLine::initSubAppCommandLine(const std::string & multiapp_name,
     }
   }
 
-  return std::unique_ptr<CommandLine>(new CommandLine(subapp_args, *this));
+  return std::make_unique<CommandLine>(subapp_args);
 }
 
 std::string

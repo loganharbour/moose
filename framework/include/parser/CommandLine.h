@@ -186,9 +186,6 @@ public:
   std::list<Entry>::const_iterator findCommandLineParam(const std::string & name) const;
 
 private:
-  CommandLine(const std::vector<std::string> & subapp_args,
-              const CommandLine & parent_command_line);
-
   /**
    * @return The combined argument entries
    */
@@ -226,9 +223,6 @@ private:
 
   /// Whether or not the Parser has parsed yet
   bool _has_parsed = false;
-
-  /// The parent CommandLine that created this one, if any
-  const CommandLine * const _parent_command_line = nullptr;
 };
 
 template <typename T>
