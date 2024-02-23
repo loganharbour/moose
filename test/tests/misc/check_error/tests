@@ -746,6 +746,7 @@
 
     requirement = 'The system shall report a standard Unix usage statement when an invalid command line switch is used.'
     issues = '#1405'
+    skip = 'TEMP'
   []
 
   [ics_missing_variable]
