@@ -1691,6 +1691,10 @@ InputParameters::addCommandLineParam(const std::string & name,
                                      const std::string & syntax,
                                      const std::string & doc_string)
 {
+  static_assert(!std::is_same_v<T, MooseEnum>,
+                "addCommandLineParam() without a value cannot be used with a MooseEnum because a "
+                "MooseEnum requires initialization");
+
   // Give a non-valued boolean a default value of false, because it can only be used
   // by setting it to true
   if constexpr (std::is_same_v<T, bool>)
