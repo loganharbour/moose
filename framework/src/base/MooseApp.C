@@ -185,6 +185,9 @@ MooseApp::validParams()
 
   params.addCommandLineParam<unsigned int>(
       "n_threads", "--n-threads=<n>", 1, "Runs the specified number of threads per process");
+  // This probably shouldn't be global, but the implications of removing this are currently
+  // unknown and we need to manage it with libmesh better
+  params.setGlobalCommandLineParam("n_threads");
 
   params.addCommandLineParam<bool>("allow_unused",
                                    "-w --allow-unused",
@@ -205,6 +208,9 @@ MooseApp::validParams()
   params.addCommandLineParam<bool>("distributed_mesh",
                                    "--distributed-mesh",
                                    "Forces the use of a distributed finite element mesh");
+  // Would prefer that this parameter isn't global, but we rely on it too much
+  // in tests to be able to go back on that decision now
+  params.setGlobalCommandLineParam("distributed_mesh");
 
   params.addCommandLineParam<std::string>(
       "split_mesh",
