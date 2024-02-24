@@ -251,6 +251,10 @@ MooseApp::validParams()
                                    "sections of code when using DEBUG mode");
   params.setGlobalCommandLineParam("no_trap_fpe");
 
+  params.addCommandLineParam<bool>(
+      "no_gdb_backtrace", "--no-gdb-backtrace", "Disables gdb backtraces.");
+  params.setGlobalCommandLineParam("no_gdb_backtrace");
+
   params.addCommandLineParam<bool>("error", "--error", "Turn all warnings into errors");
   params.setGlobalCommandLineParam("error");
 
