@@ -20,6 +20,7 @@
 #include "ExecFlagEnum.h"
 #include "JsonSyntaxTree.h"
 #include "FileLineInfo.h"
+#include "CommandLine.h"
 #include "pcrecpp.h"
 #include "hit.h"
 #include "waspcore/utils.h"
