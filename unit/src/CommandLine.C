@@ -18,9 +18,9 @@
 TEST(CommandLine, parse)
 {
   const auto test_parse =
-      [this](const std::vector<std::string> & args,
-             const std::vector<std::pair<std::string, std::string>> & expect_entries,
-             const std::vector<std::optional<std::string>> & expect_subapps = {})
+      [](const std::vector<std::string> & args,
+         const std::vector<std::pair<std::string, std::string>> & expect_entries,
+         const std::vector<std::optional<std::string>> & expect_subapps = {})
   {
     const auto first_arg = "/path/to/exe";
 
@@ -107,10 +107,10 @@ TEST(CommandLine, parse)
 
 TEST(CommandLine, parseHIT)
 {
-  const auto test = [this](const std::string & arg,
-                           const std::string & path = "",
-                           const std::string & value = "",
-                           const std::string & subapp_name = "")
+  const auto test = [](const std::string & arg,
+                       const std::string & path = "",
+                       const std::string & value = "",
+                       const std::string & subapp_name = "")
   {
     CommandLine cl;
     cl.addArgument(arg);
@@ -152,7 +152,7 @@ TEST(CommandLine, parseHIT)
   test("sub:vector_value=\"1 2 3 4\"", "vector_value", "\"1 2 3 4\"", "sub");
   test("single_quoted_value=' a b c'", "single_quoted_value", "' a b c'");
 
-  const auto test_not = [this](const std::vector<std::string> & args)
+  const auto test_not = [](const std::vector<std::string> & args)
   {
     CommandLine cl;
     cl.addArguments(args);
@@ -168,7 +168,7 @@ TEST(CommandLine, parseHIT)
 
 TEST(CommandLine, parseMultiAppDashedOption)
 {
-  const auto test = [this](const std::string & arg)
+  const auto test = [](const std::string & arg)
   {
     CommandLine cl;
     cl.addArgument(arg);
@@ -196,11 +196,11 @@ TEST(CommandLine, parseMultiAppDashedOption)
 
 TEST(CommandLine, populate)
 {
-  const auto test_populate = [this](const auto value_type,
-                                    const auto & without_default_value,
-                                    const auto & required_value,
-                                    const auto & default_value,
-                                    const auto & set_default_value)
+  const auto test_populate = [](const auto value_type,
+                                const auto & without_default_value,
+                                const auto & required_value,
+                                const auto & default_value,
+                                const auto & set_default_value)
   {
     using type = typename std::remove_const<
         typename std::remove_reference<decltype(value_type)>::type>::type;
@@ -353,7 +353,7 @@ TEST(CommandLine, populate)
 
 TEST(CommandLine, populateBadInterpret)
 {
-  const auto test = [this](const auto & value_type, const std::string & value)
+  const auto test = [](const auto & value_type, const std::string & value)
   {
     using type = typename std::remove_const<
         typename std::remove_reference<decltype(value_type)>::type>::type;
@@ -477,10 +477,10 @@ TEST(CommandLine, populateSetByUser)
 
 TEST(CommandLine, initSubAppCommandLine)
 {
-  const auto test = [this](const std::vector<std::string> & args,
-                           const std::string & multiapp_name,
-                           const std::string & subapp_name,
-                           const std::vector<std::string> & expected_args)
+  const auto test = [](const std::vector<std::string> & args,
+                       const std::string & multiapp_name,
+                       const std::string & subapp_name,
+                       const std::vector<std::string> & expected_args)
   {
     InputParameters params = emptyInputParameters();
     params.addCommandLineParam<bool>("global", "--global", "Doc1");
@@ -551,7 +551,7 @@ TEST(CommandLine, requiredParameter)
 
 TEST(CommandLine, requiredParameterArgument)
 {
-  const auto check = [this](auto & params, const bool fail)
+  const auto check = [](auto & params, const bool fail)
   {
     CommandLine cl;
     cl.addArgument("/path/to/exe");
@@ -619,9 +619,9 @@ TEST(CommandLine, duplicateOptions)
 
 TEST(CommandLine, unappliedArgument)
 {
-  const auto test_not_applied = [this](const std::vector<std::string> & args,
-                                       const std::string & not_applied_arg,
-                                       const std::string & suggestion = "")
+  const auto test_not_applied = [](const std::vector<std::string> & args,
+                                   const std::string & not_applied_arg,
+                                   const std::string & suggestion = "")
   {
     CommandLine cl;
     cl.addArgument("/path/to/exe");
@@ -675,7 +675,7 @@ TEST(CommandLine, boolParamWithValue)
 
 TEST(CommandLine, mergeArgsForParam)
 {
-  const auto test = [this](const std::string & argument)
+  const auto test = [](const std::string & argument)
   {
     {
       CommandLine cl;
