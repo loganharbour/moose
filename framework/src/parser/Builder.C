@@ -1547,25 +1547,26 @@ Builder::setDoubleIndexParameter(const std::string & full_name,
                                  bool in_global,
                                  GlobalParamsAction * global_block)
 {
+  auto & value = param->set();
+
   // Get the full string assigned to the variable full_name
-  std::string buffer = MooseUtils::trim(root()->param<std::string>(full_name));
+  const auto value_string = MooseUtils::trim(root()->param<std::string>(full_name));
 
   // split vector at delim ;
   // NOTE: the substrings are _not_ of type T yet
   // The zero length here is intentional, as we want something like:
   // "abc; 123;" -> ["abc", "123", ""]
-  std::vector<std::string> first_split_vector;
-  // With split, we will get a single entry if the buffer is empty. However,
-  // that should represent an empty vector<vector>. Therefore, only split
-  // if we have values.
-  if (!buffer.empty())
-  {
-    first_split_vector = MooseUtils::split(buffer, ";");
-    param->set().resize(first_split_vector.size());
-  }
+  std::vector<std::string> outer_string_vectors;
+  // With split, we will get a single entry if the string value is empty. However,
+  // that should represent an empty vector<vector>. Therefore, only split if we have values.
+  if (!value_string.empty())
+    outer_string_vectors = MooseUtils::split(value_string, ";");
 
-  for (unsigned j = 0; j < first_split_vector.size(); ++j)
-    if (!MooseUtils::tokenizeAndConvert<T>(first_split_vector[j], param->set()[j]))
+  const auto outer_vector_size = outer_string_vectors.size();
+  value.resize(outer_vector_size);
+
+  for (const auto j : index_range(outer_string_vectors))
+    if (!MooseUtils::tokenizeAndConvert<T>(outer_string_vectors[j], value[j]))
     {
       _errmsg +=
           hit::errormsg(root()->find(full_name), "invalid format for parameter ", full_name) + "\n";
@@ -1575,12 +1576,12 @@ Builder::setDoubleIndexParameter(const std::string & full_name,
   if (in_global)
   {
     global_block->remove(short_name);
-    global_block->setDoubleIndexParam<T>(short_name).resize(first_split_vector.size());
-    for (unsigned j = 0; j < first_split_vector.size(); ++j)
+    global_block->setDoubleIndexParam<T>(short_name).resize(outer_vector_size);
+    for (const auto j : make_range(outer_vector_size))
     {
-      global_block->setDoubleIndexParam<T>(short_name)[j].resize(param->get()[j].size());
-      for (unsigned int i = 0; i < param->get()[j].size(); ++i)
-        global_block->setDoubleIndexParam<T>(short_name)[j][i] = param->get()[j][i];
+      global_block->setDoubleIndexParam<T>(short_name)[j].resize(value[j].size());
+      for (const auto i : index_range(value[j]))
+        global_block->setDoubleIndexParam<T>(short_name)[j][i] = value[j][i];
     }
   }
 }
