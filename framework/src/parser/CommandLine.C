@@ -17,6 +17,7 @@
 #include "hit.h"
 
 #include "libmesh/simple_range.h"
+#include "libmesh/parallel_algebra.h"
 
 CommandLine::CommandLine() {}
 CommandLine::CommandLine(int argc, char * argv[]) { addArguments(argc, argv); }
