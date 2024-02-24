@@ -123,9 +123,8 @@ SetupMeshAction::validParams()
 SetupMeshAction::SetupMeshAction(const InputParameters & params)
   : MooseObjectAction(params),
     _use_split(getParam<bool>("use_split") || _app.getParam<bool>("use_split")),
-    _split_file(_app.getParam<std::string>("split_file").size()
-                    ? _app.getParam<std::string>("split_file")
-                    : getParam<std::string>("split_file"))
+    _split_file(_app.isParamSetByUser("split_file") ? _app.getParam<std::string>("split_file")
+                                                    : getParam<std::string>("split_file"))
 {
 }
 
