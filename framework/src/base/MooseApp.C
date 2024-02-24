@@ -192,7 +192,7 @@ MooseApp::validParams()
   params.addCommandLineParam<bool>("allow_unused",
                                    "-w --allow-unused",
                                    "Warn about unused input file options instead of erroring");
-  params.setGlobalCommandLineParam("no_color");
+  params.setGlobalCommandLineParam("allow_unused");
   params.addCommandLineParam<bool>(
       "error_unused", "-e --error-unused", "Error when encountering unused input file options");
   params.setGlobalCommandLineParam("error_unused");
