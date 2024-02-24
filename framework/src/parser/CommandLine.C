@@ -449,6 +449,8 @@ CommandLine::printUsage() const
 std::vector<std::string>
 CommandLine::unusedHitParams(const Parallel::Communicator & comm) const
 {
+  libmesh_parallel_only(comm);
+
   std::vector<const Entry *> hit_params;
   std::vector<std::size_t> use_count;
   for (const auto & entry : getEntries())
