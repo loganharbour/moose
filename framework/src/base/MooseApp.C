@@ -239,6 +239,8 @@ MooseApp::validParams()
                                    "--half-transient",
                                    "Run only half of the specified transient (half the timesteps); "
                                    "used to test restart/recover");
+  // Some tests rely on this being global; don't think it should be but that's for another time
+  params.setGlobalCommandLineParam("half_transient");
 
   params.addCommandLineParam<bool>("trap_fpe",
                                    "--trap-fpe",
