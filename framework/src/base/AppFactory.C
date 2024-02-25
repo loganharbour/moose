@@ -103,7 +103,7 @@ AppFactory::createAppShared(const std::string & default_app_type,
   if (input_filenames.size())
     parser->parse();
 
-  std::string app_type = command_line_params.get<std::string>("app_type");
+  std::string app_type = command_line_params.get<std::string>("app_to_run");
   if (app_type.empty())
     app_type = default_app_type;
   else
