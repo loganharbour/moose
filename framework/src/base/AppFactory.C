@@ -115,8 +115,10 @@ AppFactory::createAppShared(const std::string & default_app_type,
 
   app_params.set<int>("_argc") = argc;
   app_params.set<char **>("_argv") = argv;
-  app_params.set<std::shared_ptr<CommandLine>>("_command_line") =
-      std::make_shared<CommandLine>(argc, argv);
+
+  auto command_line = std::make_unique<CommandLine>(argc, argv);
+  command_line->parse();
+  app_params.set<std::shared_ptr<CommandLine>>("_command_line") = std::move(command_line);
 
   // Take the front parser and add it to the parameters so that it can be retrieved in the
   // Application
