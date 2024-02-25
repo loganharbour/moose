@@ -18,6 +18,7 @@
 
 #include "libmesh/simple_range.h"
 #include "libmesh/parallel_algebra.h"
+#include "libmesh/parallel_sync.h"
 
 CommandLine::CommandLine() {}
 CommandLine::CommandLine(int argc, char * argv[]) { addArguments(argc, argv); }
