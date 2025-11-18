@@ -12,7 +12,6 @@
 # ruff: noqa: E402
 
 import os
-from re import match
 from tempfile import NamedTemporaryFile, gettempdir
 from time import sleep
 from unittest.mock import patch
@@ -58,12 +57,6 @@ class TestSubprocessSocketRunner(MooseControlTestCase):
         """Test __init__() with a socket_path provided."""
         runner = SubprocessSocketRunner(**ARGS, socket_path=FAKE_SOCKET_PATH)
         self.assertEqual(runner.socket_path, FAKE_SOCKET_PATH)
-
-    def test_random_socket_path(self):
-        """Test random_socket_path()."""
-        name = SubprocessSocketRunner.random_socket_path()
-        match_re = rf"{gettempdir()}/moosecontrol_[a-z0-9]{{7}}.sock"
-        self.assertIsNotNone(match(match_re, name))
 
     def test_get_additional_command(self):
         """Test get_additional_command()."""

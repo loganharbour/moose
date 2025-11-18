@@ -11,6 +11,7 @@
 
 from .baserunner import BaseRunner
 from .portrunner import PortRunner
+from .slurmrunner import SlurmRunner
 from .socketrunner import SocketRunner
 from .subprocessportrunner import SubprocessPortRunner
 from .subprocesssocketrunner import SubprocessSocketRunner
@@ -18,6 +19,7 @@ from .subprocesssocketrunner import SubprocessSocketRunner
 __all__ = [
     "BaseRunner",
     "PortRunner",
+    "SlurmRunner",
     "SocketRunner",
     "SubprocessPortRunner",
     "SubprocessSocketRunner",

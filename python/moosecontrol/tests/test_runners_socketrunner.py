@@ -13,8 +13,9 @@
 
 import os
 from pathlib import Path
+from re import match
 from subprocess import PIPE, Popen
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, gettempdir
 from time import sleep
 from typing import Tuple
 from unittest.mock import patch
@@ -287,3 +288,9 @@ class TestSocketRunner(MooseControlTestCase):
         check_baserunner_cleanup_live(self, stderr, process.returncode)
 
         self.assertFalse(os.path.exists(runner.socket_path))
+
+    def test_random_socket_path(self):
+        """Test random_socket_path()."""
+        name = SocketRunner.random_socket_path()
+        match_re = rf"{gettempdir()}/moosecontrol_[a-z0-9]{{7}}.sock"
+        self.assertIsNotNone(match(match_re, name))

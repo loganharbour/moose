@@ -12,6 +12,9 @@
 import os
 import stat
 from logging import getLogger
+from random import choice
+from string import ascii_lowercase, digits
+from tempfile import gettempdir
 
 from moosecontrol.requests_unixsocket import Session
 from moosecontrol.runners import BaseRunner
@@ -126,3 +129,10 @@ class SocketRunner(BaseRunner):
         if self._socket_used and os.path.exists(self._socket_path):
             logger.warning("Socket still exists on cleanup; deleting")
             self.delete_socket()
+
+    @staticmethod
+    def random_socket_path() -> str:
+        """Generate a random socket path in the temporary directory."""
+        characters = ascii_lowercase + digits
+        name = "".join(choice(characters) for i in range(7))
+        return os.path.join(gettempdir(), f"moosecontrol_{name}.sock")

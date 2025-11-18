@@ -11,9 +11,6 @@
 
 import os
 from logging import getLogger
-from random import choice
-from string import ascii_lowercase, digits
-from tempfile import gettempdir
 from typing import Optional
 
 from moosecontrol.runners.interfaces.subprocessrunnerinterface import (
@@ -81,13 +78,6 @@ class SubprocessSocketRunner(SubprocessRunnerInterface, SocketRunner):
             socket_path = os.path.abspath(socket_path)
 
         SocketRunner.__init__(self, socket_path=socket_path, *args, **kwargs)
-
-    @staticmethod
-    def random_socket_path() -> str:
-        """Generate a random socket path in the temporary directory."""
-        characters = ascii_lowercase + digits
-        name = "".join(choice(characters) for i in range(7))
-        return os.path.join(gettempdir(), f"moosecontrol_{name}.sock")
 
     def get_additional_command(self) -> list[str]:
         """
