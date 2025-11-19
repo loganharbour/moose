@@ -76,6 +76,7 @@ class MooseControl:
         self._initialized_data: Optional[WebServerInitializedData] = None
 
         # Setup logger
+        logging.getLogger("paramiko.transport").setLevel(logging.ERROR)
         if not quiet:
             logging.basicConfig(
                 level=logging.DEBUG if verbose else logging.INFO,
